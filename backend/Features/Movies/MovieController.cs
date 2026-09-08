@@ -26,4 +26,17 @@ public class MovieController : ControllerBase
 
         return Ok(movie);
     }
+    [HttpGet("search")]
+    public async Task<ActionResult<TmdbSearchResultDto>> SearchMovies(
+    [FromQuery] string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return BadRequest("Query får inte vara tom.");
+        }
+
+        var movies = await _tmdbService.SearchMovies(query);
+
+        return Ok(movies);
+    }
 }

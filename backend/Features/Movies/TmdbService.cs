@@ -57,4 +57,49 @@ public class TmdbService
             }
         );
     }
+    public async Task<TmdbSearchResultDto?> SearchMovies(string query)
+    {
+        var token = _configuration["TMDB_READ_ACCESS_TOKEN"];
+
+        if (string.IsNullOrEmpty(token))
+        {
+            throw new InvalidOperationException(
+                "TMDB_READ_ACCESS_TOKEN saknas."
+            );
+        }
+
+        var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"search/movie?query={Uri.EscapeDataString(query)}&language=en-US"
+        );
+
+        request.Headers.Accept.Add(
+            new MediaTypeWithQualityHeaderValue("application/json")
+        );
+
+        request.Headers.Authorization =
+            new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _httpClient.SendAsync(request);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadAsStringAsync();
+
+            throw new HttpRequestException(
+                $"TMDB error: {(int)response.StatusCode} " +
+                $"{response.StatusCode}. Response: {error}"
+            );
+        }
+
+        var json = await response.Content.ReadAsStringAsync();
+
+        return JsonSerializer.Deserialize<TmdbSearchResultDto>(
+            json,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }
+        );
+    }
 }
