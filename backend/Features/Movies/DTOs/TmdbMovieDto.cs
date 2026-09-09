@@ -10,6 +10,8 @@ public class TmdbMovieDto
 
     public string? Overview { get; set; }
 
+    public string? Tagline { get; set; }
+
     [JsonPropertyName("poster_path")]
     public string? PosterPath { get; set; }
 
@@ -21,6 +23,20 @@ public class TmdbMovieDto
 
     public int? Runtime { get; set; }
 
+    public List<TmdbGenreDto> Genres { get; set; } = [];
+
     [JsonPropertyName("vote_average")]
     public decimal VoteAverage { get; set; }
+
+    [JsonPropertyName("vote_count")]
+    public int VoteCount { get; set; }
+
+    [JsonPropertyName("original_title")]
+    public string? OriginalTitle { get; set; }
+
+    [JsonPropertyName("original_language")]
+    public string? OriginalLanguage { get; set; }
+
+    [JsonPropertyName("imdb_id")]
+    public string? ImdbId { get; set; }
 }
