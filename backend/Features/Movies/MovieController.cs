@@ -39,4 +39,17 @@ public class MovieController : ControllerBase
 
         return Ok(movies);
     }
+
+    [HttpGet("{tmdbId:int}/credits")]
+    public async Task<ActionResult<TmdbCreditsDto>> GetCredits(int tmdbId)
+    {
+        var credits = await _tmdbService.GetCredits(tmdbId);
+
+        if (credits == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(credits);
+    }
 }
