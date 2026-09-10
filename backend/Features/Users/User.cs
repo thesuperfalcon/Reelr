@@ -1,6 +1,3 @@
-using backend.Features;
-
-
 namespace backend.Features.Users
 {
     public class User

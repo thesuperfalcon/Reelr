@@ -26,9 +26,9 @@ public class MovieController : ControllerBase
 
         return Ok(movie);
     }
+
     [HttpGet("search")]
-    public async Task<ActionResult<TmdbSearchResultDto>> SearchMovies(
-    [FromQuery] string query)
+    public async Task<ActionResult<TmdbSearchResultDto>> SearchMovies([FromQuery] string query)
     {
         if (string.IsNullOrWhiteSpace(query))
         {
@@ -51,5 +51,35 @@ public class MovieController : ControllerBase
         }
 
         return Ok(credits);
+    }
+
+    [HttpGet("{tmdbId:int}/details")]
+    public async Task<ActionResult<MovieDetailsDto>> GetMovieDetails(int tmdbId)
+    {
+        if (tmdbId <= 0)
+        {
+            return BadRequest("tmdbId måste vara ett positivt heltal.");
+        }
+
+        MovieDetailsDto? details;
+
+        try
+        {
+            details = await _tmdbService.GetMovieDetails(tmdbId);
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(
+                StatusCodes.Status502BadGateway,
+                $"Kunde inte hämta data från TMDB: {ex.Message}"
+            );
+        }
+
+        if (details == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(details);
     }
 }

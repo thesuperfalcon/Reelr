@@ -1,5 +1,3 @@
-using backend.Features;
-
 namespace backend.Features.WatchlistItems
 {
     public class WatchlistItem

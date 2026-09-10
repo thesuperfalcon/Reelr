@@ -1,5 +1,3 @@
-using backend.Features;
-
 namespace backend.Features.WatchedMovies
 {
     public class WatchedMovie
