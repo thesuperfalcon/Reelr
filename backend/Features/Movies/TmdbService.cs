@@ -46,12 +46,67 @@ public class TmdbService
     public Task<TmdbMovieDto?> GetMovie(int tmdbId) =>
         GetFromTmdb<TmdbMovieDto>($"movie/{tmdbId}?language=en-US", notFoundReturnsNull: true);
 
-    public Task<TmdbSearchResultDto?> SearchMovies(string query) =>
-        GetFromTmdb<TmdbSearchResultDto>($"search/movie?query={Uri.EscapeDataString(query)}&language=en-US");
+    public Task<TmdbSearchResultDto?> SearchMovies(string query, int page = 1) =>
+        GetFromTmdb<TmdbSearchResultDto>($"search/movie?query={Uri.EscapeDataString(query)}&language=en-US&page={page}");
 
-    public Task<TmdbSearchResultDto?> DiscoverMovies(int? castId, int? crewId, int? studioId, int? genreId)
+    public Task<TmdbPersonSearchResultDto?> SearchPeople(string query, int page = 1) =>
+        GetFromTmdb<TmdbPersonSearchResultDto>($"search/person?query={Uri.EscapeDataString(query)}&language=en-US&page={page}");
+
+    public Task<TmdbCompanySearchResultDto?> SearchCompanies(string query, int page = 1) =>
+        GetFromTmdb<TmdbCompanySearchResultDto>($"search/company?query={Uri.EscapeDataString(query)}&page={page}");
+
+    public async Task<MovieSearchResultDto> SearchAll(string query, int page = 1)
     {
-        var queryParams = new List<string> { "language=en-US" };
+        var moviesTask = SearchMovies(query, page);
+        var peopleTask = SearchPeople(query, page);
+        var companiesTask = SearchCompanies(query, page);
+
+        await Task.WhenAll(moviesTask, peopleTask, companiesTask);
+
+        var movies = await moviesTask;
+        var people = await peopleTask;
+        var companies = await companiesTask;
+
+        var peopleResults = people?.Results ?? [];
+
+        var cast = peopleResults.Where(p => p.KnownForDepartment == "Acting")
+            .OrderByDescending(p => p.Popularity)
+            .ToList();
+
+        var crew = peopleResults.Where(p => p.KnownForDepartment != "Acting")
+            .OrderByDescending(p => p.Popularity)
+            .ToList();
+
+        return new MovieSearchResultDto
+        {
+            Page = page,
+            Movies = BoostExactMatch(movies?.Results ?? [], query, m => m.Title),
+            Cast = BoostExactMatch(cast, query, p => p.Name),
+            Crew = BoostExactMatch(crew, query, p => p.Name),
+            Studios = BoostExactMatch(companies?.Results ?? [], query, c => c.Name)
+        };
+    }
+
+    // TMDB/Letterboxd-style boosting: an exact title/name match ranks above popularity.
+    private static List<T> BoostExactMatch<T>(List<T> items, string query, Func<T, string?> nameSelector)
+    {
+        var exactIndex = items.FindIndex(i => string.Equals(nameSelector(i), query, StringComparison.OrdinalIgnoreCase));
+
+        if (exactIndex <= 0)
+        {
+            return items;
+        }
+
+        var exactMatch = items[exactIndex];
+        items.RemoveAt(exactIndex);
+        items.Insert(0, exactMatch);
+
+        return items;
+    }
+
+    public Task<TmdbSearchResultDto?> DiscoverMovies(int? castId, int? crewId, int? studioId, int? genreId, int page = 1)
+    {
+        var queryParams = new List<string> { "language=en-US", $"page={page}" };
 
         if (castId.HasValue)
         {

@@ -35,11 +35,12 @@ public class MovieController : ControllerBase
         [FromQuery] int? castId,
         [FromQuery] int? crewId,
         [FromQuery] int? studioId,
-        [FromQuery] int? genreId)
+        [FromQuery] int? genreId,
+        [FromQuery] int page = 1)
     {
         if (!string.IsNullOrWhiteSpace(query))
         {
-            var titleResults = await _tmdbService.SearchMovies(query);
+            var titleResults = await _tmdbService.SearchMovies(query, page);
 
             return Ok(titleResults);
         }
@@ -49,7 +50,7 @@ public class MovieController : ControllerBase
             return BadRequest("Provide query, castId, crewId, studioId or genreId.");
         }
 
-        var filteredResults = await _tmdbService.DiscoverMovies(castId, crewId, studioId, genreId);
+        var filteredResults = await _tmdbService.DiscoverMovies(castId, crewId, studioId, genreId, page);
 
         if (filteredResults == null)
         {
@@ -57,6 +58,18 @@ public class MovieController : ControllerBase
         }
 
         return Ok(filteredResults);
+    }
+
+    [HttpGet("search/all")]
+    [EndpointSummary("Search movies, cast, crew and studios")]
+    public async Task<ActionResult<MovieSearchResultDto>> SearchAll([FromQuery] string query)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return BadRequest("Query must not be empty.");
+        }
+
+        return Ok(await _tmdbService.SearchAll(query));
     }
 
     [HttpGet("trending")]
