@@ -49,6 +49,47 @@ public class TmdbService
     public Task<TmdbSearchResultDto?> SearchMovies(string query) =>
         GetFromTmdb<TmdbSearchResultDto>($"search/movie?query={Uri.EscapeDataString(query)}&language=en-US");
 
+    public Task<TmdbSearchResultDto?> DiscoverMovies(int? castId, int? crewId, int? studioId, int? genreId)
+    {
+        var queryParams = new List<string> { "language=en-US" };
+
+        if (castId.HasValue)
+        {
+            queryParams.Add($"with_cast={castId.Value}");
+        }
+
+        if (crewId.HasValue)
+        {
+            queryParams.Add($"with_crew={crewId.Value}");
+        }
+
+        if (studioId.HasValue)
+        {
+            queryParams.Add($"with_companies={studioId.Value}");
+        }
+
+        if (genreId.HasValue)
+        {
+            queryParams.Add($"with_genres={genreId.Value}");
+        }
+
+        return GetFromTmdb<TmdbSearchResultDto>($"discover/movie?{string.Join("&", queryParams)}");
+    }
+
+    public Task<TmdbSearchResultDto?> GetRecommendedMovies(int tmdbId) =>
+        GetFromTmdb<TmdbSearchResultDto>($"movie/{tmdbId}/recommendations?language=en-US", notFoundReturnsNull: true);
+
+    // TMDB note: this method only looks for other items based on genres and plot keywords,
+    // so results are not always going to be accurate. Use it with that in mind.
+    public Task<TmdbSearchResultDto?> GetSimilarMovies(int tmdbId) =>
+        GetFromTmdb<TmdbSearchResultDto>($"movie/{tmdbId}/similar?language=en-US", notFoundReturnsNull: true);
+
+    public Task<TmdbSearchResultDto?> GetTrendingMovies() =>
+        GetFromTmdb<TmdbSearchResultDto>("trending/movie/week?language=en-US");
+
+    public Task<TmdbSearchResultDto?> GetPopularMovies() =>
+        GetFromTmdb<TmdbSearchResultDto>("movie/popular?language=en-US");
+
     public Task<TmdbCreditsDto?> GetCredits(int tmdbId) =>
         GetFromTmdb<TmdbCreditsDto>($"movie/{tmdbId}/credits?language=en-US", notFoundReturnsNull: true);
 
@@ -198,7 +239,7 @@ public class TmdbService
 
         if (string.IsNullOrEmpty(token))
         {
-            throw new InvalidOperationException("TMDB_READ_ACCESS_TOKEN saknas.");
+            throw new InvalidOperationException("TMDB_READ_ACCESS_TOKEN is missing.");
         }
 
         var request = new HttpRequestMessage(HttpMethod.Get, path);

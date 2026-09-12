@@ -15,7 +15,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "Movie", "{{tmdbId}}"]
         },
-        "description": "Hämtar en film via TMDB-id."
+        "description": "Fetches a movie by TMDB id."
       }
     },
     {
@@ -34,7 +34,7 @@
             }
           ]
         },
-        "description": "Söker filmer via titel."
+        "description": "Searches movies by title."
       }
     },
     {
@@ -47,7 +47,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "Movie", "{{tmdbId}}", "credits"]
         },
-        "description": "Hämtar cast/crew för en film."
+        "description": "Fetches cast/crew for a movie."
       }
     },
     {
@@ -60,7 +60,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "Movie", "{{tmdbId}}", "details"]
         },
-        "description": "Hämtar detaljerad filminfo."
+        "description": "Fetches detailed movie info."
       }
     }
   ]
