@@ -1,5 +1,7 @@
 using backend.Data;
 using backend.Features.Movies;
+using backend.Features.Users;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +18,11 @@ builder.Services.AddDbContext<ReelrContext>(options =>
             "Connection string 'ReelrContext' not found."
         )
     ));
+
+builder.Services
+    .AddIdentity<User, IdentityRole<int>>()
+    .AddEntityFrameworkStores<ReelrContext>()
+    .AddDefaultTokenProviders();
 
 builder.Services.AddHttpClient<TmdbService>(client =>
 {
@@ -38,6 +45,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

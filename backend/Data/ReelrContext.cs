@@ -4,18 +4,18 @@ using backend.Features.Reviews;
 using backend.Features.Users;
 using backend.Features.WatchedMovies;
 using backend.Features.WatchlistItems;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Data;
 
-public class ReelrContext : DbContext
+public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
 {
     public ReelrContext(DbContextOptions<ReelrContext> options)
         : base(options)
     {
     }
-
-    public DbSet<User> Users => Set<User>();
 
     public DbSet<Movie> Movies => Set<Movie>();
 

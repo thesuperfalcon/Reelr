@@ -1,13 +1,9 @@
+using Microsoft.AspNetCore.Identity;
+
 namespace backend.Features.Users
 {
-    public class User
+    public class User : IdentityUser<int>
     {
-        public int Id { get; set; }
-
-        public string Username { get; set; } = null!;
-
-        public string Email { get; set; } = null!;
-
         public string? ProfileImageUrl { get; set; }
 
         public ICollection<WatchedMovies.WatchedMovie> WatchedMovies { get; set; } = [];
