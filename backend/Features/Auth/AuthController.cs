@@ -10,10 +10,12 @@ namespace backend.Features.Auth;
 public class AuthController : ControllerBase
 {
     private readonly UserManager<User> _userManager;
+    private readonly TokenService _tokenService;
 
-    public AuthController(UserManager<User> userManager)
+    public AuthController(UserManager<User> userManager, TokenService tokenService)
     {
         _userManager = userManager;
+        _tokenService = tokenService;
     }
 
     [HttpPost("register")]
@@ -44,5 +46,38 @@ public class AuthController : ControllerBase
         }
 
         return Ok(new { user.Id, user.UserName, user.Email });
+    }
+
+    [HttpPost("login")]
+    [EndpointSummary("Log in and receive a JWT")]
+    public async Task<IActionResult> Login([FromBody] LoginDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        var user = await _userManager.FindByEmailAsync(dto.UserInput);
+
+        if (user == null)
+        {
+            user = await _userManager.FindByNameAsync(dto.UserInput);
+        }
+
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
+        var passwordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
+
+        if (!passwordValid)
+        {
+            return Unauthorized();
+        }
+
+        var token = _tokenService.CreateToken(user);
+
+        return Ok(new { token });
     }
 }
