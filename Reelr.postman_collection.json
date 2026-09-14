@@ -1,67 +1,374 @@
 {
   "info": {
+    "_postman_id": "a59ede90-57f7-4eff-b8a0-3586a67ec94b",
     "name": "Reelr API",
-    "description": "Endpoints for MovieController (TMDB proxy).",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "description": "Endpoints for AuthController, MovieController, CompanyController and PersonController.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "40009649"
   },
   "item": [
     {
-      "name": "Get Movie",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "Movie", "{{tmdbId}}"]
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"exampleUser\",\n  \"email\": \"user@example.com\",\n  \"password\": \"P@ssw0rd!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Register a new user."
+          },
+          "response": []
         },
-        "description": "Fetches a movie by TMDB id."
-      }
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userInput\": \"user@example.com\",\n  \"password\": \"P@ssw0rd!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Log in and receive a JWT."
+          },
+          "response": []
+        }
+      ]
     },
     {
-      "name": "Search Movies",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/Movie/search?query={{searchQuery}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "Movie", "search"],
-          "query": [
-            {
-              "key": "query",
-              "value": "{{searchQuery}}"
-            }
-          ]
+      "name": "Movie",
+      "item": [
+        {
+          "name": "Get Movie",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Movie",
+                "{{tmdbId}}"
+              ]
+            },
+            "description": "Get movie by TMDB id."
+          },
+          "response": []
         },
-        "description": "Searches movies by title."
-      }
+        {
+          "name": "Search Movies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Movie/search?query={{searchQuery}}&page=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Movie",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "{{searchQuery}}"
+                },
+                {
+                  "key": "castId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "crewId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "studioId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "genreId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Search movies by title, or filter by castId, crewId, studioId, genreId."
+          },
+          "response": []
+        },
+        {
+          "name": "Search All (movies, cast, crew, studios)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Movie/search/all?query={{searchQuery}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Movie",
+                "search",
+                "all"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "{{searchQuery}}"
+                }
+              ]
+            },
+            "description": "Search movies, cast, crew and studios."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Trending Movies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Movie/trending",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Movie",
+                "trending"
+              ]
+            },
+            "description": "Get trending movies."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Popular Movies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Movie/popular",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Movie",
+                "popular"
+              ]
+            },
+            "description": "Get popular movies."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Recommended Movies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}/recommended",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Movie",
+                "{{tmdbId}}",
+                "recommended"
+              ]
+            },
+            "description": "Get recommended movies for a TMDB id."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Similar Movies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}/similar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Movie",
+                "{{tmdbId}}",
+                "similar"
+              ]
+            },
+            "description": "Get similar movies, based on genres and plot keywords only."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Movie Credits",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}/credits",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Movie",
+                "{{tmdbId}}",
+                "credits"
+              ]
+            },
+            "description": "Get cast and crew for a movie."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Movie Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}/details",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Movie",
+                "{{tmdbId}}",
+                "details"
+              ]
+            },
+            "description": "Get detailed movie info."
+          },
+          "response": []
+        }
+      ]
     },
     {
-      "name": "Get Movie Credits",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}/credits",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "Movie", "{{tmdbId}}", "credits"]
-        },
-        "description": "Fetches cast/crew for a movie."
-      }
+      "name": "Company",
+      "item": [
+        {
+          "name": "Search Companies",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Company/search?query={{searchQuery}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Company",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "{{searchQuery}}"
+                }
+              ]
+            },
+            "description": "Search companies/studios."
+          },
+          "response": []
+        }
+      ]
     },
     {
-      "name": "Get Movie Details",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}/details",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "Movie", "{{tmdbId}}", "details"]
-        },
-        "description": "Fetches detailed movie info."
-      }
+      "name": "Person",
+      "item": [
+        {
+          "name": "Search People",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/Person/search?query={{searchQuery}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "Person",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "{{searchQuery}}"
+                }
+              ]
+            },
+            "description": "Search people (cast/crew)."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "tmdbId",
+      "value": "550"
+    },
+    {
+      "key": "searchQuery",
+      "value": "matrix"
     }
   ]
 }
