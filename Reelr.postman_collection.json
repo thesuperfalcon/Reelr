@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a59ede90-57f7-4eff-b8a0-3586a67ec94b",
     "name": "Reelr API",
-    "description": "Endpoints for AuthController, MovieController, CompanyController and PersonController.",
+    "description": "Endpoints for AuthController, MovieController, WatchlistController, ReviewController, CompanyController and PersonController.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "40009649"
   },
@@ -389,6 +389,152 @@
       ]
     },
     {
+      "name": "Review",
+      "item": [
+        {
+          "name": "Get Reviews",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/movies/{{tmdbId}}/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "movies",
+                "{{tmdbId}}",
+                "reviews"
+              ]
+            },
+            "description": "Get reviews for a movie."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Reviews by User",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}",
+                "reviews"
+              ]
+            },
+            "description": "Get reviews written by a user."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Review",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.environment.set('reviewId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Great movie!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/movies/{{tmdbId}}/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "movies",
+                "{{tmdbId}}",
+                "reviews"
+              ]
+            },
+            "description": "Add a review to a movie. Requires {{authToken}} (run Auth/Login first). Saves the new review's id to {{reviewId}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Review",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Updated review text.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{reviewId}}"
+              ]
+            },
+            "description": "Update a review. Only the review's author can update it."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Review",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{reviewId}}"
+              ]
+            },
+            "description": "Delete a review. Only the review's author can delete it."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Company",
       "item": [
         {
@@ -463,6 +609,14 @@
     {
       "key": "searchQuery",
       "value": "matrix"
+    },
+    {
+      "key": "reviewId",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": "1"
     }
   ]
 }

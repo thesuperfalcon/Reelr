@@ -51,5 +51,10 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
         // WatchlistItem
         modelBuilder.Entity<WatchlistItem>()
             .HasKey(w => new { w.UserId, w.MovieId });
+
+        // Review
+        modelBuilder.Entity<Review>()
+            .HasIndex(r => new { r.UserId, r.MovieId })
+            .IsUnique();
     }
 }
