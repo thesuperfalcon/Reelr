@@ -11,5 +11,9 @@ namespace backend.Features.WatchedMovies
         public Movies.Movie Movie { get; set; } = null!;
 
         public DateTime WatchedAt { get; set; }
+
+        public bool? Liked { get; set; }
+
+        public bool Rewatched { get; set; }
     }
 }
