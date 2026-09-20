@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a59ede90-57f7-4eff-b8a0-3586a67ec94b",
     "name": "Reelr API",
-    "description": "Endpoints for AuthController, MovieController, WatchlistController, StatusController, ReviewController, CompanyController and PersonController.",
+    "description": "Endpoints for AuthController, MovieController, WatchlistController, StatusController, RatingController, ReviewController, CompanyController and PersonController.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "40009649"
   },
@@ -509,6 +509,113 @@
               ]
             },
             "description": "Remove the current user's watched status for a movie."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Rating",
+      "item": [
+        {
+          "name": "Get Rating",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/movies/{{tmdbId}}/rating",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "movies",
+                "{{tmdbId}}",
+                "rating"
+              ]
+            },
+            "description": "Get the current user's rating for a movie."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Rating",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"score\": 4.5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/movies/{{tmdbId}}/rating",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "movies",
+                "{{tmdbId}}",
+                "rating"
+              ]
+            },
+            "description": "Rate a movie. Score must be 0-5 in increments of 0.5. Requires {{authToken}} (run Auth/Login first)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Rating",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"score\": 3.5\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/movies/{{tmdbId}}/rating",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "movies",
+                "{{tmdbId}}",
+                "rating"
+              ]
+            },
+            "description": "Update the current user's rating for a movie. Score must be 0-5 in increments of 0.5."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Rating",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/movies/{{tmdbId}}/rating",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "movies",
+                "{{tmdbId}}",
+                "rating"
+              ]
+            },
+            "description": "Remove the current user's rating for a movie."
           },
           "response": []
         }
