@@ -27,6 +27,8 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
 
     public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
 
+    public DbSet<Follow> Follows => Set<Follow>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -56,5 +58,21 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
         modelBuilder.Entity<Review>()
             .HasIndex(r => new { r.UserId, r.MovieId })
             .IsUnique();
+
+        // Follow
+        modelBuilder.Entity<Follow>()
+            .HasKey(f => new { f.FollowerId, f.FollowedId });
+
+        modelBuilder.Entity<Follow>()
+            .HasOne(f => f.Follower)
+            .WithMany()
+            .HasForeignKey(f => f.FollowerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Follow>()
+            .HasOne(f => f.Followed)
+            .WithMany()
+            .HasForeignKey(f => f.FollowedId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
