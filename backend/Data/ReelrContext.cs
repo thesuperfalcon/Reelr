@@ -1,3 +1,4 @@
+using backend.Features.MovieLists;
 using backend.Features.Movies;
 using backend.Features.Ratings;
 using backend.Features.Reviews;
@@ -28,6 +29,10 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
     public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
 
     public DbSet<Follow> Follows => Set<Follow>();
+
+    public DbSet<MovieList> MovieLists => Set<MovieList>();
+
+    public DbSet<MovieListItem> MovieListItems => Set<MovieListItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -73,6 +78,29 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
             .HasOne(f => f.Followed)
             .WithMany()
             .HasForeignKey(f => f.FollowedId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // MovieList
+        modelBuilder.Entity<MovieList>()
+            .HasOne(l => l.User)
+            .WithMany()
+            .HasForeignKey(l => l.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // MovieListItem
+        modelBuilder.Entity<MovieListItem>()
+            .HasKey(i => new { i.MovieListId, i.MovieId });
+
+        modelBuilder.Entity<MovieListItem>()
+            .HasOne(i => i.MovieList)
+            .WithMany(l => l.Items)
+            .HasForeignKey(i => i.MovieListId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<MovieListItem>()
+            .HasOne(i => i.Movie)
+            .WithMany()
+            .HasForeignKey(i => i.MovieId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
