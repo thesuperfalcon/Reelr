@@ -16,6 +16,24 @@ public class FakeTmdbHandler : HttpMessageHandler
 
     public void AddMovie(TmdbMovieDto movie) => _movies[movie.Id] = movie;
 
+    /// <summary>
+    /// Registers a minimal movie and returns its TMDB id.
+    /// </summary>
+    public int AddMovie(int tmdbId, string title)
+    {
+        AddMovie(new TmdbMovieDto
+        {
+            Id = tmdbId,
+            Title = title,
+            Overview = $"{title} overview",
+            ReleaseDate = "1999-03-31",
+            Runtime = 136,
+            PosterPath = $"/{tmdbId}.jpg"
+        });
+
+        return tmdbId;
+    }
+
     public int RequestsForMovie(int tmdbId) => _movieRequests.GetValueOrDefault(tmdbId);
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

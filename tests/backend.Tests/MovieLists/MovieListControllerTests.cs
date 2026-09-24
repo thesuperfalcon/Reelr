@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using backend.Features.MovieLists.DTOs;
-using backend.Features.Movies.DTOs;
 using backend.Tests.Infrastructure;
 
 namespace backend.Tests.MovieLists;
@@ -16,20 +15,7 @@ public class MovieListControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     // Every test uses its own TMDB ids, since the Movies table is shared within the class.
-    private int AddTmdbMovie(int tmdbId, string title)
-    {
-        _factory.Tmdb.AddMovie(new TmdbMovieDto
-        {
-            Id = tmdbId,
-            Title = title,
-            Overview = $"{title} overview",
-            ReleaseDate = "1999-03-31",
-            Runtime = 136,
-            PosterPath = $"/{tmdbId}.jpg"
-        });
-
-        return tmdbId;
-    }
+    private int AddTmdbMovie(int tmdbId, string title) => _factory.Tmdb.AddMovie(tmdbId, title);
 
     private static async Task<MovieListDto> CreateListAsync(HttpClient client, string name = "My list", bool isPublic = true)
     {
