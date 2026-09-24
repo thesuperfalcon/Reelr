@@ -25,7 +25,10 @@ builder.Services.AddDbContext<ReelrContext>(options =>
     ));
 
 builder.Services
-    .AddIdentity<User, IdentityRole<int>>()
+    .AddIdentity<User, IdentityRole<int>>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+    })
     .AddEntityFrameworkStores<ReelrContext>()
     .AddDefaultTokenProviders();
 

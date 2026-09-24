@@ -117,7 +117,27 @@ namespace backend.Features.Users
                 return NotFound();
             }
 
-            await _userManager.DeleteAsync(user);
+            // Follows use DeleteBehavior.Restrict (SQL Server disallows two cascade paths),
+            // so they must be removed before the user.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            await _context.Set<Follow>()
+                .Where(f => f.FollowerId == id || f.FollowedId == id)
+                .ExecuteDeleteAsync();
+
+            var result = await _userManager.DeleteAsync(user);
+
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError(error.Code, error.Description);
+                }
+
+                return ValidationProblem(ModelState);
+            }
+
+            await transaction.CommitAsync();
 
             return NoContent();
         }
