@@ -25,11 +25,13 @@ jobs:
         env:
           ACCEPT_EULA: "Y"
           # Throwaway container that only lives for this job. Set in repo secrets.
+          # The health check reads it from the container environment, since
+          # the secrets context is not available in service options.
           MSSQL_SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
         ports:
           - 1433:1433
         options: >-
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '${{ secrets.MSSQL_SA_PASSWORD }}' -C -Q 'SELECT 1' -b"
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $MSSQL_SA_PASSWORD -C -Q 'SELECT 1' -b"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
