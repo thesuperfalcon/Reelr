@@ -11,6 +11,8 @@ import { MoviePage } from "./pages/MoviePage";
 import { SearchPage } from "./pages/SearchPage";
 import { LoginPage, RegisterPage } from "./pages/AuthPages";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { RequireAuth } from "./auth/RequireAuth";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,6 +34,10 @@ const router = createBrowserRouter([
       { path: "search", element: <SearchPage /> },
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
+      {
+        element: <RequireAuth />,
+        children: [{ path: "profile", element: <ProfilePage /> }],
+      },
       { path: "*", element: <NotFoundPage /> },
     ],
   },

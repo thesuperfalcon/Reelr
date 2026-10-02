@@ -248,6 +248,65 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
+    // ---- Followers / following lists ----
+
+    [Fact]
+    public async Task GetFollowers_IsPublicAndListsFollowers()
+    {
+        var target = await _factory.CreateAuthenticatedAsync();
+        var alice = await _factory.CreateAuthenticatedAsync();
+        var bob = await _factory.CreateAuthenticatedAsync();
+        await FollowAsync(alice, target);
+        await FollowAsync(bob, target);
+
+        var followers = await _factory.CreateClient()
+            .GetFromJsonAsync<List<UserSummaryDto>>($"/api/users/{target.Id}/followers");
+
+        Assert.NotNull(followers);
+        Assert.Equal(
+            new[] { alice.Id, bob.Id }.Order(),
+            followers.Select(f => f.Id).Order());
+        Assert.Contains(followers, f => f.Id == alice.Id && f.UserName == alice.Username);
+    }
+
+    [Fact]
+    public async Task GetFollowing_ListsFollowedUsersOnly()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var followed = await _factory.CreateAuthenticatedAsync();
+        var follower = await _factory.CreateAuthenticatedAsync();
+        await FollowAsync(user, followed);
+        await FollowAsync(follower, user);
+
+        var following = await _factory.CreateClient()
+            .GetFromJsonAsync<List<UserSummaryDto>>($"/api/users/{user.Id}/following");
+
+        var only = Assert.Single(following!);
+        Assert.Equal(followed.Id, only.Id);
+        Assert.Equal(followed.Username, only.UserName);
+    }
+
+    [Fact]
+    public async Task GetFollowers_NoFollowers_ReturnsEmptyList()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+
+        var followers = await _factory.CreateClient()
+            .GetFromJsonAsync<List<UserSummaryDto>>($"/api/users/{user.Id}/followers");
+
+        Assert.Empty(followers!);
+    }
+
+    [Theory]
+    [InlineData("followers")]
+    [InlineData("following")]
+    public async Task GetFollowList_UnknownUser_Returns404(string list)
+    {
+        var response = await _factory.CreateClient().GetAsync($"/api/users/999999/{list}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     // ---- Unfollow ----
 
     [Fact]
