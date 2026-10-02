@@ -33,3 +33,6 @@ Thumbs.db
 
 # Test output
 TestResults/
+
+# Docker Compose secrets
+.env

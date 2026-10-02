@@ -83,6 +83,13 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// Apply pending migrations at startup, e.g. when running in Docker.
+if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+{
+    using var scope = app.Services.CreateScope();
+    scope.ServiceProvider.GetRequiredService<ReelrContext>().Database.Migrate();
+}
+
 // HTTP pipeline
 if (app.Environment.IsDevelopment())
 {
