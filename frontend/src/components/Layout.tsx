@@ -32,7 +32,16 @@ function SearchBox() {
   );
 }
 
-const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+function UserIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4" aria-hidden="true">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21a8 8 0 0 1 16 0" />
+    </svg>
+  );
+}
+
+const navLinkClass =({ isActive }: { isActive: boolean }) =>
   `text-sm font-medium transition-colors hover:text-screen ${isActive ? "text-screen" : "text-haze"}`;
 
 export function Layout() {
@@ -60,7 +69,27 @@ export function Layout() {
           <div className="ml-auto flex items-center gap-4 sm:ml-0">
             {user ? (
               <>
-                <span className="text-sm text-screen">{user.username}</span>
+                <NavLink
+                  to="/profile"
+                  aria-label={`Profile of ${user.username}`}
+                  title="Your profile"
+                  className={({ isActive }) =>
+                    `flex items-center gap-2 rounded-full ${navLinkClass({ isActive })}`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span
+                        className={`flex size-8 items-center justify-center rounded-full transition-colors ${
+                          isActive ? "bg-projector text-salon" : "bg-row text-screen hover:bg-row-raised"
+                        }`}
+                      >
+                        <UserIcon />
+                      </span>
+                      <span className="hidden sm:inline">{user.username}</span>
+                    </>
+                  )}
+                </NavLink>
                 <button
                   type="button"
                   onClick={logout}

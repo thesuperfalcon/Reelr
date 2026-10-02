@@ -1,6 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "./api";
-import type { MovieDetails, SearchAllResult, SearchResult } from "./types";
+import type {
+  DiaryEntry,
+  MovieDetails,
+  SearchAllResult,
+  SearchResult,
+  UserProfile,
+  WatchlistEntry,
+} from "./types";
 
 export function useTrendingMovies() {
   return useQuery({
@@ -38,5 +45,27 @@ export function useSearchAll(query: string) {
     queryKey: ["search", trimmed],
     queryFn: () => api<SearchAllResult>(`/api/movie/search/all?query=${encodeURIComponent(trimmed)}`),
     enabled: trimmed.length > 0,
+  });
+}
+
+export function useUserProfile(userId: number) {
+  return useQuery({
+    queryKey: ["users", userId],
+    queryFn: () => api<UserProfile>(`/api/users/${userId}`),
+  });
+}
+
+// Watchlist and diary belong to the logged-in user. Logout clears the cache.
+export function useWatchlist() {
+  return useQuery({
+    queryKey: ["me", "watchlist"],
+    queryFn: () => api<WatchlistEntry[]>("/api/watchlist"),
+  });
+}
+
+export function useDiary() {
+  return useQuery({
+    queryKey: ["me", "diary"],
+    queryFn: () => api<DiaryEntry[]>("/api/watched"),
   });
 }

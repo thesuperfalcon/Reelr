@@ -97,3 +97,27 @@ export interface CurrentUser {
   id: number;
   username: string;
 }
+
+export interface UserProfile {
+  id: number;
+  userName: string;
+  profileImageUrl: string | null;
+  followerCount: number;
+  followingCount: number;
+}
+
+export interface WatchlistEntry {
+  tmdbId: number;
+  title: string;
+  posterUrl: string | null;
+  addedAt: string;
+}
+
+export interface DiaryEntry {
+  tmdbId: number;
+  title: string;
+  posterUrl: string | null;
+  liked: boolean | null;
+  rewatched: boolean;
+  watchedAt: string;
+}
