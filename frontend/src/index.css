@@ -1,1 +1,41 @@
 @import "tailwindcss";
+
+@theme {
+  --color-salon: #1a1420;
+  --color-row: #251c2c;
+  --color-row-raised: #31263a;
+  --color-screen: #ede6da;
+  --color-haze: #a89ca8;
+  --color-projector: #f2b544;
+  --color-alarm: #e8766b;
+
+  --font-marquee: "Big Shoulders Display", "Arial Narrow", sans-serif;
+  --font-sans: "Instrument Sans", system-ui, sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-salon text-screen font-sans antialiased;
+    line-height: 1.55;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-projector;
+  }
+
+  ::selection {
+    @apply bg-projector text-salon;
+  }
+}
+
+@utility marquee {
+  font-family: var(--font-marquee);
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}

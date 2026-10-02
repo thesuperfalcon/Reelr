@@ -30,3 +30,9 @@ pnpm-debug.log*
 Thumbs.db
 *.swp
 *.swo
+
+# Test output
+TestResults/
+
+# Docker Compose secrets
+.env
