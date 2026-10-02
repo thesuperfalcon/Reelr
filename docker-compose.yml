@@ -1,9 +1,15 @@
+# Secrets come from a .env file next to this one (git-ignored). It must define:
+#   MSSQL_SA_PASSWORD               SQL Server sa password (8+ chars, upper, lower, digit, symbol)
+#   ConnectionStrings__ReelrContext SQL Server connection string to host "db", database "Reelr", user "sa"
+#                                   with the sa password above, and TrustServerCertificate=True
+#   Jwt__Key                        JWT signing key, 32+ chars
+#   TMDB_READ_ACCESS_TOKEN          TMDB API Read Access Token
 services:
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
       ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}
+    env_file: .env
     ports:
       - "1433:1433"
     volumes:
@@ -19,10 +25,8 @@ services:
     build: ./backend
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__ReelrContext: "Server=db,1433;Database=Reelr;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
       Database__MigrateOnStartup: "true"
-      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in .env}
-      TMDB_READ_ACCESS_TOKEN: ${TMDB_READ_ACCESS_TOKEN:?Set TMDB_READ_ACCESS_TOKEN in .env}
+    env_file: .env
     ports:
       - "5084:8080"
     depends_on:
