@@ -45,6 +45,52 @@ namespace backend.Features.Users
             });
         }
 
+        [HttpGet("{id:int}/followers")]
+        [EndpointSummary("Get the users who follow a user")]
+        public async Task<ActionResult<List<UserSummaryDto>>> GetFollowers(int id)
+        {
+            if (!await _context.Users.AnyAsync(u => u.Id == id))
+            {
+                return NotFound();
+            }
+
+            var followers = await _context.Set<Follow>()
+                .Where(f => f.FollowedId == id)
+                .Select(f => new UserSummaryDto
+                {
+                    Id = f.Follower.Id,
+                    UserName = f.Follower.UserName ?? string.Empty,
+                    ProfileImageUrl = f.Follower.ProfileImageUrl
+                })
+                .OrderBy(u => u.UserName)
+                .ToListAsync();
+
+            return Ok(followers);
+        }
+
+        [HttpGet("{id:int}/following")]
+        [EndpointSummary("Get the users a user follows")]
+        public async Task<ActionResult<List<UserSummaryDto>>> GetFollowing(int id)
+        {
+            if (!await _context.Users.AnyAsync(u => u.Id == id))
+            {
+                return NotFound();
+            }
+
+            var following = await _context.Set<Follow>()
+                .Where(f => f.FollowerId == id)
+                .Select(f => new UserSummaryDto
+                {
+                    Id = f.Followed.Id,
+                    UserName = f.Followed.UserName ?? string.Empty,
+                    ProfileImageUrl = f.Followed.ProfileImageUrl
+                })
+                .OrderBy(u => u.UserName)
+                .ToListAsync();
+
+            return Ok(following);
+        }
+
         [Authorize]
         [HttpPut("{id:int}")]
         [EndpointSummary("Update the current user's profile")]

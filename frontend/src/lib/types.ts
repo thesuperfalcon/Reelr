@@ -121,3 +121,9 @@ export interface DiaryEntry {
   rewatched: boolean;
   watchedAt: string;
 }
+
+export interface UserSummary {
+  id: number;
+  userName: string;
+  profileImageUrl: string | null;
+}

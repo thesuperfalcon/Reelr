@@ -6,6 +6,7 @@ import type {
   SearchAllResult,
   SearchResult,
   UserProfile,
+  UserSummary,
   WatchlistEntry,
 } from "./types";
 
@@ -67,5 +68,12 @@ export function useDiary() {
   return useQuery({
     queryKey: ["me", "diary"],
     queryFn: () => api<DiaryEntry[]>("/api/watched"),
+  });
+}
+
+export function useFollowList(userId: number, list: "followers" | "following") {
+  return useQuery({
+    queryKey: ["users", userId, list],
+    queryFn: () => api<UserSummary[]>(`/api/users/${userId}/${list}`),
   });
 }
