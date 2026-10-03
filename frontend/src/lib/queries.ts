@@ -6,6 +6,7 @@ import type {
   Rating,
   SearchAllResult,
   SearchResult,
+  Status,
   UserProfile,
   UserSummary,
   WatchlistEntry,
@@ -105,17 +106,58 @@ export function useMyRating(tmdbId: number) {
   });
 }
 
-// Rating a film also logs it in the diary, so both caches refresh.
-export function useSaveRating(tmdbId: number) {
+// Resolves to null when the film is not in the user's diary (the API answers 404).
+export function useMyStatus(tmdbId: number) {
+  return useQuery({
+    queryKey: ["me", "status", tmdbId],
+    queryFn: async () => {
+      try {
+        return await api<Status>(`/api/movies/${tmdbId}/status`);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          return null;
+        }
+        throw error;
+      }
+    },
+  });
+}
+
+export interface DiaryEntryInput {
+  /** New score, or null to leave the rating as it is. */
+  score: number | null;
+  ratingExists: boolean;
+  /** New liked/rewatched values, or null to leave the status as it is. */
+  status: Pick<Status, "liked" | "rewatched"> | null;
+  statusExists: boolean;
+}
+
+// Saves rating and status from the rating dialog. Rating a film also logs it in the diary,
+// so the rating goes first and the status then updates that diary entry.
+export function useSaveDiaryEntry(tmdbId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ score, exists }: { score: number; exists: boolean }) =>
-      api<Rating>(`/api/movies/${tmdbId}/rating`, {
-        method: exists ? "PUT" : "POST",
-        body: JSON.stringify({ score }),
-      }),
-    onSuccess: (rating) => queryClient.setQueryData(["me", "rating", tmdbId], rating),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+    mutationFn: async ({ score, ratingExists, status, statusExists }: DiaryEntryInput) => {
+      if (score !== null) {
+        const rating = await api<Rating>(`/api/movies/${tmdbId}/rating`, {
+          method: ratingExists ? "PUT" : "POST",
+          body: JSON.stringify({ score }),
+        });
+        queryClient.setQueryData(["me", "rating", tmdbId], rating);
+      }
+      if (status !== null) {
+        const saved = await api<Status>(`/api/movies/${tmdbId}/status`, {
+          method: statusExists || score !== null ? "PUT" : "POST",
+          body: JSON.stringify(status),
+        });
+        queryClient.setQueryData(["me", "status", tmdbId], saved);
+      }
+    },
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["me", "status", tmdbId] }),
+        queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+      ]),
   });
 }
 

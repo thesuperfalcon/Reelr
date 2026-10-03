@@ -6,7 +6,7 @@ import { RatingDialog } from "../components/RatingDialog";
 import { STAR_PATH, Stars } from "../components/Stars";
 import { ErrorMessage, Loading } from "../components/Status";
 import { ApiError } from "../lib/api";
-import { useMovieDetails, useMyRating, useSimilarMovies, useToggleWatchlist, useWatchlist } from "../lib/queries";
+import { useMovieDetails, useMyRating, useMyStatus, useSimilarMovies, useToggleWatchlist, useWatchlist } from "../lib/queries";
 import { formatRuntime, releaseYear, tmdbImage } from "../lib/tmdb";
 import type { CastMember, MovieDetails } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
@@ -50,16 +50,22 @@ function WatchlistButton({ tmdbId, title }: { tmdbId: number; title: string | nu
 
 function RateButton({ movie }: { movie: MovieDetails }) {
   const rating = useMyRating(movie.id);
+  const status = useMyStatus(movie.id);
   const [open, setOpen] = useState(false);
   const score = rating.data?.score ?? null;
-  const label = score === null ? `Rate ${movie.title ?? "film"}` : `Your rating: ${score} out of 5 stars. Change rating`;
+  const liked = status.data?.liked === true;
+  const rewatched = status.data?.rewatched === true;
+  const statusText = [liked && "Liked", rewatched && "Rewatch"].filter(Boolean).join(", ");
+  const label =
+    (score === null ? `Rate ${movie.title ?? "film"}` : `Your rating: ${score} out of 5 stars. Change rating`) +
+    (statusText ? `. ${statusText}` : "");
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        disabled={rating.isPending}
+        disabled={rating.isPending || status.isPending}
         aria-label={label}
         title={label}
         aria-haspopup="dialog"
@@ -78,8 +84,21 @@ function RateButton({ movie }: { movie: MovieDetails }) {
             <Stars score={score} className="h-4" />
           </>
         )}
+        {rewatched && <span className="text-haze">Rewatch</span>}
+        {liked && (
+          <span className="text-alarm" aria-hidden="true">
+            ♥
+          </span>
+        )}
       </button>
-      {open && <RatingDialog movie={movie} current={score} onClose={() => setOpen(false)} />}
+      {open && (
+        <RatingDialog
+          movie={movie}
+          current={score}
+          currentStatus={status.data ?? null}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </>
   );
 }

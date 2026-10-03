@@ -133,3 +133,10 @@ export interface Rating {
   tmdbId: number;
   score: number;
 }
+
+export interface Status {
+  tmdbId: number;
+  liked: boolean | null;
+  rewatched: boolean;
+  watchedAt: string;
+}

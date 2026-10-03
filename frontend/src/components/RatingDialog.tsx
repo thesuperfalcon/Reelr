@@ -1,21 +1,48 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { useDeleteRating, useSaveRating } from "../lib/queries";
+import { useDeleteRating, useSaveDiaryEntry } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
-import type { MovieDetails } from "../lib/types";
+import type { MovieDetails, Status } from "../lib/types";
 import { StarInput } from "./Stars";
 
 interface RatingDialogProps {
   movie: MovieDetails;
   current: number | null;
+  currentStatus: Status | null;
   onClose: () => void;
 }
 
-export function RatingDialog({ movie, current, onClose }: RatingDialogProps) {
+function StatusToggle({
+  pressed,
+  onToggle,
+  children,
+}: {
+  pressed: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      onClick={onToggle}
+      className={`inline-flex h-9 items-center gap-2 rounded-sm px-3 text-sm font-medium ring-1 transition ${
+        pressed ? "bg-row-raised text-screen ring-white/30" : "text-haze ring-white/15 hover:text-screen"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+export function RatingDialog({ movie, current, currentStatus, onClose }: RatingDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const labelId = useId();
   const titleId = useId();
+  const statusLabelId = useId();
   const [score, setScore] = useState<number | null>(current);
-  const save = useSaveRating(movie.id);
+  const [liked, setLiked] = useState<boolean | null>(currentStatus?.liked ?? null);
+  const [rewatched, setRewatched] = useState(currentStatus?.rewatched ?? false);
+  const save = useSaveDiaryEntry(movie.id);
   const remove = useDeleteRating(movie.id);
   const busy = save.isPending || remove.isPending;
   const error = save.error ?? remove.error;
@@ -28,14 +55,24 @@ export function RatingDialog({ movie, current, onClose }: RatingDialogProps) {
   }, []);
 
   function submit() {
-    if (score === null) {
-      return;
-    }
-    if (score === current) {
+    const scoreChanged = score !== null && score !== current;
+    const statusChanged =
+      liked !== (currentStatus?.liked ?? null) || rewatched !== (currentStatus?.rewatched ?? false);
+
+    if (!scoreChanged && !statusChanged) {
       onClose();
       return;
     }
-    save.mutate({ score, exists: current !== null }, { onSuccess: onClose });
+
+    save.mutate(
+      {
+        score: scoreChanged ? score : null,
+        ratingExists: current !== null,
+        status: statusChanged ? { liked, rewatched } : null,
+        statusExists: currentStatus !== null,
+      },
+      { onSuccess: onClose },
+    );
   }
 
   return (
@@ -82,6 +119,23 @@ export function RatingDialog({ movie, current, onClose }: RatingDialogProps) {
           </p>
         </div>
 
+        <div className="mt-4 border-t border-white/5 pt-6 text-center">
+          <p id={statusLabelId} className="text-sm text-haze">
+            Status
+          </p>
+          <div role="group" aria-labelledby={statusLabelId} className="mt-3 flex justify-center gap-3">
+            <StatusToggle pressed={liked === true} onToggle={() => setLiked(liked === true ? null : true)}>
+              <span className={liked === true ? "text-alarm" : ""} aria-hidden="true">
+                ♥
+              </span>
+              Liked
+            </StatusToggle>
+            <StatusToggle pressed={rewatched} onToggle={() => setRewatched(!rewatched)}>
+              Rewatch
+            </StatusToggle>
+          </div>
+        </div>
+
         {error && (
           <p role="alert" className="mt-4 text-sm text-alarm">
             {error.message}
@@ -109,7 +163,7 @@ export function RatingDialog({ movie, current, onClose }: RatingDialogProps) {
             </button>
             <button
               type="submit"
-              disabled={busy || score === null}
+              disabled={busy}
               className="rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-50"
             >
               {save.isPending ? "Saving…" : "Save"}
