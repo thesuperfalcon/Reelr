@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "./api";
 import type {
   DiaryEntry,
@@ -61,6 +61,15 @@ export function useWatchlist() {
   return useQuery({
     queryKey: ["me", "watchlist"],
     queryFn: () => api<WatchlistEntry[]>("/api/watchlist"),
+  });
+}
+
+export function useToggleWatchlist(tmdbId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (onWatchlist: boolean) =>
+      api<void>(`/api/watchlist/${tmdbId}`, { method: onWatchlist ? "DELETE" : "POST" }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["me", "watchlist"] }),
   });
 }
 

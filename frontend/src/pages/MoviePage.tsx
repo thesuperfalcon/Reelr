@@ -1,8 +1,9 @@
 import { useParams } from "react-router";
+import { useAuth } from "../auth/auth-context";
 import { Poster } from "../components/Poster";
 import { ErrorMessage, Loading } from "../components/Status";
 import { ApiError } from "../lib/api";
-import { useMovieDetails, useSimilarMovies } from "../lib/queries";
+import { useMovieDetails, useSimilarMovies, useToggleWatchlist, useWatchlist } from "../lib/queries";
 import { formatRuntime, releaseYear, tmdbImage } from "../lib/tmdb";
 import type { CastMember, MovieDetails } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
@@ -18,6 +19,29 @@ function Backdrop({ path }: { path: string | null }) {
       <img src={src} alt="" className="h-full w-full object-cover object-top opacity-70" />
       <div className="absolute inset-0 bg-gradient-to-t from-salon via-salon/40 to-salon/10" />
     </div>
+  );
+}
+
+function WatchlistButton({ tmdbId, title }: { tmdbId: number; title: string | null }) {
+  const watchlist = useWatchlist();
+  const toggle = useToggleWatchlist(tmdbId);
+  const onWatchlist = watchlist.data?.some((entry) => entry.tmdbId === tmdbId) ?? false;
+  const label = `${onWatchlist ? "Remove" : "Add"} ${title ?? "film"} ${onWatchlist ? "from" : "to"} watchlist`;
+
+  return (
+    <button
+      type="button"
+      onClick={() => toggle.mutate(onWatchlist)}
+      disabled={watchlist.isPending || toggle.isPending}
+      aria-label={label}
+      aria-pressed={onWatchlist}
+      title={label}
+      className="inline-flex size-9 items-center justify-center rounded-sm text-projector ring-1 ring-white/15 transition hover:bg-row disabled:opacity-50"
+    >
+      <svg viewBox="0 0 24 24" fill={onWatchlist ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="size-5" aria-hidden="true">
+        <path d="M6 3h12v18l-6-4-6 4z" />
+      </svg>
+    </button>
   );
 }
 
@@ -105,6 +129,7 @@ function SimilarMovies({ tmdbId }: { tmdbId: number }) {
 
 export function MoviePage() {
   const tmdbId = Number(useParams().tmdbId);
+  const { user } = useAuth();
   const details = useMovieDetails(tmdbId);
 
   if (!Number.isInteger(tmdbId) || tmdbId <= 0 || (details.error instanceof ApiError && details.error.status === 404)) {
@@ -159,15 +184,20 @@ export function MoviePage() {
             {movie.tagline && <p className="mt-6 text-lg text-projector">{movie.tagline}</p>}
             {movie.overview && <p className="mt-4 max-w-prose text-screen/90">{movie.overview}</p>}
 
-            {trailer && (
-              <a
-                href={`https://www.youtube.com/watch?v=${trailer.key}`}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-6 inline-block rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110"
-              >
-                Watch trailer on YouTube
-              </a>
+            {(trailer || user) && (
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                {trailer && (
+                  <a
+                    href={`https://www.youtube.com/watch?v=${trailer.key}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110"
+                  >
+                    Watch trailer on YouTube
+                  </a>
+                )}
+                {user && <WatchlistButton tmdbId={tmdbId} title={movie.title} />}
+              </div>
             )}
 
             <Facts movie={movie} />
