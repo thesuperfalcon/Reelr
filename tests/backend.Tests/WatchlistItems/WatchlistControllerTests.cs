@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
+using backend.Features.Ratings.DTOs;
+using backend.Features.WatchedMovies.DTOs;
 using backend.Tests.Infrastructure;
 
 namespace backend.Tests.WatchlistItems;
@@ -141,6 +143,69 @@ public class WatchlistControllerTests : IClassFixture<ReelrApiFactory>
         await AddAsync(bob.Client, tmdbId);
 
         await bob.Client.DeleteAsync($"/api/watchlist/{tmdbId}");
+
+        Assert.Single((await GetWatchlistAsync(alice.Client))!);
+    }
+
+    // ---- Watched ----
+
+    [Fact]
+    public async Task MarkWatched_RemovesMovieFromWatchlist()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var watchedId = _factory.Tmdb.AddMovie(9010, "Watched");
+        var keepId = _factory.Tmdb.AddMovie(9011, "Still to watch");
+        await AddAsync(user.Client, watchedId);
+        await AddAsync(user.Client, keepId);
+
+        var response = await user.Client.PostAsJsonAsync($"/api/movies/{watchedId}/status", new CreateStatusDto());
+
+        response.EnsureSuccessStatusCode();
+        Assert.Equal([keepId], (await GetWatchlistAsync(user.Client))!.Select(w => w.TmdbId));
+    }
+
+    [Fact]
+    public async Task Rate_RemovesMovieFromWatchlist()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(9012, "Rated");
+        await AddAsync(user.Client, tmdbId);
+
+        var response = await user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/rating", new CreateRatingDto { Score = 4 });
+
+        response.EnsureSuccessStatusCode();
+        Assert.Empty((await GetWatchlistAsync(user.Client))!);
+    }
+
+    [Fact]
+    public async Task WatchedMovie_CanBeReaddedAndIsRemovedWhenLoggedAgain()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(9013, "Rewatch");
+        await AddAsync(user.Client, tmdbId);
+        (await user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/rating", new CreateRatingDto { Score = 3 })).EnsureSuccessStatusCode();
+
+        await AddAsync(user.Client, tmdbId);
+        Assert.Single((await GetWatchlistAsync(user.Client))!);
+
+        (await user.Client.PutAsJsonAsync($"/api/movies/{tmdbId}/status", new UpdateStatusDto { Rewatched = true })).EnsureSuccessStatusCode();
+        Assert.Empty((await GetWatchlistAsync(user.Client))!);
+
+        await AddAsync(user.Client, tmdbId);
+        (await user.Client.PutAsJsonAsync($"/api/movies/{tmdbId}/rating", new UpdateRatingDto { Score = 4.5m })).EnsureSuccessStatusCode();
+        Assert.Empty((await GetWatchlistAsync(user.Client))!);
+    }
+
+    [Fact]
+    public async Task MarkWatched_DoesNotAffectOtherUsersWatchlist()
+    {
+        var alice = await _factory.CreateAuthenticatedAsync();
+        var bob = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(9014, "Shared watched");
+        await AddAsync(alice.Client, tmdbId);
+        await AddAsync(bob.Client, tmdbId);
+
+        (await bob.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/status", new CreateStatusDto())).EnsureSuccessStatusCode();
 
         Assert.Single((await GetWatchlistAsync(alice.Client))!);
     }

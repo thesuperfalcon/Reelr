@@ -157,6 +157,8 @@ export function useSaveDiaryEntry(tmdbId: number) {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ["me", "status", tmdbId] }),
         queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+        // Logging a film removes it from the watchlist on the server.
+        queryClient.invalidateQueries({ queryKey: ["me", "watchlist"] }),
       ]),
   });
 }

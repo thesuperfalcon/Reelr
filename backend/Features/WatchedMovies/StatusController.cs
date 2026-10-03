@@ -1,6 +1,7 @@
 using backend.Data;
 using backend.Features.Movies;
 using backend.Features.WatchedMovies.DTOs;
+using backend.Features.WatchlistItems;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -122,6 +123,7 @@ namespace backend.Features.WatchedMovies
             };
 
             _context.WatchedMovies.Add(status);
+            await _context.RemoveWatchedFromWatchlistAsync(userId, movie.Id);
             await _context.SaveChangesAsync();
 
             return Ok(new StatusDto
@@ -150,6 +152,7 @@ namespace backend.Features.WatchedMovies
             status.Liked = dto.Liked;
             status.Rewatched = dto.Rewatched;
 
+            await _context.RemoveWatchedFromWatchlistAsync(userId, status.MovieId);
             await _context.SaveChangesAsync();
 
             return Ok(new StatusDto

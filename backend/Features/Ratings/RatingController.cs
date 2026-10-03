@@ -2,6 +2,7 @@ using backend.Data;
 using backend.Features.Movies;
 using backend.Features.Ratings.DTOs;
 using backend.Features.WatchedMovies;
+using backend.Features.WatchlistItems;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -158,9 +159,11 @@ namespace backend.Features.Ratings
             return NoContent();
         }
 
-        // A rated film counts as watched, so it shows up in the user's diary.
+        // A rated film counts as watched, so it shows up in the user's diary and leaves the watchlist.
         private async Task EnsureWatchedAsync(int userId, int movieId)
         {
+            await _context.RemoveWatchedFromWatchlistAsync(userId, movieId);
+
             var watched = await _context.WatchedMovies
                 .AnyAsync(w => w.UserId == userId && w.MovieId == movieId);
 
