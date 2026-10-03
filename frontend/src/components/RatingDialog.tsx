@@ -65,12 +65,7 @@ export function RatingDialog({ movie, current, currentStatus, onClose }: RatingD
     }
 
     save.mutate(
-      {
-        score: scoreChanged ? score : null,
-        ratingExists: current !== null,
-        status: statusChanged ? { liked, rewatched } : null,
-        statusExists: currentStatus !== null,
-      },
+      { score: scoreChanged ? score : null, liked, rewatched },
       { onSuccess: onClose },
     );
   }

@@ -1,4 +1,5 @@
 using backend.Data;
+using backend.Features.Diary;
 using backend.Features.Movies;
 using backend.Features.Ratings.DTOs;
 using backend.Features.WatchedMovies;
@@ -98,7 +99,7 @@ namespace backend.Features.Ratings
             };
 
             _context.Ratings.Add(rating);
-            await EnsureWatchedAsync(userId, movie.Id);
+            await LogRatingAsync(userId, movie.Id, rating.Score);
             await _context.SaveChangesAsync();
 
             return Ok(new RatingDto
@@ -129,7 +130,7 @@ namespace backend.Features.Ratings
 
             rating.Score = dto.Score;
 
-            await EnsureWatchedAsync(userId, rating.MovieId);
+            await LogRatingAsync(userId, rating.MovieId, rating.Score);
             await _context.SaveChangesAsync();
 
             return Ok(new RatingDto
@@ -159,23 +160,27 @@ namespace backend.Features.Ratings
             return NoContent();
         }
 
-        // A rated film counts as watched, so it shows up in the user's diary and leaves the watchlist.
-        private async Task EnsureWatchedAsync(int userId, int movieId)
+        // A rated film counts as watched, so each rating logs a new diary entry and the film leaves the watchlist.
+        private async Task LogRatingAsync(int userId, int movieId, decimal score)
         {
             await _context.RemoveWatchedFromWatchlistAsync(userId, movieId);
 
-            var watched = await _context.WatchedMovies
-                .AnyAsync(w => w.UserId == userId && w.MovieId == movieId);
+            var status = await _context.WatchedMovies
+                .FirstOrDefaultAsync(w => w.UserId == userId && w.MovieId == movieId);
 
-            if (!watched)
+            if (status == null)
             {
-                _context.WatchedMovies.Add(new WatchedMovie
+                status = new WatchedMovie
                 {
                     UserId = userId,
                     MovieId = movieId,
                     WatchedAt = DateTime.UtcNow
-                });
+                };
+
+                _context.WatchedMovies.Add(status);
             }
+
+            _context.LogDiaryEntry(status, score);
         }
 
         private static bool IsHalfStep(decimal score)

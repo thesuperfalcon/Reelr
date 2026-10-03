@@ -126,35 +126,27 @@ export function useMyStatus(tmdbId: number) {
 export interface DiaryEntryInput {
   /** New score, or null to leave the rating as it is. */
   score: number | null;
-  ratingExists: boolean;
-  /** New liked/rewatched values, or null to leave the status as it is. */
-  status: Pick<Status, "liked" | "rewatched"> | null;
-  statusExists: boolean;
+  liked: boolean | null;
+  rewatched: boolean;
 }
 
-// Saves rating and status from the rating dialog. Rating a film also logs it in the diary,
-// so the rating goes first and the status then updates that diary entry.
+// Saves rating and status from the rating dialog in one request, which logs one new diary entry.
 export function useSaveDiaryEntry(tmdbId: number) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ score, ratingExists, status, statusExists }: DiaryEntryInput) => {
-      if (score !== null) {
-        const rating = await api<Rating>(`/api/movies/${tmdbId}/rating`, {
-          method: ratingExists ? "PUT" : "POST",
-          body: JSON.stringify({ score }),
-        });
-        queryClient.setQueryData(["me", "rating", tmdbId], rating);
-      }
-      if (status !== null) {
-        const saved = await api<Status>(`/api/movies/${tmdbId}/status`, {
-          method: statusExists || score !== null ? "PUT" : "POST",
-          body: JSON.stringify(status),
-        });
-        queryClient.setQueryData(["me", "status", tmdbId], saved);
+    mutationFn: (input: DiaryEntryInput) =>
+      api<DiaryEntry>(`/api/movies/${tmdbId}/diary`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    onSuccess: (entry) => {
+      if (entry.rating !== null) {
+        queryClient.setQueryData<Rating>(["me", "rating", tmdbId], { tmdbId, score: entry.rating });
       }
     },
     onSettled: () =>
       Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["me", "rating", tmdbId] }),
         queryClient.invalidateQueries({ queryKey: ["me", "status", tmdbId] }),
         queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
         // Logging a film removes it from the watchlist on the server.

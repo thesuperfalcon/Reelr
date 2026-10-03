@@ -194,7 +194,7 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
-    public async Task UpdateRating_UpdatesDiaryRatingWithoutDuplicateEntry()
+    public async Task UpdateRating_LogsNewDiaryEntryAndKeepsOldOne()
     {
         var user = await _factory.CreateAuthenticatedAsync();
         var tmdbId = _factory.Tmdb.AddMovie(5014, "Re-rated");
@@ -204,12 +204,11 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
         response.EnsureSuccessStatusCode();
 
         var diary = await user.Client.GetFromJsonAsync<List<DiaryEntryResponse>>("/api/watched");
-        var entry = Assert.Single(diary!);
-        Assert.Equal(4.5m, entry.Rating);
+        Assert.Equal([4.5m, 2m], diary!.Select(d => d.Rating));
     }
 
     [Fact]
-    public async Task CreateRating_AlreadyWatched_KeepsSingleDiaryEntry()
+    public async Task CreateRating_AlreadyWatched_LogsNewDiaryEntry()
     {
         var user = await _factory.CreateAuthenticatedAsync();
         var tmdbId = _factory.Tmdb.AddMovie(5015, "Seen first");
@@ -219,8 +218,20 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
         await RateAsync(user.Client, tmdbId, 5);
 
         var diary = await user.Client.GetFromJsonAsync<List<DiaryEntryResponse>>("/api/watched");
-        var entry = Assert.Single(diary!);
-        Assert.Equal(5m, entry.Rating);
+        Assert.Equal([5m, null], diary!.Select(d => d.Rating));
+    }
+
+    [Fact]
+    public async Task DeleteRating_KeepsDiaryEntries()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(5016, "Unrated later");
+        await RateAsync(user.Client, tmdbId, 3);
+
+        (await user.Client.DeleteAsync(RatingUrl(tmdbId))).EnsureSuccessStatusCode();
+
+        var diary = await user.Client.GetFromJsonAsync<List<DiaryEntryResponse>>("/api/watched");
+        Assert.Equal(3m, Assert.Single(diary!).Rating);
     }
 
     // ---- Delete ----

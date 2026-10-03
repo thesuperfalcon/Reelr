@@ -1,4 +1,5 @@
 using backend.Data;
+using backend.Features.Diary;
 using backend.Features.Movies;
 using backend.Features.WatchedMovies.DTOs;
 using backend.Features.WatchlistItems;
@@ -21,33 +22,6 @@ namespace backend.Features.WatchedMovies
         {
             _context = context;
             _tmdbService = tmdbService;
-        }
-
-        [HttpGet("/api/watched")]
-        [EndpointSummary("Get all movies the current user has watched")]
-        public async Task<IActionResult> GetWatchedMovies()
-        {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-
-            var watched = await _context.WatchedMovies
-                .Where(w => w.UserId == userId)
-                .OrderByDescending(w => w.WatchedAt)
-                .Select(w => new
-                {
-                    w.Movie.TmdbId,
-                    w.Movie.Title,
-                    w.Movie.PosterUrl,
-                    w.Liked,
-                    w.Rewatched,
-                    w.WatchedAt,
-                    Rating = _context.Ratings
-                        .Where(r => r.UserId == userId && r.MovieId == w.MovieId)
-                        .Select(r => (decimal?)r.Score)
-                        .FirstOrDefault()
-                })
-                .ToListAsync();
-
-            return Ok(watched);
         }
 
         [HttpGet]
@@ -123,6 +97,7 @@ namespace backend.Features.WatchedMovies
             };
 
             _context.WatchedMovies.Add(status);
+            _context.LogDiaryEntry(status, await CurrentRatingAsync(userId, movie.Id));
             await _context.RemoveWatchedFromWatchlistAsync(userId, movie.Id);
             await _context.SaveChangesAsync();
 
@@ -152,6 +127,7 @@ namespace backend.Features.WatchedMovies
             status.Liked = dto.Liked;
             status.Rewatched = dto.Rewatched;
 
+            _context.LogDiaryEntry(status, await CurrentRatingAsync(userId, status.MovieId));
             await _context.RemoveWatchedFromWatchlistAsync(userId, status.MovieId);
             await _context.SaveChangesAsync();
 
@@ -178,10 +154,23 @@ namespace backend.Features.WatchedMovies
                 return NotFound();
             }
 
+            // An unwatched film has no viewings, so its diary entries go too.
+            _context.DiaryEntries.RemoveRange(await _context.DiaryEntries
+                .Where(d => d.UserId == userId && d.MovieId == status.MovieId)
+                .ToListAsync());
+
             _context.WatchedMovies.Remove(status);
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        private Task<decimal?> CurrentRatingAsync(int userId, int movieId)
+        {
+            return _context.Ratings
+                .Where(r => r.UserId == userId && r.MovieId == movieId)
+                .Select(r => (decimal?)r.Score)
+                .FirstOrDefaultAsync();
         }
     }
 }

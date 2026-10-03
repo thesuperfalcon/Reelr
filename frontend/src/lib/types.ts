@@ -114,6 +114,7 @@ export interface WatchlistEntry {
 }
 
 export interface DiaryEntry {
+  id: number;
   tmdbId: number;
   title: string;
   posterUrl: string | null;

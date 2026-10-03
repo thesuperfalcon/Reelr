@@ -103,7 +103,7 @@ function Diary() {
                             const poster = tmdbImage(entry.posterUrl, "w185");
                             return (
                                 <li
-                                    key={entry.tmdbId}
+                                    key={entry.id}
                                     className="flex items-center gap-4 py-3"
                                 >
                                     <time
