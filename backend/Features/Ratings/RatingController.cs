@@ -1,6 +1,7 @@
 using backend.Data;
 using backend.Features.Movies;
 using backend.Features.Ratings.DTOs;
+using backend.Features.WatchedMovies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -96,6 +97,7 @@ namespace backend.Features.Ratings
             };
 
             _context.Ratings.Add(rating);
+            await EnsureWatchedAsync(userId, movie.Id);
             await _context.SaveChangesAsync();
 
             return Ok(new RatingDto
@@ -126,6 +128,7 @@ namespace backend.Features.Ratings
 
             rating.Score = dto.Score;
 
+            await EnsureWatchedAsync(userId, rating.MovieId);
             await _context.SaveChangesAsync();
 
             return Ok(new RatingDto
@@ -153,6 +156,23 @@ namespace backend.Features.Ratings
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // A rated film counts as watched, so it shows up in the user's diary.
+        private async Task EnsureWatchedAsync(int userId, int movieId)
+        {
+            var watched = await _context.WatchedMovies
+                .AnyAsync(w => w.UserId == userId && w.MovieId == movieId);
+
+            if (!watched)
+            {
+                _context.WatchedMovies.Add(new WatchedMovie
+                {
+                    UserId = userId,
+                    MovieId = movieId,
+                    WatchedAt = DateTime.UtcNow
+                });
+            }
         }
 
         private static bool IsHalfStep(decimal score)

@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { Poster } from "../components/Poster";
+import { Stars } from "../components/Stars";
 import { ErrorMessage, Loading } from "../components/Status";
 import {
     useDiary,
@@ -84,7 +85,7 @@ function Diary() {
     if (diary.data.length === 0) {
         return (
             <EmptyState>
-                Your diary is empty. Mark a film as watched to log it here.
+                Your diary is empty. Rate a film to log it here.
             </EmptyState>
         );
     }
@@ -144,7 +145,13 @@ function Diary() {
                                         {entry.title}
                                     </Link>
 
-                                    <div className="flex shrink-0 gap-3 text-sm">
+                                    <div className="flex shrink-0 items-center gap-3 text-sm">
+                                        {entry.rating !== null && (
+                                            <Stars
+                                                score={entry.rating}
+                                                className="h-3.5 sm:h-4"
+                                            />
+                                        )}
                                         {entry.rewatched && (
                                             <span className="text-haze">
                                                 Rewatch

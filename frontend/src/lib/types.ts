@@ -119,6 +119,7 @@ export interface DiaryEntry {
   posterUrl: string | null;
   liked: boolean | null;
   rewatched: boolean;
+  rating: number | null;
   watchedAt: string;
 }
 
@@ -126,4 +127,9 @@ export interface UserSummary {
   id: number;
   userName: string;
   profileImageUrl: string | null;
+}
+
+export interface Rating {
+  tmdbId: number;
+  score: number;
 }

@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { useParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { Poster } from "../components/Poster";
+import { RatingDialog } from "../components/RatingDialog";
+import { STAR_PATH, Stars } from "../components/Stars";
 import { ErrorMessage, Loading } from "../components/Status";
 import { ApiError } from "../lib/api";
-import { useMovieDetails, useSimilarMovies, useToggleWatchlist, useWatchlist } from "../lib/queries";
+import { useMovieDetails, useMyRating, useSimilarMovies, useToggleWatchlist, useWatchlist } from "../lib/queries";
 import { formatRuntime, releaseYear, tmdbImage } from "../lib/tmdb";
 import type { CastMember, MovieDetails } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
@@ -42,6 +45,42 @@ function WatchlistButton({ tmdbId, title }: { tmdbId: number; title: string | nu
         <path d="M6 3h12v18l-6-4-6 4z" />
       </svg>
     </button>
+  );
+}
+
+function RateButton({ movie }: { movie: MovieDetails }) {
+  const rating = useMyRating(movie.id);
+  const [open, setOpen] = useState(false);
+  const score = rating.data?.score ?? null;
+  const label = score === null ? `Rate ${movie.title ?? "film"}` : `Your rating: ${score} out of 5 stars. Change rating`;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        disabled={rating.isPending}
+        aria-label={label}
+        title={label}
+        aria-haspopup="dialog"
+        className="inline-flex h-9 items-center gap-2 rounded-sm px-3 text-sm font-medium text-screen ring-1 ring-white/15 transition hover:bg-row disabled:opacity-50"
+      >
+        {score === null ? (
+          <>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="size-4 text-projector" aria-hidden="true">
+              <path d={STAR_PATH} />
+            </svg>
+            Rate
+          </>
+        ) : (
+          <>
+            <span className="text-haze">Rated</span>
+            <Stars score={score} className="h-4" />
+          </>
+        )}
+      </button>
+      {open && <RatingDialog movie={movie} current={score} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
@@ -196,6 +235,7 @@ export function MoviePage() {
                     Watch trailer on YouTube
                   </a>
                 )}
+                {user && <RateButton movie={movie} />}
                 {user && <WatchlistButton tmdbId={tmdbId} title={movie.title} />}
               </div>
             )}

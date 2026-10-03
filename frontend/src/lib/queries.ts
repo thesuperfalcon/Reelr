@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "./api";
+import { ApiError, api } from "./api";
 import type {
   DiaryEntry,
   MovieDetails,
+  Rating,
   SearchAllResult,
   SearchResult,
   UserProfile,
@@ -84,5 +85,45 @@ export function useFollowList(userId: number, list: "followers" | "following") {
   return useQuery({
     queryKey: ["users", userId, list],
     queryFn: () => api<UserSummary[]>(`/api/users/${userId}/${list}`),
+  });
+}
+
+// Resolves to null when the user has not rated the film (the API answers 404).
+export function useMyRating(tmdbId: number) {
+  return useQuery({
+    queryKey: ["me", "rating", tmdbId],
+    queryFn: async () => {
+      try {
+        return await api<Rating>(`/api/movies/${tmdbId}/rating`);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) {
+          return null;
+        }
+        throw error;
+      }
+    },
+  });
+}
+
+// Rating a film also logs it in the diary, so both caches refresh.
+export function useSaveRating(tmdbId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ score, exists }: { score: number; exists: boolean }) =>
+      api<Rating>(`/api/movies/${tmdbId}/rating`, {
+        method: exists ? "PUT" : "POST",
+        body: JSON.stringify({ score }),
+      }),
+    onSuccess: (rating) => queryClient.setQueryData(["me", "rating", tmdbId], rating),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+  });
+}
+
+export function useDeleteRating(tmdbId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<void>(`/api/movies/${tmdbId}/rating`, { method: "DELETE" }),
+    onSuccess: () => queryClient.setQueryData(["me", "rating", tmdbId], null),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
   });
 }

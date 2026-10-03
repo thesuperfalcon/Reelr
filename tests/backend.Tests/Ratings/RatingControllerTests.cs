@@ -175,6 +175,54 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
         Assert.Equal(1m, aliceRating!.Score);
     }
 
+    // ---- Diary ----
+
+    private record DiaryEntryResponse(int TmdbId, decimal? Rating);
+
+    [Fact]
+    public async Task CreateRating_AddsMovieToDiaryWithRating()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(5013, "Logged");
+
+        await RateAsync(user.Client, tmdbId, 3.5m);
+
+        var diary = await user.Client.GetFromJsonAsync<List<DiaryEntryResponse>>("/api/watched");
+        var entry = Assert.Single(diary!);
+        Assert.Equal(tmdbId, entry.TmdbId);
+        Assert.Equal(3.5m, entry.Rating);
+    }
+
+    [Fact]
+    public async Task UpdateRating_UpdatesDiaryRatingWithoutDuplicateEntry()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(5014, "Re-rated");
+        await RateAsync(user.Client, tmdbId, 2);
+
+        var response = await user.Client.PutAsJsonAsync(RatingUrl(tmdbId), new UpdateRatingDto { Score = 4.5m });
+        response.EnsureSuccessStatusCode();
+
+        var diary = await user.Client.GetFromJsonAsync<List<DiaryEntryResponse>>("/api/watched");
+        var entry = Assert.Single(diary!);
+        Assert.Equal(4.5m, entry.Rating);
+    }
+
+    [Fact]
+    public async Task CreateRating_AlreadyWatched_KeepsSingleDiaryEntry()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(5015, "Seen first");
+        var watched = await user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/status", new { Liked = (bool?)null, Rewatched = false });
+        watched.EnsureSuccessStatusCode();
+
+        await RateAsync(user.Client, tmdbId, 5);
+
+        var diary = await user.Client.GetFromJsonAsync<List<DiaryEntryResponse>>("/api/watched");
+        var entry = Assert.Single(diary!);
+        Assert.Equal(5m, entry.Rating);
+    }
+
     // ---- Delete ----
 
     [Fact]

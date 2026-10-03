@@ -38,7 +38,11 @@ namespace backend.Features.WatchedMovies
                     w.Movie.PosterUrl,
                     w.Liked,
                     w.Rewatched,
-                    w.WatchedAt
+                    w.WatchedAt,
+                    Rating = _context.Ratings
+                        .Where(r => r.UserId == userId && r.MovieId == w.MovieId)
+                        .Select(r => (decimal?)r.Score)
+                        .FirstOrDefault()
                 })
                 .ToListAsync();
 
