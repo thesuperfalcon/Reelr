@@ -16,6 +16,9 @@ namespace backend.Features.Diary.DTOs
 
         public bool Rewatched { get; set; }
 
+        // True when the user has a review of the film.
+        public bool HasReview { get; set; }
+
         public DateTime WatchedAt { get; set; }
     }
 }

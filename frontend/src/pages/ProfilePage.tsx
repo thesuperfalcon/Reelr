@@ -1,18 +1,20 @@
 import { Link, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { Poster } from "../components/Poster";
+import { ReviewText } from "../components/ReviewText";
 import { Stars } from "../components/Stars";
 import { ErrorMessage, Loading } from "../components/Status";
 import {
     useDiary,
     useFollowList,
     useUserProfile,
+    useUserReviews,
     useWatchlist,
 } from "../lib/queries";
 import { tmdbImage } from "../lib/tmdb";
 import type { DiaryEntry, SearchMovie } from "../lib/types";
 
-type Tab = "diary" | "watchlist" | "followers" | "following";
+type Tab = "diary" | "reviews" | "watchlist" | "followers" | "following";
 
 // Poster expects the TMDB search shape; watchlist rows carry only id, title and poster.
 function asSearchMovie(entry: {
@@ -157,6 +159,26 @@ function Diary() {
                                                 Rewatch
                                             </span>
                                         )}
+                                        {entry.hasReview && (
+                                            <Link
+                                                to="?tab=reviews"
+                                                className="text-haze hover:text-screen"
+                                                aria-label="Reviewed. Show reviews"
+                                                title="Reviewed"
+                                            >
+                                                <svg
+                                                    viewBox="0 0 24 24"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                >
+                                                    <path d="M4 6h16M4 12h16M4 18h10" />
+                                                </svg>
+                                            </Link>
+                                        )}
                                         {entry.liked === true && (
                                             <span
                                                 className="text-alarm"
@@ -174,6 +196,100 @@ function Diary() {
                 </section>
             ))}
         </div>
+    );
+}
+
+const reviewDateFormat = new Intl.DateTimeFormat("en", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+});
+
+function Reviews({ userId }: { userId: number }) {
+    const reviews = useUserReviews(userId);
+
+    if (reviews.isPending) {
+        return <Loading label="Loading reviews" />;
+    }
+
+    if (reviews.isError) {
+        return (
+            <ErrorMessage
+                error={reviews.error}
+                retry={() => reviews.refetch()}
+            />
+        );
+    }
+
+    if (reviews.data.length === 0) {
+        return (
+            <EmptyState>
+                You have not reviewed any films yet. Write one when you rate a
+                film.
+            </EmptyState>
+        );
+    }
+
+    return (
+        <ol className="mt-4 divide-y divide-white/5">
+            {reviews.data.map((review) => {
+                const poster = tmdbImage(review.posterUrl, "w185");
+                return (
+                    <li key={review.id} className="flex gap-4 py-6">
+                        <Link
+                            to={`/movie/${review.tmdbId}`}
+                            className="shrink-0 self-start rounded-sm"
+                            tabIndex={-1}
+                        >
+                            {poster ? (
+                                <img
+                                    src={poster}
+                                    alt=""
+                                    loading="lazy"
+                                    className="aspect-[2/3] w-16 rounded-sm object-cover"
+                                />
+                            ) : (
+                                <div
+                                    className="aspect-[2/3] w-16 rounded-sm bg-row"
+                                    aria-hidden="true"
+                                />
+                            )}
+                        </Link>
+
+                        <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <Link
+                                    to={`/movie/${review.tmdbId}`}
+                                    className="font-medium hover:text-projector"
+                                >
+                                    {review.title}
+                                </Link>
+                                {review.score !== null && (
+                                    <Stars
+                                        score={review.score}
+                                        className="h-3.5"
+                                    />
+                                )}
+                                <time
+                                    dateTime={review.createdAt}
+                                    className="text-sm text-haze"
+                                >
+                                    {reviewDateFormat.format(
+                                        new Date(review.createdAt),
+                                    )}
+                                </time>
+                                {review.updatedAt && (
+                                    <span className="text-sm text-haze">
+                                        (edited)
+                                    </span>
+                                )}
+                            </div>
+                            <ReviewText text={review.text} className="mt-2" />
+                        </div>
+                    </li>
+                );
+            })}
+        </ol>
     );
 }
 
@@ -281,7 +397,13 @@ function FollowList({
     );
 }
 
-const tabIds: Tab[] = ["diary", "watchlist", "followers", "following"];
+const tabIds: Tab[] = [
+    "diary",
+    "reviews",
+    "watchlist",
+    "followers",
+    "following",
+];
 
 function isTab(value: string | null): value is Tab {
     return tabIds.includes(value as Tab);
@@ -297,6 +419,7 @@ export function ProfilePage() {
 
     const tabs: { id: Tab; label: string; count?: number }[] = [
         { id: "diary", label: "Diary" },
+        { id: "reviews", label: "Reviews" },
         { id: "watchlist", label: "Watchlist" },
         {
             id: "followers",
@@ -357,6 +480,7 @@ export function ProfilePage() {
                 aria-labelledby={`tab-${tab}`}
             >
                 {tab === "diary" && <Diary />}
+                {tab === "reviews" && <Reviews userId={user.id} />}
                 {tab === "watchlist" && <Watchlist />}
                 {(tab === "followers" || tab === "following") && (
                     <FollowList userId={user.id} list={tab} />

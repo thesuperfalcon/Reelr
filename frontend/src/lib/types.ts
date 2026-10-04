@@ -121,6 +121,7 @@ export interface DiaryEntry {
   liked: boolean | null;
   rewatched: boolean;
   rating: number | null;
+  hasReview: boolean;
   watchedAt: string;
 }
 
@@ -133,6 +134,20 @@ export interface UserSummary {
 export interface Rating {
   tmdbId: number;
   score: number;
+}
+
+export interface Review {
+  id: number;
+  userId: number;
+  username: string;
+  tmdbId: number;
+  title: string;
+  posterUrl: string | null;
+  text: string;
+  /** The author's current rating of the film, or null when they have not rated it. */
+  score: number | null;
+  createdAt: string;
+  updatedAt: string | null;
 }
 
 export interface Status {

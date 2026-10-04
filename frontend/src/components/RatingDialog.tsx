@@ -1,13 +1,15 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { useDeleteRating, useSaveDiaryEntry } from "../lib/queries";
+import { REVIEW_MAX_LENGTH, useDeleteRating, useDeleteReview, useSaveDiaryEntry } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
-import type { MovieDetails, Status } from "../lib/types";
+import type { MovieDetails, Review, Status } from "../lib/types";
+import { MarkdownEditor } from "./MarkdownEditor";
 import { StarInput } from "./Stars";
 
 interface RatingDialogProps {
   movie: MovieDetails;
   current: number | null;
   currentStatus: Status | null;
+  currentReview: Review | null;
   onClose: () => void;
 }
 
@@ -34,18 +36,21 @@ function StatusToggle({
   );
 }
 
-export function RatingDialog({ movie, current, currentStatus, onClose }: RatingDialogProps) {
+export function RatingDialog({ movie, current, currentStatus, currentReview, onClose }: RatingDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const labelId = useId();
   const titleId = useId();
   const statusLabelId = useId();
+  const reviewId = useId();
   const [score, setScore] = useState<number | null>(current);
   const [liked, setLiked] = useState<boolean | null>(currentStatus?.liked ?? null);
   const [rewatched, setRewatched] = useState(currentStatus?.rewatched ?? false);
+  const [review, setReview] = useState(currentReview?.text ?? "");
   const save = useSaveDiaryEntry(movie.id);
   const remove = useDeleteRating(movie.id);
-  const busy = save.isPending || remove.isPending;
-  const error = save.error ?? remove.error;
+  const removeReview = useDeleteReview();
+  const busy = save.isPending || remove.isPending || removeReview.isPending;
+  const error = save.error ?? remove.error ?? removeReview.error;
   const poster = tmdbImage(movie.posterPath, "w185");
   const year = releaseYear(movie.releaseDate);
 
@@ -54,20 +59,33 @@ export function RatingDialog({ movie, current, currentStatus, onClose }: RatingD
     dialogRef.current?.showModal();
   }, []);
 
-  function submit() {
+  async function submit() {
+    const trimmed = review.trim();
     const scoreChanged = score !== null && score !== current;
     const statusChanged =
       liked !== (currentStatus?.liked ?? null) || rewatched !== (currentStatus?.rewatched ?? false);
+    const reviewChanged = trimmed !== "" && trimmed !== currentReview?.text;
+    // Clearing the text deletes the review. That alone is not a watch, so it logs nothing.
+    const reviewCleared = trimmed === "" && currentReview !== null;
 
-    if (!scoreChanged && !statusChanged) {
+    try {
+      if (reviewCleared) {
+        await removeReview.mutateAsync(currentReview.id);
+      }
+
+      if (scoreChanged || statusChanged || reviewChanged) {
+        await save.mutateAsync({
+          score: scoreChanged ? score : null,
+          liked,
+          rewatched,
+          review: reviewChanged ? trimmed : null,
+        });
+      }
+
       onClose();
-      return;
+    } catch {
+      // The mutation keeps the error, and the dialog shows it.
     }
-
-    save.mutate(
-      { score: scoreChanged ? score : null, liked, rewatched },
-      { onSuccess: onClose },
-    );
   }
 
   return (
@@ -77,13 +95,13 @@ export function RatingDialog({ movie, current, currentStatus, onClose }: RatingD
       onClose={onClose}
       // A click on the backdrop lands on the dialog element itself.
       onClick={(event) => event.target === event.currentTarget && onClose()}
-      className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-white/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(36rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-white/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
     >
       <form
         method="dialog"
         onSubmit={(event) => {
           event.preventDefault();
-          submit();
+          void submit();
         }}
         className="p-6"
       >
@@ -94,7 +112,7 @@ export function RatingDialog({ movie, current, currentStatus, onClose }: RatingD
             <div className="aspect-[2/3] w-14 shrink-0 rounded-sm bg-row-raised" aria-hidden="true" />
           )}
           <div className="min-w-0">
-            <p className="text-sm text-haze">Rate</p>
+            <p className="text-sm text-haze">Log</p>
             <h2 id={titleId} className="marquee mt-1 text-3xl">
               {movie.title}
               {year && <span className="ml-2 text-xl text-haze">{year}</span>}
@@ -129,6 +147,24 @@ export function RatingDialog({ movie, current, currentStatus, onClose }: RatingD
               Rewatch
             </StatusToggle>
           </div>
+        </div>
+
+        <div className="mt-4 border-t border-white/5 pt-6">
+          <label htmlFor={reviewId} className="text-sm text-haze">
+            {currentReview ? "Your review" : "Review (optional)"}
+          </label>
+          <MarkdownEditor
+            id={reviewId}
+            value={review}
+            onChange={setReview}
+            maxLength={REVIEW_MAX_LENGTH}
+            placeholder="What did you think?"
+            hint={
+              currentReview
+                ? "Saving a changed review logs the film again. Clear the text to delete the review."
+                : "Saving a review logs the film in your diary."
+            }
+          />
         </div>
 
         {error && (

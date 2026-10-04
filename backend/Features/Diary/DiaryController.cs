@@ -2,6 +2,7 @@ using backend.Data;
 using backend.Features.Diary.DTOs;
 using backend.Features.Movies;
 using backend.Features.Ratings;
+using backend.Features.Reviews;
 using backend.Features.WatchedMovies;
 using backend.Features.WatchlistItems;
 using Microsoft.AspNetCore.Authorization;
@@ -43,6 +44,7 @@ namespace backend.Features.Diary
                     Rating = d.Rating,
                     Liked = d.Liked,
                     Rewatched = d.Rewatched,
+                    HasReview = _context.Reviews.Any(r => r.UserId == userId && r.MovieId == d.MovieId),
                     WatchedAt = d.WatchedAt
                 })
                 .ToListAsync();
@@ -51,7 +53,7 @@ namespace backend.Features.Diary
         }
 
         [HttpPost("api/movies/{tmdbId:int}/diary")]
-        [EndpointSummary("Save rating and status for a movie and log it as one diary entry")]
+        [EndpointSummary("Save rating, status and review for a movie and log it as one diary entry")]
         public async Task<ActionResult<DiaryEntryDto>> LogEntry(int tmdbId, LogDiaryEntryDto dto)
         {
             if (dto.Score is decimal score && decimal.Remainder(score * 2, 1) != 0)
@@ -119,6 +121,30 @@ namespace backend.Features.Diary
             status.Liked = dto.Liked;
             status.Rewatched = dto.Rewatched;
 
+            var review = await _context.Reviews
+                .FirstOrDefaultAsync(r => r.UserId == userId && r.MovieId == movie.Id);
+
+            if (!string.IsNullOrWhiteSpace(dto.Review))
+            {
+                if (review == null)
+                {
+                    review = new Review
+                    {
+                        UserId = userId,
+                        MovieId = movie.Id,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    _context.Reviews.Add(review);
+                }
+                else
+                {
+                    review.UpdatedAt = DateTime.UtcNow;
+                }
+
+                review.Text = dto.Review.Trim();
+            }
+
             var entry = _context.LogDiaryEntry(status, rating?.Score);
             await _context.RemoveWatchedFromWatchlistAsync(userId, movie.Id);
             await _context.SaveChangesAsync();
@@ -132,6 +158,7 @@ namespace backend.Features.Diary
                 Rating = entry.Rating,
                 Liked = entry.Liked,
                 Rewatched = entry.Rewatched,
+                HasReview = review != null,
                 WatchedAt = entry.WatchedAt
             });
         }

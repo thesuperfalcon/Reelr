@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using backend.Features.Diary.DTOs;
 using backend.Features.Ratings.DTOs;
+using backend.Features.Reviews;
+using backend.Features.Reviews.DTOs;
 using backend.Features.WatchedMovies.DTOs;
 using backend.Tests.Infrastructure;
 
@@ -141,5 +143,63 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
         await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto());
 
         Assert.Empty((await user.Client.GetFromJsonAsync<List<object>>("/api/watchlist"))!);
+    }
+
+    [Fact]
+    public async Task LogEntry_WithReview_CreatesReviewAndEntry()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6009, "Reviewed");
+
+        var response = await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Score = 4, Review = "  **Loved** it  " });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.True((await response.Content.ReadFromJsonAsync<DiaryEntryDto>())!.HasReview);
+        var entry = Assert.Single(await GetDiaryAsync(user.Client));
+        Assert.True(entry.HasReview);
+        var review = Assert.Single((await user.Client.GetFromJsonAsync<List<ReviewDto>>($"/api/movies/{tmdbId}/reviews"))!);
+        Assert.Equal("**Loved** it", review.Text);
+        Assert.Equal(4m, review.Score);
+        Assert.Null(review.UpdatedAt);
+    }
+
+    [Fact]
+    public async Task LogEntry_WithReviewAgain_ReplacesReviewAndAddsEntry()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6010, "Reviewed twice");
+        await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Review = "First take" });
+
+        await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Review = "Second take", Rewatched = true });
+
+        Assert.Equal(2, (await GetDiaryAsync(user.Client)).Count);
+        var review = Assert.Single((await user.Client.GetFromJsonAsync<List<ReviewDto>>($"/api/movies/{tmdbId}/reviews"))!);
+        Assert.Equal("Second take", review.Text);
+        Assert.NotNull(review.UpdatedAt);
+    }
+
+    [Fact]
+    public async Task LogEntry_WithoutReview_KeepsExistingReview()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6011, "Review kept");
+        await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Review = "Keep me" });
+
+        await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Score = 3, Review = "   " });
+
+        var review = Assert.Single((await user.Client.GetFromJsonAsync<List<ReviewDto>>($"/api/movies/{tmdbId}/reviews"))!);
+        Assert.Equal("Keep me", review.Text);
+    }
+
+    [Fact]
+    public async Task LogEntry_ReviewTooLong_Returns400()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6012, "Too long");
+
+        var response = await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Review = new string('a', Review.MaxLength + 1) });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(await GetDiaryAsync(user.Client));
     }
 }

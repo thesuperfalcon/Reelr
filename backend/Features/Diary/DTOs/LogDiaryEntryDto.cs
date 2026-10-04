@@ -11,5 +11,9 @@ namespace backend.Features.Diary.DTOs
         public bool? Liked { get; set; }
 
         public bool Rewatched { get; set; }
+
+        // Markdown text that creates or replaces the user's review. Null or blank leaves the review as it is.
+        [MaxLength(Reviews.Review.MaxLength)]
+        public string? Review { get; set; }
     }
 }

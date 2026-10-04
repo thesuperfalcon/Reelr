@@ -4,6 +4,7 @@ import type {
   DiaryEntry,
   MovieDetails,
   Rating,
+  Review,
   SearchAllResult,
   SearchResult,
   Status,
@@ -128,7 +129,12 @@ export interface DiaryEntryInput {
   score: number | null;
   liked: boolean | null;
   rewatched: boolean;
+  /** Markdown review that creates or replaces the user's review, or null to leave it as it is. */
+  review: string | null;
 }
+
+// Matches Review.MaxLength on the server.
+export const REVIEW_MAX_LENGTH = 5000;
 
 // Saves rating and status from the rating dialog in one request, which logs one new diary entry.
 export function useSaveDiaryEntry(tmdbId: number) {
@@ -151,6 +157,8 @@ export function useSaveDiaryEntry(tmdbId: number) {
         queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
         // Logging a film removes it from the watchlist on the server.
         queryClient.invalidateQueries({ queryKey: ["me", "watchlist"] }),
+        // Reviews show the author's current rating.
+        queryClient.invalidateQueries({ queryKey: ["reviews"] }),
       ]),
   });
 }
@@ -160,6 +168,38 @@ export function useDeleteRating(tmdbId: number) {
   return useMutation({
     mutationFn: () => api<void>(`/api/movies/${tmdbId}/rating`, { method: "DELETE" }),
     onSuccess: () => queryClient.setQueryData(["me", "rating", tmdbId], null),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+        queryClient.invalidateQueries({ queryKey: ["reviews"] }),
+      ]),
+  });
+}
+
+export function useMovieReviews(tmdbId: number) {
+  return useQuery({
+    queryKey: ["reviews", "movie", tmdbId],
+    queryFn: () => api<Review[]>(`/api/movies/${tmdbId}/reviews`),
+    enabled: Number.isInteger(tmdbId) && tmdbId > 0,
+  });
+}
+
+export function useUserReviews(userId: number) {
+  return useQuery({
+    queryKey: ["reviews", "user", userId],
+    queryFn: () => api<Review[]>(`/api/users/${userId}/reviews`),
+  });
+}
+
+// Reviews are written through useSaveDiaryEntry, so writing one also logs the film.
+export function useDeleteReview() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api<void>(`/api/reviews/${id}`, { method: "DELETE" }),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["reviews"] }),
+        queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+      ]),
   });
 }
