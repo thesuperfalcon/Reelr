@@ -30,31 +30,43 @@ namespace backend.Features.MovieLists
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            var lists = await _context.MovieLists
-                .Where(l => l.UserId == userId)
-                .OrderByDescending(l => l.CreatedAt)
-                .Select(l => new MovieListSummaryDto
-                {
-                    Id = l.Id,
-                    Name = l.Name,
-                    IsPublic = l.IsPublic,
-                    MovieCount = l.Items.Count,
-                    TopMovies = l.Items
-                        .OrderByDescending(i => i.AddedAt)
-                        .Take(TopMoviesCount)
-                        .Select(i => new MovieListItemDto
-                        {
-                            TmdbId = i.Movie.TmdbId,
-                            Title = i.Movie.Title,
-                            PosterUrl = i.Movie.PosterUrl,
-                            AddedAt = i.AddedAt
-                        })
-                        .ToList(),
-                    CreatedAt = l.CreatedAt
-                })
+            var lists = await ToSummaries(_context.MovieLists.Where(l => l.UserId == userId))
                 .ToListAsync();
 
             return Ok(lists);
+        }
+
+        [HttpGet("/api/users/{userId:int}/lists")]
+        [EndpointSummary("Get a user's movie lists. Private lists are included only for their owner")]
+        public async Task<ActionResult<List<MovieListSummaryDto>>> GetUserLists(int userId)
+        {
+            if (!await _context.Users.AnyAsync(u => u.Id == userId))
+            {
+                return NotFound();
+            }
+
+            var own = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
+                && currentUserId == userId;
+
+            var lists = await ToSummaries(_context.MovieLists.Where(l => l.UserId == userId && (own || l.IsPublic)))
+                .ToListAsync();
+
+            return Ok(lists);
+        }
+
+        [Authorize]
+        [HttpGet("containing/{tmdbId:int}")]
+        [EndpointSummary("Get the ids of the current user's lists that contain a movie")]
+        public async Task<ActionResult<List<int>>> GetListsContaining(int tmdbId)
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+            var ids = await _context.MovieListItems
+                .Where(i => i.MovieList.UserId == userId && i.Movie.TmdbId == tmdbId)
+                .Select(i => i.MovieListId)
+                .ToListAsync();
+
+            return Ok(ids);
         }
 
         [HttpGet("{id:int}")]
@@ -310,6 +322,30 @@ namespace backend.Features.MovieLists
 
             return NoContent();
         }
+
+        // Newest list first, each with its newest movies as a preview.
+        private static IQueryable<MovieListSummaryDto> ToSummaries(IQueryable<MovieList> lists) =>
+            lists
+                .OrderByDescending(l => l.CreatedAt)
+                .Select(l => new MovieListSummaryDto
+                {
+                    Id = l.Id,
+                    Name = l.Name,
+                    IsPublic = l.IsPublic,
+                    MovieCount = l.Items.Count,
+                    TopMovies = l.Items
+                        .OrderByDescending(i => i.AddedAt)
+                        .Take(TopMoviesCount)
+                        .Select(i => new MovieListItemDto
+                        {
+                            TmdbId = i.Movie.TmdbId,
+                            Title = i.Movie.Title,
+                            PosterUrl = i.Movie.PosterUrl,
+                            AddedAt = i.AddedAt
+                        })
+                        .ToList(),
+                    CreatedAt = l.CreatedAt
+                });
 
         private bool IsOwner(MovieList list)
         {

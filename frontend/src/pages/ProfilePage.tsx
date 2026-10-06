@@ -1,6 +1,15 @@
 import type { UseQueryResult } from "@tanstack/react-query";
-import { Link, Navigate, useParams, useSearchParams } from "react-router";
+import { useState } from "react";
+import {
+    Link,
+    Navigate,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { ListCard } from "../components/ListCard";
+import { ListFormDialog } from "../components/ListFormDialog";
 import { Poster } from "../components/Poster";
 import { ReviewText } from "../components/ReviewText";
 import { Stars } from "../components/Stars";
@@ -12,6 +21,7 @@ import {
     useFollowList,
     useToggleFollow,
     useUserDiary,
+    useUserLists,
     useUserProfile,
     useUserReviews,
     useWatchlist,
@@ -20,7 +30,13 @@ import { tmdbImage } from "../lib/tmdb";
 import type { DiaryEntry, SearchMovie, UserProfile } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
 
-type Tab = "diary" | "reviews" | "watchlist" | "followers" | "following";
+type Tab =
+    | "diary"
+    | "reviews"
+    | "lists"
+    | "watchlist"
+    | "followers"
+    | "following";
 
 // Who the page belongs to. Empty states and private tabs depend on it.
 interface Owner {
@@ -330,6 +346,64 @@ function Reviews({ owner }: { owner: Owner }) {
     );
 }
 
+function Lists({ owner }: { owner: Owner }) {
+    const lists = useUserLists(owner.id);
+    const navigate = useNavigate();
+    const [creating, setCreating] = useState(false);
+
+    let content: React.ReactNode;
+    if (lists.isPending) {
+        content = <Loading label="Loading lists" />;
+    } else if (lists.isError) {
+        content = (
+            <ErrorMessage error={lists.error} retry={() => lists.refetch()} />
+        );
+    } else if (lists.data.length === 0) {
+        content = (
+            <p className="py-10 text-haze">
+                {owner.own
+                    ? "You have no lists yet. Make one here or from a film's page."
+                    : `${owner.name} has no public lists yet.`}
+            </p>
+        );
+    } else {
+        content = (
+            <ul className="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
+                {lists.data.map((list) => (
+                    <li key={list.id}>
+                        <ListCard list={list} />
+                    </li>
+                ))}
+            </ul>
+        );
+    }
+
+    return (
+        <div>
+            {owner.own && (
+                <div className="mt-8 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={() => setCreating(true)}
+                        aria-haspopup="dialog"
+                        className="inline-flex h-9 items-center rounded-sm bg-projector px-4 text-sm font-semibold text-salon transition hover:brightness-110"
+                    >
+                        New list
+                    </button>
+                </div>
+            )}
+            {content}
+            {creating && (
+                <ListFormDialog
+                    current={null}
+                    onSaved={(list) => navigate(`/list/${list.id}`)}
+                    onClose={() => setCreating(false)}
+                />
+            )}
+        </div>
+    );
+}
+
 // The watchlist API only serves the logged-in user's own list.
 function Watchlist({ owner }: { owner: Owner }) {
     const watchlist = useWatchlist();
@@ -483,6 +557,7 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
     const tabs: { id: Tab; label: string; count?: number }[] = [
         { id: "diary", label: "Diary" },
         { id: "reviews", label: "Reviews" },
+        { id: "lists", label: "Lists" },
         ...(own ? [{ id: "watchlist" as const, label: "Watchlist" }] : []),
         {
             id: "followers",
@@ -580,6 +655,7 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                         <UserDiary owner={owner} />
                     ))}
                 {tab === "reviews" && <Reviews owner={owner} />}
+                {tab === "lists" && <Lists owner={owner} />}
                 {tab === "watchlist" && <Watchlist owner={owner} />}
                 {(tab === "followers" || tab === "following") && (
                     <FollowList owner={owner} list={tab} />
