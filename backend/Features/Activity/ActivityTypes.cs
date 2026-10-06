@@ -8,5 +8,8 @@ namespace backend.Features.Activity
         public const string ListCreated = "listCreated";
         public const string ListAdded = "listAdded";
         public const string WatchlistAdded = "watchlistAdded";
+
+        public static readonly IReadOnlySet<string> All =
+            new HashSet<string> { Watched, Reviewed, ListCreated, ListAdded, WatchlistAdded };
     }
 }

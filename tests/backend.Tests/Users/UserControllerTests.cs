@@ -64,34 +64,29 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
-    public async Task UpdateUser_ChangesUsernameAndProfileImage()
+    public async Task UpdateUser_ChangesUsername()
     {
         var user = await _factory.CreateAuthenticatedAsync();
         var newName = $"renamed_{Guid.NewGuid():N}"[..20];
 
-        var response = await user.Client.PutAsJsonAsync($"/api/users/{user.Id}", new UpdateUserDto
-        {
-            Username = newName,
-            ProfileImageUrl = "https://img.test/me.png"
-        });
+        var response = await user.Client.PutAsJsonAsync($"/api/users/{user.Id}", new UpdateUserDto { Username = newName });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var profile = await GetProfileAsync(user.Id);
         Assert.Equal(newName, profile!.UserName);
-        Assert.Equal("https://img.test/me.png", profile.ProfileImageUrl);
     }
 
     [Fact]
-    public async Task UpdateUser_OnlyProfileImage_KeepsUsername()
+    public async Task UpdateUser_IgnoresProfileImageUrl_SoOnlyUploadsSetThePicture()
     {
         var user = await _factory.CreateAuthenticatedAsync();
 
-        var response = await user.Client.PutAsJsonAsync($"/api/users/{user.Id}", new UpdateUserDto { ProfileImageUrl = "https://img.test/new.png" });
+        var response = await user.Client.PutAsJsonAsync($"/api/users/{user.Id}", new { ProfileImageUrl = "https://img.test/new.png" });
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var profile = await GetProfileAsync(user.Id);
         Assert.Equal(user.Username, profile!.UserName);
-        Assert.Equal("https://img.test/new.png", profile.ProfileImageUrl);
+        Assert.Null(profile.ProfileImageUrl);
     }
 
     [Fact]

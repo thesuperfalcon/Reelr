@@ -23,6 +23,7 @@ namespace backend.Features.Activity
 
         private const int ExcerptLength = 280;
         private const int MaxGroupMovies = 6;
+        private const int MaxFilmWatchers = 3;
 
         private readonly ReelrContext _context;
         private readonly ActivityOptions _options;
@@ -33,27 +34,27 @@ namespace backend.Features.Activity
             _options = options.Value;
         }
 
-        public Task<ActivityPageDto> GetFollowingAsync(int viewerId, ActivityCursor? before, int limit)
+        public Task<ActivityPageDto> GetFollowingAsync(int viewerId, ActivityCursor? before, int limit, IReadOnlySet<string>? types = null)
         {
             var since = DateTime.UtcNow.AddDays(-_options.FollowingDays);
-            var followed = _context.Set<Follow>().Where(f => f.FollowerId == viewerId).Select(f => f.FollowedId);
+            var followed = Followed(viewerId);
 
             // Everything the people you follow do, as long as it is public or shared with followers.
             var sources = new[]
             {
-                (WatchedRank, Watched(_context.DiaryEntries.Where(d => followed.Contains(d.UserId)))),
-                (ReviewedRank, Reviewed(_context.Reviews.Where(r => followed.Contains(r.UserId)))),
-                (ListCreatedRank, ListsCreated(_context.MovieLists.Where(l => l.IsPublic && followed.Contains(l.UserId)))),
-                (ListAddedRank, ListItemsAdded(_context.MovieListItems.Where(i => i.MovieList.IsPublic && followed.Contains(i.MovieList.UserId)))),
+                (ActivityTypes.Watched, WatchedRank, Watched(_context.DiaryEntries.Where(d => followed.Contains(d.UserId)))),
+                (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r => followed.Contains(r.UserId)))),
+                (ActivityTypes.ListCreated, ListCreatedRank, ListsCreated(_context.MovieLists.Where(l => l.IsPublic && followed.Contains(l.UserId)))),
+                (ActivityTypes.ListAdded, ListAddedRank, ListItemsAdded(_context.MovieListItems.Where(i => i.MovieList.IsPublic && followed.Contains(i.MovieList.UserId)))),
                 // The viewer follows these users, so UserVisibility.CanSeeWatchlist comes down to "not private".
-                (WatchlistAddedRank, WatchlistAdds(_context.WatchlistItems.Where(w =>
+                (ActivityTypes.WatchlistAdded, WatchlistAddedRank, WatchlistAdds(_context.WatchlistItems.Where(w =>
                     followed.Contains(w.UserId) && w.User.WatchlistVisibility != WatchlistVisibility.Private)))
             };
 
-            return BuildPageAsync(sources, since, before, limit);
+            return BuildPageAsync(Only(sources, types), since, before, limit);
         }
 
-        public Task<ActivityPageDto> GetCommunityAsync(int? viewerId, ActivityCursor? before, int limit)
+        public Task<ActivityPageDto> GetCommunityAsync(int? viewerId, ActivityCursor? before, int limit, IReadOnlySet<string>? types = null)
         {
             var since = DateTime.UtcNow.AddDays(-_options.CommunityDays);
             var backdatedDays = _options.BackdatedDays;
@@ -62,15 +63,79 @@ namespace backend.Features.Activity
             // Back-dated logs stay out so back-filling an old diary does not flood the feed.
             var sources = new[]
             {
-                (WatchedRank, Watched(_context.DiaryEntries.Where(d =>
+                (ActivityTypes.Watched, WatchedRank, Watched(_context.DiaryEntries.Where(d =>
                     d.UserId != viewerId && d.LoggedAt <= d.WatchedAt.AddDays(backdatedDays)))),
-                (ReviewedRank, Reviewed(_context.Reviews.Where(r => r.UserId != viewerId))),
-                (ListCreatedRank, ListsCreated(_context.MovieLists.Where(l =>
+                (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r => r.UserId != viewerId))),
+                (ActivityTypes.ListCreated, ListCreatedRank, ListsCreated(_context.MovieLists.Where(l =>
                     l.IsPublic && l.UserId != viewerId && l.Items.Any())))
             };
 
-            return BuildPageAsync(sources, since, before, limit);
+            return BuildPageAsync(Only(sources, types), since, before, limit);
         }
+
+        public async Task<List<FollowingFilmDto>> GetFollowingFilmsAsync(int viewerId, int limit)
+        {
+            var since = DateTime.UtcNow.AddDays(-_options.FollowingDays);
+            var followed = Followed(viewerId);
+            var entries = _context.DiaryEntries.Where(d => followed.Contains(d.UserId) && d.LoggedAt >= since);
+
+            // First the films, each placed by its newest log, then every log of those films to find who saw them.
+            var films = await entries
+                .GroupBy(d => d.MovieId)
+                .Select(g => new { MovieId = g.Key, LastLoggedAt = g.Max(d => d.LoggedAt) })
+                .OrderByDescending(f => f.LastLoggedAt).ThenByDescending(f => f.MovieId)
+                .Take(limit)
+                .ToListAsync();
+
+            var movieIds = films.Select(f => f.MovieId).ToList();
+            var logs = await entries
+                .Where(d => movieIds.Contains(d.MovieId))
+                .OrderByDescending(d => d.LoggedAt).ThenByDescending(d => d.Id)
+                .Select(d => new
+                {
+                    d.MovieId,
+                    d.UserId,
+                    d.User.UserName,
+                    d.User.ProfileImageUrl,
+                    d.Movie.TmdbId,
+                    d.Movie.Title,
+                    d.Movie.PosterUrl,
+                    d.Rating,
+                    d.Liked
+                })
+                .ToListAsync();
+
+            return films.Select(film =>
+            {
+                // Newest log per person, so a rewatch does not count anyone twice.
+                var watchers = logs.Where(l => l.MovieId == film.MovieId).DistinctBy(l => l.UserId).ToList();
+                var newest = watchers[0];
+
+                return new FollowingFilmDto
+                {
+                    Movie = new ActivityMovieDto { TmdbId = newest.TmdbId, Title = newest.Title, PosterUrl = newest.PosterUrl },
+                    LastLoggedAt = DateTime.SpecifyKind(film.LastLoggedAt, DateTimeKind.Utc),
+                    WatcherCount = watchers.Count,
+                    Watchers = watchers.Take(MaxFilmWatchers).Select(w => new FollowingFilmWatcherDto
+                    {
+                        Actor = new ActivityActorDto { Id = w.UserId, UserName = w.UserName ?? string.Empty, ProfileImageUrl = w.ProfileImageUrl },
+                        Rating = w.Rating,
+                        Liked = w.Liked
+                    }).ToList()
+                };
+            }).ToList();
+        }
+
+        private IQueryable<int> Followed(int viewerId) =>
+            _context.Set<Follow>().Where(f => f.FollowerId == viewerId).Select(f => f.FollowedId);
+
+        // Sources the caller did not ask for are left out before any query runs.
+        private static (int Rank, IQueryable<RawActivity> Query)[] Only(
+            (string Type, int Rank, IQueryable<RawActivity> Query)[] sources, IReadOnlySet<string>? types) =>
+            sources
+                .Where(s => types == null || types.Contains(s.Type))
+                .Select(s => (s.Rank, s.Query))
+                .ToArray();
 
         // ---- Sources: one query per kind of item, all in the same shape ----
 

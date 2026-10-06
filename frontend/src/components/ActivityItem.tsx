@@ -1,42 +1,13 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { dayFormat, fullFormat, timeAgo } from "../lib/activity";
 import { tmdbImage } from "../lib/tmdb";
 import type { ActivityItem as Item, ActivityMovie } from "../lib/types";
 import { ReviewText } from "./ReviewText";
 import { Stars } from "./Stars";
 import { UserAvatar } from "./UserAvatar";
 
-const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-const dayFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" });
-const fullFormat = new Intl.DateTimeFormat("en", { dateStyle: "long", timeStyle: "short" });
-
-function timeAgo(date: Date): string {
-  const seconds = (date.getTime() - Date.now()) / 1000;
-  const steps: [Intl.RelativeTimeFormatUnit, number][] = [
-    ["minute", 60],
-    ["hour", 60],
-    ["day", 24],
-    ["week", 7],
-  ];
-
-  let value = seconds;
-  let unit: Intl.RelativeTimeFormatUnit = "second";
-  for (const [next, size] of steps) {
-    if (Math.abs(value) < size) {
-      break;
-    }
-    value /= size;
-    unit = next;
-  }
-
-  if (unit === "week" && Math.abs(value) >= 5) {
-    return dayFormat.format(date);
-  }
-
-  return Math.abs(value) < 1 && unit === "second" ? "just now" : relative.format(Math.round(value), unit);
-}
-
-function FilmLink({ movie }: { movie: ActivityMovie }) {
+export function FilmLink({ movie }: { movie: ActivityMovie }) {
   return (
     <Link to={`/movie/${movie.tmdbId}`} className="font-medium text-screen hover:text-projector">
       {movie.title}
@@ -44,7 +15,7 @@ function FilmLink({ movie }: { movie: ActivityMovie }) {
   );
 }
 
-function SmallPoster({ movie }: { movie: ActivityMovie }) {
+export function SmallPoster({ movie }: { movie: ActivityMovie }) {
   const poster = tmdbImage(movie.posterUrl, "w185");
   return (
     <Link to={`/movie/${movie.tmdbId}`} className="block w-12 shrink-0 rounded-sm sm:w-14" tabIndex={-1} title={movie.title}>

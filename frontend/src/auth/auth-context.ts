@@ -12,6 +12,8 @@ export interface AuthContextValue {
   login: (userInput: string, password: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => void;
+  /** Swaps in a new token for the same user, e.g. after a rename, so the shown name stays right. */
+  replaceToken: (token: string) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
