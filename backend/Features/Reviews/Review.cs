@@ -20,5 +20,10 @@ namespace backend.Features.Reviews
         public DateTime CreatedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }
+
+        // The diary entry that logged this review. Deleting that entry deletes the review.
+        public int? DiaryEntryId { get; set; }
+
+        public Diary.DiaryEntry? DiaryEntry { get; set; }
     }
 }

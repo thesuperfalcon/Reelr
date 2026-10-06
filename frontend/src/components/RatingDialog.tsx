@@ -1,9 +1,18 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { REVIEW_MAX_LENGTH, useDeleteRating, useDeleteReview, useSaveDiaryEntry } from "../lib/queries";
+import { today } from "../lib/dates";
+import {
+  REVIEW_MAX_LENGTH,
+  useDeleteRating,
+  useDeleteReview,
+  useRemoveWatched,
+  useSaveDiaryEntry,
+} from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { MovieDetails, Review, Status } from "../lib/types";
+import { DeleteReviewButton } from "./DeleteReviewButton";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { StarInput } from "./Stars";
+import { WatchedOnField } from "./WatchedOnField";
 
 interface RatingDialogProps {
   movie: MovieDetails;
@@ -13,7 +22,7 @@ interface RatingDialogProps {
   onClose: () => void;
 }
 
-function StatusToggle({
+export function StatusToggle({
   pressed,
   onToggle,
   children,
@@ -36,21 +45,28 @@ function StatusToggle({
   );
 }
 
-export function RatingDialog({ movie, current, currentStatus, currentReview, onClose }: RatingDialogProps) {
+export function RatingDialog({ movie, current, currentStatus, currentReview: reviewProp, onClose }: RatingDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const labelId = useId();
   const titleId = useId();
   const statusLabelId = useId();
+  const dateLabelId = useId();
   const reviewId = useId();
   const [score, setScore] = useState<number | null>(current);
   const [liked, setLiked] = useState<boolean | null>(currentStatus?.liked ?? null);
   const [rewatched, setRewatched] = useState(currentStatus?.rewatched ?? false);
-  const [review, setReview] = useState(currentReview?.text ?? "");
+  // The review list refetches after a delete, so remember the deletion until the prop catches up.
+  const [reviewDeleted, setReviewDeleted] = useState(false);
+  const currentReview = reviewDeleted ? null : reviewProp;
+  const [review, setReview] = useState(reviewProp?.text ?? "");
+  const [watchedOn, setWatchedOn] = useState(today);
+  const [confirmUnwatch, setConfirmUnwatch] = useState(false);
   const save = useSaveDiaryEntry(movie.id);
   const remove = useDeleteRating(movie.id);
   const removeReview = useDeleteReview();
-  const busy = save.isPending || remove.isPending || removeReview.isPending;
-  const error = save.error ?? remove.error ?? removeReview.error;
+  const unwatch = useRemoveWatched(movie.id);
+  const busy = save.isPending || remove.isPending || removeReview.isPending || unwatch.isPending;
+  const error = save.error ?? remove.error ?? removeReview.error ?? unwatch.error;
   const poster = tmdbImage(movie.posterPath, "w185");
   const year = releaseYear(movie.releaseDate);
 
@@ -67,18 +83,21 @@ export function RatingDialog({ movie, current, currentStatus, currentReview, onC
     const reviewChanged = trimmed !== "" && trimmed !== currentReview?.text;
     // Clearing the text deletes the review. That alone is not a watch, so it logs nothing.
     const reviewCleared = trimmed === "" && currentReview !== null;
+    // Picking an earlier day is a log of that viewing on its own.
+    const backDated = watchedOn !== today();
 
     try {
       if (reviewCleared) {
         await removeReview.mutateAsync(currentReview.id);
       }
 
-      if (scoreChanged || statusChanged || reviewChanged) {
+      if (scoreChanged || statusChanged || reviewChanged || backDated) {
         await save.mutateAsync({
           score: scoreChanged ? score : null,
           liked,
           rewatched,
           review: reviewChanged ? trimmed : null,
+          watchedOn: backDated ? watchedOn : null,
         });
       }
 
@@ -149,10 +168,30 @@ export function RatingDialog({ movie, current, currentStatus, currentReview, onC
           </div>
         </div>
 
+        <div role="group" aria-labelledby={dateLabelId} className="mt-4 border-t border-white/5 pt-6 text-center">
+          <p id={dateLabelId} className="text-sm text-haze">
+            Watched on
+          </p>
+          <div className="mt-3">
+            <WatchedOnField value={watchedOn} onChange={setWatchedOn} />
+          </div>
+        </div>
+
         <div className="mt-4 border-t border-white/5 pt-6">
-          <label htmlFor={reviewId} className="text-sm text-haze">
-            {currentReview ? "Your review" : "Review (optional)"}
-          </label>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <label htmlFor={reviewId} className="text-sm text-haze">
+              {currentReview ? "Your review" : "Review (optional)"}
+            </label>
+            {currentReview && (
+              <DeleteReviewButton
+                reviewId={currentReview.id}
+                onDeleted={() => {
+                  setReviewDeleted(true);
+                  setReview("");
+                }}
+              />
+            )}
+          </div>
           <MarkdownEditor
             id={reviewId}
             value={review}
@@ -161,7 +200,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview, onC
             placeholder="What did you think?"
             hint={
               currentReview
-                ? "Saving a changed review logs the film again. Clear the text to delete the review."
+                ? "Saving a changed review logs the film again."
                 : "Saving a review logs the film in your diary."
             }
           />
@@ -184,6 +223,37 @@ export function RatingDialog({ movie, current, currentStatus, currentReview, onC
               Remove rating
             </button>
           )}
+          {currentStatus !== null &&
+            (confirmUnwatch ? (
+              <span className="flex items-center gap-3 text-sm">
+                <span className="text-haze">Delete every diary entry for this film, and your review?</span>
+                <button
+                  type="button"
+                  onClick={() => unwatch.mutate(undefined, { onSuccess: onClose })}
+                  disabled={busy}
+                  className="font-medium text-alarm underline underline-offset-4 disabled:opacity-50"
+                >
+                  {unwatch.isPending ? "Removing…" : "Remove"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmUnwatch(false)}
+                  disabled={busy}
+                  className="text-haze underline underline-offset-4 hover:text-screen"
+                >
+                  Keep
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmUnwatch(true)}
+                disabled={busy}
+                className="text-sm text-haze underline underline-offset-4 transition hover:text-alarm disabled:opacity-50"
+              >
+                Remove from watched
+              </button>
+            ))}
           <div className="ml-auto flex gap-3">
             <button
               type="button"
