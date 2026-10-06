@@ -26,10 +26,16 @@ import {
     useUserLists,
     useUserProfile,
     useUserReviews,
+    useUserWatchlist,
     useWatchlist,
 } from "../lib/queries";
 import { tmdbImage } from "../lib/tmdb";
-import type { DiaryEntry, SearchMovie, UserProfile } from "../lib/types";
+import type {
+    DiaryEntry,
+    SearchMovie,
+    UserProfile,
+    WatchlistEntry,
+} from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
 
 type Tab =
@@ -365,14 +371,17 @@ function Reviews({ owner }: { owner: Owner }) {
                                         className="h-3.5"
                                     />
                                 )}
-                                <time
-                                    dateTime={review.createdAt}
-                                    className="text-sm text-haze"
+                                <Link
+                                    to={`/review/${review.id}`}
+                                    className="text-sm text-haze hover:text-screen hover:underline"
+                                    title="Open review"
                                 >
-                                    {reviewDateFormat.format(
-                                        new Date(review.createdAt),
-                                    )}
-                                </time>
+                                    <time dateTime={review.createdAt}>
+                                        {reviewDateFormat.format(
+                                            new Date(review.createdAt),
+                                        )}
+                                    </time>
+                                </Link>
                                 {review.updatedAt && (
                                     <span className="text-sm text-haze">
                                         (edited)
@@ -452,10 +461,23 @@ function Lists({ owner }: { owner: Owner }) {
     );
 }
 
-// The watchlist API only serves the logged-in user's own list.
-function Watchlist({ owner }: { owner: Owner }) {
-    const watchlist = useWatchlist();
+// The own watchlist uses the "me" query, which the watchlist button refreshes.
+function OwnWatchlist({ owner }: { owner: Owner }) {
+    return <Watchlist owner={owner} watchlist={useWatchlist()} />;
+}
 
+// Only shown when the profile says the viewer may see it.
+function UserWatchlist({ owner }: { owner: Owner }) {
+    return <Watchlist owner={owner} watchlist={useUserWatchlist(owner.id)} />;
+}
+
+function Watchlist({
+    owner,
+    watchlist,
+}: {
+    owner: Owner;
+    watchlist: UseQueryResult<WatchlistEntry[]>;
+}) {
     if (watchlist.isPending) {
         return <Loading label="Loading watchlist" />;
     }
@@ -472,7 +494,9 @@ function Watchlist({ owner }: { owner: Owner }) {
     if (watchlist.data.length === 0) {
         return (
             <EmptyState owner={owner}>
-                Your watchlist is empty. Add films you want to see.
+                {owner.own
+                    ? "Your watchlist is empty. Add films you want to see."
+                    : `${owner.name}'s watchlist is empty.`}
             </EmptyState>
         );
     }
@@ -606,7 +630,9 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
         { id: "diary", label: "Diary" },
         { id: "reviews", label: "Reviews" },
         { id: "lists", label: "Lists" },
-        ...(own ? [{ id: "watchlist" as const, label: "Watchlist" }] : []),
+        ...(own || profile.data?.canSeeWatchlist
+            ? [{ id: "watchlist" as const, label: "Watchlist" }]
+            : []),
         {
             id: "followers",
             label: "Followers",
@@ -704,7 +730,12 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                     ))}
                 {tab === "reviews" && <Reviews owner={owner} />}
                 {tab === "lists" && <Lists owner={owner} />}
-                {tab === "watchlist" && <Watchlist owner={owner} />}
+                {tab === "watchlist" &&
+                    (own ? (
+                        <OwnWatchlist owner={owner} />
+                    ) : (
+                        <UserWatchlist owner={owner} />
+                    ))}
                 {(tab === "followers" || tab === "following") && (
                     <FollowList owner={owner} list={tab} />
                 )}

@@ -6,6 +6,8 @@ namespace backend.Features.Users
     {
         public string? ProfileImageUrl { get; set; }
 
+        public WatchlistVisibility WatchlistVisibility { get; set; } = WatchlistVisibility.Followers;
+
         public ICollection<WatchedMovies.WatchedMovie> WatchedMovies { get; set; } = [];
 
         public ICollection<Ratings.Rating> Ratings { get; set; } = [];

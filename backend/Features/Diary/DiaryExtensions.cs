@@ -13,11 +13,13 @@ namespace backend.Features.Diary
         // A null watchedAt means now.
         public static DiaryEntry LogDiaryEntry(this ReelrContext context, WatchedMovie status, decimal? rating, DateTime? watchedAt = null)
         {
+            var now = DateTime.UtcNow;
             var entry = new DiaryEntry
             {
                 UserId = status.UserId,
                 MovieId = status.MovieId,
-                WatchedAt = watchedAt ?? DateTime.UtcNow,
+                WatchedAt = watchedAt ?? now,
+                LoggedAt = now,
                 Rating = rating,
                 Liked = status.Liked,
                 Rewatched = status.Rewatched

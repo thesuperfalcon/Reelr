@@ -72,6 +72,14 @@ export function useWatchlist() {
   });
 }
 
+// Another user's watchlist. The API answers 404 when their visibility setting hides it from the caller.
+export function useUserWatchlist(userId: number) {
+  return useQuery({
+    queryKey: ["users", userId, "watchlist"],
+    queryFn: () => api<WatchlistEntry[]>(`/api/users/${userId}/watchlist`),
+  });
+}
+
 export function useToggleWatchlist(tmdbId: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -297,6 +305,14 @@ export function useUserReviews(userId: number) {
   return useQuery({
     queryKey: ["reviews", "user", userId],
     queryFn: () => api<Review[]>(`/api/users/${userId}/reviews`),
+  });
+}
+
+export function useReview(reviewId: number) {
+  return useQuery({
+    queryKey: ["reviews", reviewId],
+    queryFn: () => api<Review>(`/api/reviews/${reviewId}`),
+    enabled: Number.isInteger(reviewId) && reviewId > 0,
   });
 }
 

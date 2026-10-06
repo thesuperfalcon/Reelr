@@ -20,6 +20,9 @@ namespace backend.Features.Reviews.DTOs
 
         public decimal? Score { get; set; }
 
+        // Watch date of the diary entry that logged the review. Null for reviews without one.
+        public DateTime? WatchedAt { get; set; }
+
         public DateTime CreatedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }

@@ -22,6 +22,15 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
 
     public FakeTmdbHandler Tmdb { get; } = new();
 
+    /// <summary>
+    /// Runs code against the test database directly, for setup the API cannot do yet or for checking stored values.
+    /// </summary>
+    public async Task<T> WithContextAsync<T>(Func<ReelrContext, Task<T>> action)
+    {
+        using var scope = Services.CreateScope();
+        return await action(scope.ServiceProvider.GetRequiredService<ReelrContext>());
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
