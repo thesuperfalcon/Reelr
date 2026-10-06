@@ -31,7 +31,24 @@ namespace backend.Features.Diary
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            var entries = await _context.DiaryEntries
+            return Ok(await GetEntries(userId));
+        }
+
+        [AllowAnonymous]
+        [HttpGet("api/users/{userId:int}/diary")]
+        [EndpointSummary("Get a user's diary, newest entry first")]
+        public async Task<ActionResult<List<DiaryEntryDto>>> GetUserDiary(int userId)
+        {
+            if (!await _context.Users.AnyAsync(u => u.Id == userId))
+            {
+                return NotFound();
+            }
+
+            return Ok(await GetEntries(userId));
+        }
+
+        private Task<List<DiaryEntryDto>> GetEntries(int userId) =>
+            _context.DiaryEntries
                 .Where(d => d.UserId == userId)
                 .OrderByDescending(d => d.WatchedAt)
                 .ThenByDescending(d => d.Id)
@@ -48,9 +65,6 @@ namespace backend.Features.Diary
                     WatchedAt = d.WatchedAt
                 })
                 .ToListAsync();
-
-            return Ok(entries);
-        }
 
         [HttpPost("api/movies/{tmdbId:int}/diary")]
         [EndpointSummary("Save rating, status and review for a movie and log it as one diary entry")]

@@ -1,20 +1,33 @@
-import { Link, useSearchParams } from "react-router";
+import type { UseQueryResult } from "@tanstack/react-query";
+import { Link, Navigate, useParams, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { Poster } from "../components/Poster";
 import { ReviewText } from "../components/ReviewText";
 import { Stars } from "../components/Stars";
 import { ErrorMessage, Loading } from "../components/Status";
+import { UserAvatar, UserLink } from "../components/UserAvatar";
+import { ApiError } from "../lib/api";
 import {
     useDiary,
     useFollowList,
+    useToggleFollow,
+    useUserDiary,
     useUserProfile,
     useUserReviews,
     useWatchlist,
 } from "../lib/queries";
 import { tmdbImage } from "../lib/tmdb";
-import type { DiaryEntry, SearchMovie } from "../lib/types";
+import type { DiaryEntry, SearchMovie, UserProfile } from "../lib/types";
+import { NotFoundPage } from "./NotFoundPage";
 
 type Tab = "diary" | "reviews" | "watchlist" | "followers" | "following";
+
+// Who the page belongs to. Empty states and private tabs depend on it.
+interface Owner {
+    id: number;
+    name: string;
+    own: boolean;
+}
 
 // Poster expects the TMDB search shape; watchlist rows carry only id, title and poster.
 function asSearchMovie(entry: {
@@ -57,23 +70,44 @@ function groupByMonth(
     return groups;
 }
 
-function EmptyState({ children }: { children: React.ReactNode }) {
+function EmptyState({
+    owner,
+    children,
+}: {
+    owner: Owner;
+    children: React.ReactNode;
+}) {
     return (
         <div className="py-10">
             <p className="text-haze">{children}</p>
-            <Link
-                to="/"
-                className="mt-4 inline-block font-medium text-projector underline underline-offset-4"
-            >
-                Find films
-            </Link>
+            {owner.own && (
+                <Link
+                    to="/"
+                    className="mt-4 inline-block font-medium text-projector underline underline-offset-4"
+                >
+                    Find films
+                </Link>
+            )}
         </div>
     );
 }
 
-function Diary() {
-    const diary = useDiary();
+// The own diary uses the "me" query, which the rating dialog refreshes after each log.
+function OwnDiary({ owner }: { owner: Owner }) {
+    return <Diary owner={owner} diary={useDiary()} />;
+}
 
+function UserDiary({ owner }: { owner: Owner }) {
+    return <Diary owner={owner} diary={useUserDiary(owner.id)} />;
+}
+
+function Diary({
+    owner,
+    diary,
+}: {
+    owner: Owner;
+    diary: UseQueryResult<DiaryEntry[]>;
+}) {
     if (diary.isPending) {
         return <Loading label="Loading diary" />;
     }
@@ -86,8 +120,10 @@ function Diary() {
 
     if (diary.data.length === 0) {
         return (
-            <EmptyState>
-                Your diary is empty. Rate a film to log it here.
+            <EmptyState owner={owner}>
+                {owner.own
+                    ? "Your diary is empty. Rate a film to log it here."
+                    : `${owner.name} has not logged any films yet.`}
             </EmptyState>
         );
     }
@@ -205,8 +241,8 @@ const reviewDateFormat = new Intl.DateTimeFormat("en", {
     year: "numeric",
 });
 
-function Reviews({ userId }: { userId: number }) {
-    const reviews = useUserReviews(userId);
+function Reviews({ owner }: { owner: Owner }) {
+    const reviews = useUserReviews(owner.id);
 
     if (reviews.isPending) {
         return <Loading label="Loading reviews" />;
@@ -223,9 +259,10 @@ function Reviews({ userId }: { userId: number }) {
 
     if (reviews.data.length === 0) {
         return (
-            <EmptyState>
-                You have not reviewed any films yet. Write one when you rate a
-                film.
+            <EmptyState owner={owner}>
+                {owner.own
+                    ? "You have not reviewed any films yet. Write one when you rate a film."
+                    : `${owner.name} has not reviewed any films yet.`}
             </EmptyState>
         );
     }
@@ -293,7 +330,8 @@ function Reviews({ userId }: { userId: number }) {
     );
 }
 
-function Watchlist() {
+// The watchlist API only serves the logged-in user's own list.
+function Watchlist({ owner }: { owner: Owner }) {
     const watchlist = useWatchlist();
 
     if (watchlist.isPending) {
@@ -311,7 +349,7 @@ function Watchlist() {
 
     if (watchlist.data.length === 0) {
         return (
-            <EmptyState>
+            <EmptyState owner={owner}>
                 Your watchlist is empty. Add films you want to see.
             </EmptyState>
         );
@@ -330,13 +368,13 @@ function Watchlist() {
 }
 
 function FollowList({
-    userId,
+    owner,
     list,
 }: {
-    userId: number;
+    owner: Owner;
     list: "followers" | "following";
 }) {
-    const follows = useFollowList(userId, list);
+    const follows = useFollowList(owner.id, list);
 
     if (follows.isPending) {
         return (
@@ -360,11 +398,14 @@ function FollowList({
     }
 
     if (follows.data.length === 0) {
+        const subject = owner.own ? "you" : owner.name;
         return (
             <p className="py-10 text-haze">
                 {list === "followers"
-                    ? "Nobody follows you yet."
-                    : "You do not follow anyone yet."}
+                    ? `Nobody follows ${subject} yet.`
+                    : owner.own
+                      ? "You do not follow anyone yet."
+                      : `${owner.name} does not follow anyone yet.`}
             </p>
         );
     }
@@ -372,55 +413,77 @@ function FollowList({
     return (
         <ul className="mt-8 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
             {follows.data.map((person) => (
-                <li key={person.id} className="flex items-center gap-3">
-                    {person.profileImageUrl ? (
-                        <img
-                            src={person.profileImageUrl}
-                            alt=""
-                            loading="lazy"
-                            className="size-12 shrink-0 rounded-full object-cover"
-                        />
-                    ) : (
-                        <div
-                            className="marquee flex size-12 shrink-0 items-center justify-center rounded-full bg-row text-xl text-haze"
-                            aria-hidden="true"
-                        >
-                            {person.userName.charAt(0).toUpperCase()}
-                        </div>
-                    )}
-                    <span className="truncate font-medium">
-                        {person.userName}
-                    </span>
+                <li key={person.id}>
+                    <UserLink user={person} />
                 </li>
             ))}
         </ul>
     );
 }
 
-const tabIds: Tab[] = [
-    "diary",
-    "reviews",
-    "watchlist",
-    "followers",
-    "following",
-];
+function FollowButton({
+    profile,
+    currentUserId,
+}: {
+    profile: UserProfile;
+    currentUserId: number;
+}) {
+    const toggle = useToggleFollow(profile.id, currentUserId);
+    const following = profile.isFollowing;
 
-function isTab(value: string | null): value is Tab {
-    return tabIds.includes(value as Tab);
+    return (
+        <div>
+            <button
+                type="button"
+                onClick={() => toggle.mutate(following)}
+                disabled={toggle.isPending}
+                aria-pressed={following}
+                className={`group inline-flex h-9 min-w-28 items-center justify-center rounded-sm px-4 text-sm font-semibold transition disabled:opacity-50 ${
+                    following
+                        ? "text-screen ring-1 ring-white/15 hover:text-alarm hover:ring-alarm/50"
+                        : "bg-projector text-salon hover:brightness-110"
+                }`}
+            >
+                {following ? (
+                    <>
+                        <span className="group-hover:hidden">Following</span>
+                        <span className="hidden group-hover:inline">
+                            Unfollow
+                        </span>
+                    </>
+                ) : (
+                    "Follow"
+                )}
+            </button>
+            {toggle.isError && (
+                <p role="alert" className="mt-2 text-sm text-alarm">
+                    {toggle.error.message}
+                </p>
+            )}
+        </div>
+    );
 }
 
-export function ProfilePage() {
-    // RequireAuth guarantees a user on this route.
-    const user = useAuth().user!;
-    const profile = useUserProfile(user.id);
+function isTab(value: string | null, tabs: Tab[]): value is Tab {
+    return tabs.includes(value as Tab);
+}
+
+function ProfileView({ userId, own }: { userId: number; own: boolean }) {
+    const { user } = useAuth();
+    const profile = useUserProfile(userId);
     const [params, setParams] = useSearchParams();
-    const requested = params.get("tab");
-    const tab: Tab = isTab(requested) ? requested : "diary";
+
+    if (profile.error instanceof ApiError && profile.error.status === 404) {
+        return <NotFoundPage />;
+    }
+
+    const name = profile.data?.userName ?? (own ? user!.username : "");
+    const owner: Owner = { id: userId, name, own };
 
     const tabs: { id: Tab; label: string; count?: number }[] = [
         { id: "diary", label: "Diary" },
         { id: "reviews", label: "Reviews" },
-        { id: "watchlist", label: "Watchlist" },
+        ...(own ? [{ id: "watchlist" as const, label: "Watchlist" }] : []),
         {
             id: "followers",
             label: "Followers",
@@ -432,15 +495,46 @@ export function ProfilePage() {
             count: profile.data?.followingCount,
         },
     ];
+    const requested = params.get("tab");
+    const tab: Tab = isTab(
+        requested,
+        tabs.map((t) => t.id),
+    )
+        ? requested
+        : "diary";
 
     return (
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-            <header>
-                <p className="text-sm text-projector">Your profile</p>
-                <h1 className="marquee mt-3 text-6xl sm:text-8xl">
-                    {profile.data?.userName ?? user.username}
-                </h1>
+            <header className="flex flex-wrap items-end gap-x-6 gap-y-4">
+                <UserAvatar
+                    userName={name || "?"}
+                    imageUrl={profile.data?.profileImageUrl ?? null}
+                    className="size-20 text-4xl sm:size-28 sm:text-5xl"
+                />
+                <div className="min-w-0">
+                    <p className="text-sm text-projector">
+                        {own ? "Your profile" : "Member"}
+                    </p>
+                    <h1 className="marquee mt-3 text-6xl wrap-break-word sm:text-8xl">
+                        {name}
+                    </h1>
+                </div>
+                {!own && user && profile.data && (
+                    <div className="sm:ml-auto">
+                        <FollowButton
+                            profile={profile.data}
+                            currentUserId={user.id}
+                        />
+                    </div>
+                )}
             </header>
+
+            {profile.isError && (
+                <ErrorMessage
+                    error={profile.error}
+                    retry={() => profile.refetch()}
+                />
+            )}
 
             <div
                 role="tablist"
@@ -479,13 +573,45 @@ export function ProfilePage() {
                 id={`panel-${tab}`}
                 aria-labelledby={`tab-${tab}`}
             >
-                {tab === "diary" && <Diary />}
-                {tab === "reviews" && <Reviews userId={user.id} />}
-                {tab === "watchlist" && <Watchlist />}
+                {tab === "diary" &&
+                    (own ? (
+                        <OwnDiary owner={owner} />
+                    ) : (
+                        <UserDiary owner={owner} />
+                    ))}
+                {tab === "reviews" && <Reviews owner={owner} />}
+                {tab === "watchlist" && <Watchlist owner={owner} />}
                 {(tab === "followers" || tab === "following") && (
-                    <FollowList userId={user.id} list={tab} />
+                    <FollowList owner={owner} list={tab} />
                 )}
             </div>
         </div>
     );
+}
+
+export function ProfilePage() {
+    // RequireAuth guarantees a user on this route.
+    const user = useAuth().user!;
+    return <ProfileView userId={user.id} own />;
+}
+
+export function UserPage() {
+    const { user } = useAuth();
+    const [params] = useSearchParams();
+    const userId = Number(useParams().userId);
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+        return <NotFoundPage />;
+    }
+
+    // Your own page lives at /profile, which also shows the watchlist.
+    if (user?.id === userId) {
+        const search = params.toString();
+        return (
+            <Navigate to={`/profile${search ? `?${search}` : ""}`} replace />
+        );
+    }
+
+    // The key resets follow-button state when moving from one user's page to another.
+    return <ProfileView key={userId} userId={userId} own={false} />;
 }

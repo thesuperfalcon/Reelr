@@ -83,10 +83,58 @@ export function useDiary() {
   });
 }
 
+export function useUserDiary(userId: number) {
+  return useQuery({
+    queryKey: ["users", userId, "diary"],
+    queryFn: () => api<DiaryEntry[]>(`/api/users/${userId}/diary`),
+  });
+}
+
 export function useFollowList(userId: number, list: "followers" | "following") {
   return useQuery({
     queryKey: ["users", userId, list],
     queryFn: () => api<UserSummary[]>(`/api/users/${userId}/${list}`),
+  });
+}
+
+export function useUserSearch(query: string) {
+  const trimmed = query.trim();
+  return useQuery({
+    queryKey: ["users", "search", trimmed],
+    queryFn: () => api<UserSummary[]>(`/api/users/search?query=${encodeURIComponent(trimmed)}`),
+    enabled: trimmed.length > 0,
+  });
+}
+
+// Updates the button and follower count at once, then refetches both profiles and their follow lists.
+export function useToggleFollow(userId: number, currentUserId: number) {
+  const queryClient = useQueryClient();
+  const key = ["users", userId];
+  return useMutation({
+    mutationFn: (following: boolean) =>
+      api<void>(`/api/users/${userId}/follow`, { method: following ? "DELETE" : "POST" }),
+    onMutate: async (following) => {
+      await queryClient.cancelQueries({ queryKey: key, exact: true });
+      const previous = queryClient.getQueryData<UserProfile>(key);
+      if (previous) {
+        queryClient.setQueryData<UserProfile>(key, {
+          ...previous,
+          isFollowing: !following,
+          followerCount: previous.followerCount + (following ? -1 : 1),
+        });
+      }
+      return { previous };
+    },
+    onError: (_error, _following, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(key, context.previous);
+      }
+    },
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: key }),
+        queryClient.invalidateQueries({ queryKey: ["users", currentUserId] }),
+      ]),
   });
 }
 

@@ -347,4 +347,54 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
         Assert.Equal(1, (await GetProfileAsync(target.Id))!.FollowerCount);
         Assert.Equal(1, (await GetProfileAsync(bob.Id))!.FollowingCount);
     }
+
+    // ---- Is following ----
+
+    [Fact]
+    public async Task GetUser_ShowsWhetherCallerFollows()
+    {
+        var follower = await _factory.CreateAuthenticatedAsync();
+        var stranger = await _factory.CreateAuthenticatedAsync();
+        var followed = await _factory.CreateAuthenticatedAsync();
+        await FollowAsync(follower, followed);
+
+        var asFollower = await follower.Client.GetFromJsonAsync<UserProfileDto>($"/api/users/{followed.Id}");
+        var asStranger = await stranger.Client.GetFromJsonAsync<UserProfileDto>($"/api/users/{followed.Id}");
+        var anonymous = await GetProfileAsync(followed.Id);
+
+        Assert.True(asFollower!.IsFollowing);
+        Assert.False(asStranger!.IsFollowing);
+        Assert.False(anonymous!.IsFollowing);
+    }
+
+    // ---- Search ----
+
+    [Fact]
+    public async Task SearchUsers_IsPublicAndIgnoresCase()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var part = user.Username[5..15].ToUpperInvariant();
+
+        var results = await _factory.CreateClient().GetFromJsonAsync<List<UserSummaryDto>>($"/api/users/search?query={part}");
+
+        var match = Assert.Single(results!);
+        Assert.Equal(user.Id, match.Id);
+        Assert.Equal(user.Username, match.UserName);
+    }
+
+    [Fact]
+    public async Task SearchUsers_NoMatch_ReturnsEmptyList()
+    {
+        var results = await _factory.CreateClient().GetFromJsonAsync<List<UserSummaryDto>>("/api/users/search?query=nobody-has-this-name");
+
+        Assert.Empty(results!);
+    }
+
+    [Fact]
+    public async Task SearchUsers_EmptyQuery_Returns400()
+    {
+        var response = await _factory.CreateClient().GetAsync("/api/users/search?query=%20");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }

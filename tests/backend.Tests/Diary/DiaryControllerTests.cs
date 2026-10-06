@@ -192,6 +192,30 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
+    public async Task GetUserDiary_IsPublicAndListsThatUsersEntries()
+    {
+        var alice = await _factory.CreateAuthenticatedAsync();
+        var bob = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6013, "Public diary");
+        await alice.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Score = 3, Review = "Fine" });
+        await bob.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Score = 1 });
+
+        var diary = await _factory.CreateClient().GetFromJsonAsync<List<DiaryEntryDto>>($"/api/users/{alice.Id}/diary");
+
+        var entry = Assert.Single(diary!);
+        Assert.Equal(3m, entry.Rating);
+        Assert.True(entry.HasReview);
+    }
+
+    [Fact]
+    public async Task GetUserDiary_UnknownUser_Returns404()
+    {
+        var response = await _factory.CreateClient().GetAsync("/api/users/999999/diary");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task LogEntry_ReviewTooLong_Returns400()
     {
         var user = await _factory.CreateAuthenticatedAsync();

@@ -6,6 +6,7 @@ import { RatingDialog } from "../components/RatingDialog";
 import { ReviewText } from "../components/ReviewText";
 import { STAR_PATH, Stars } from "../components/Stars";
 import { ErrorMessage, Loading } from "../components/Status";
+import { UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
 import {
   useMovieDetails,
@@ -179,13 +180,11 @@ function ReviewItem({ review, own }: { review: Review; own: boolean }) {
   return (
     <li className="py-6">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-        <div
-          className="marquee flex size-9 shrink-0 items-center justify-center rounded-full bg-row text-lg text-haze"
-          aria-hidden="true"
-        >
-          {review.username.charAt(0).toUpperCase()}
-        </div>
-        <span className="font-medium">{own ? "Your review" : review.username}</span>
+        <UserLink
+          user={{ id: review.userId, userName: review.username, profileImageUrl: review.profileImageUrl }}
+          label={own ? "Your review" : undefined}
+          avatarClassName="size-9 text-lg"
+        />
         {review.score !== null && <Stars score={review.score} className="h-3.5" />}
         <time dateTime={review.createdAt} className="text-haze">
           {reviewDateFormat.format(new Date(review.createdAt))}

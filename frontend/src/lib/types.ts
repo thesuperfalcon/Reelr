@@ -104,6 +104,8 @@ export interface UserProfile {
   profileImageUrl: string | null;
   followerCount: number;
   followingCount: number;
+  /** True when the logged-in user follows this user. */
+  isFollowing: boolean;
 }
 
 export interface WatchlistEntry {
@@ -140,6 +142,7 @@ export interface Review {
   id: number;
   userId: number;
   username: string;
+  profileImageUrl: string | null;
   tmdbId: number;
   title: string;
   posterUrl: string | null;

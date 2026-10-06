@@ -18,14 +18,14 @@ function SearchBox() {
   return (
     <form role="search" onSubmit={submit} className="w-full sm:w-72">
       <label htmlFor="site-search" className="sr-only">
-        Search films, people and studios
+        Search films, people, studios and members
       </label>
       <input
         id="site-search"
         type="search"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder="Search films, people, studios"
+        placeholder="Search films, people, members"
         className="w-full rounded-sm bg-row px-3 py-2 text-sm text-screen placeholder:text-haze/70 focus:bg-row-raised focus:outline-2 focus:outline-projector"
       />
     </form>
