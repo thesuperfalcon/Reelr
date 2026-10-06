@@ -66,6 +66,13 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
         modelBuilder.Entity<DiaryEntry>()
             .HasIndex(d => new { d.UserId, d.WatchedAt });
 
+        // Activity feed: newest logs overall, and newest logs per user.
+        modelBuilder.Entity<DiaryEntry>()
+            .HasIndex(d => d.LoggedAt);
+
+        modelBuilder.Entity<DiaryEntry>()
+            .HasIndex(d => new { d.UserId, d.LoggedAt });
+
         modelBuilder.Entity<DiaryEntry>()
             .Property(d => d.Rating)
             .HasPrecision(2, 1);
@@ -82,10 +89,19 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
         modelBuilder.Entity<WatchlistItem>()
             .HasKey(w => new { w.UserId, w.MovieId });
 
+        modelBuilder.Entity<WatchlistItem>()
+            .HasIndex(w => new { w.UserId, w.AddedAt });
+
         // Review
         modelBuilder.Entity<Review>()
             .HasIndex(r => new { r.UserId, r.MovieId })
             .IsUnique();
+
+        modelBuilder.Entity<Review>()
+            .HasIndex(r => r.CreatedAt);
+
+        modelBuilder.Entity<Review>()
+            .HasIndex(r => new { r.UserId, r.CreatedAt });
 
         // No database cascade: SQL Server rejects a second cascade path from users to reviews.
         // DiaryExtensions.DeleteDiaryEntriesAsync removes the linked review in code instead.
@@ -118,6 +134,12 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
             .HasForeignKey(l => l.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<MovieList>()
+            .HasIndex(l => new { l.UserId, l.CreatedAt });
+
+        modelBuilder.Entity<MovieList>()
+            .HasIndex(l => new { l.IsPublic, l.CreatedAt });
+
         // MovieListItem
         modelBuilder.Entity<MovieListItem>()
             .HasKey(i => new { i.MovieListId, i.MovieId });
@@ -133,5 +155,8 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
             .WithMany()
             .HasForeignKey(i => i.MovieId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<MovieListItem>()
+            .HasIndex(i => i.AddedAt);
     }
 }

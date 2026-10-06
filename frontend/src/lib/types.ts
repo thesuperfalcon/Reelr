@@ -138,7 +138,12 @@ export interface UserProfile {
   followingCount: number;
   /** True when the logged-in user follows this user. */
   isFollowing: boolean;
+  watchlistVisibility: WatchlistVisibility;
+  /** Whether the logged-in user (or a visitor) may open this user's watchlist. */
+  canSeeWatchlist: boolean;
 }
+
+export type WatchlistVisibility = "Public" | "Followers" | "Private";
 
 export interface WatchlistEntry {
   tmdbId: number;
@@ -181,6 +186,8 @@ export interface Review {
   text: string;
   /** The author's current rating of the film, or null when they have not rated it. */
   score: number | null;
+  /** Watch date of the diary entry that logged the review, or null when it has none. */
+  watchedAt: string | null;
   createdAt: string;
   updatedAt: string | null;
 }

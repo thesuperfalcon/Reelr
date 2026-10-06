@@ -14,5 +14,10 @@ namespace backend.Features.Users.DTOs
 
         // True when the logged-in caller follows this user. False for anonymous callers.
         public bool IsFollowing { get; set; }
+
+        public WatchlistVisibility WatchlistVisibility { get; set; }
+
+        // Whether the caller may open this user's watchlist.
+        public bool CanSeeWatchlist { get; set; }
     }
 }

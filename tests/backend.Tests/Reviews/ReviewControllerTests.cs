@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using backend.Features.Diary.DTOs;
 using backend.Features.Ratings.DTOs;
 using backend.Features.Reviews;
 using backend.Features.Reviews.DTOs;
@@ -114,6 +115,46 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     // ---- Read ----
+
+    [Fact]
+    public async Task GetReview_IsPublicAndIncludesWatchDateOfItsDiaryEntry()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6014, "Single review");
+        var logged = await user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/diary",
+            new LogDiaryEntryDto { Score = 4, Review = "Worth it", WatchedOn = new DateOnly(2022, 9, 9) });
+        logged.EnsureSuccessStatusCode();
+        var id = Assert.Single((await _factory.CreateClient().GetFromJsonAsync<List<ReviewDto>>(ReviewsUrl(tmdbId)))!).Id;
+
+        var review = await _factory.CreateClient().GetFromJsonAsync<ReviewDto>($"/api/reviews/{id}");
+
+        Assert.NotNull(review);
+        Assert.Equal("Worth it", review.Text);
+        Assert.Equal(user.Username, review.Username);
+        Assert.Equal(tmdbId, review.TmdbId);
+        Assert.Equal("Single review", review.Title);
+        Assert.Equal(4m, review.Score);
+        Assert.Equal(new DateTime(2022, 9, 9, 12, 0, 0), review.WatchedAt);
+    }
+
+    [Fact]
+    public async Task GetReview_WithoutDiaryEntry_HasNoWatchDate()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var created = await CreateReviewAsync(user.Client, _factory.Tmdb.AddMovie(6015, "No log"), "Just words");
+
+        var review = await _factory.CreateClient().GetFromJsonAsync<ReviewDto>($"/api/reviews/{created.Id}");
+
+        Assert.Null(review!.WatchedAt);
+    }
+
+    [Fact]
+    public async Task GetReview_UnknownId_Returns404()
+    {
+        var response = await _factory.CreateClient().GetAsync("/api/reviews/999999");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
 
     [Fact]
     public async Task GetReviews_IsPublicAndReturnsNewestFirstWithEachUsersScore()

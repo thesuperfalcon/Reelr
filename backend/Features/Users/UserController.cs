@@ -36,8 +36,9 @@ namespace backend.Features.Users
             var followingCount = await _context.Set<Follow>().CountAsync(f => f.FollowerId == id);
 
             // The endpoint is public; a valid token only adds whether the caller follows this user.
-            var isFollowing = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
-                && await _context.Set<Follow>().AnyAsync(f => f.FollowerId == currentUserId && f.FollowedId == id);
+            int? viewerId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId) ? currentUserId : null;
+            var isFollowing = viewerId != null
+                && await _context.Set<Follow>().AnyAsync(f => f.FollowerId == viewerId && f.FollowedId == id);
 
             return Ok(new UserProfileDto
             {
@@ -46,7 +47,9 @@ namespace backend.Features.Users
                 ProfileImageUrl = user.ProfileImageUrl,
                 FollowerCount = followerCount,
                 FollowingCount = followingCount,
-                IsFollowing = isFollowing
+                IsFollowing = isFollowing,
+                WatchlistVisibility = user.WatchlistVisibility,
+                CanSeeWatchlist = UserVisibility.CanSeeWatchlist(viewerId, id, user.WatchlistVisibility, isFollowing)
             });
         }
 
@@ -173,7 +176,10 @@ namespace backend.Features.Users
                 UserName = user.UserName ?? string.Empty,
                 ProfileImageUrl = user.ProfileImageUrl,
                 FollowerCount = followerCount,
-                FollowingCount = followingCount
+                FollowingCount = followingCount,
+                WatchlistVisibility = user.WatchlistVisibility,
+                // Only the owner can update a profile, and owners always see their own watchlist.
+                CanSeeWatchlist = true
             });
         }
 

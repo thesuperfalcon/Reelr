@@ -1,5 +1,7 @@
 using backend.Data;
 using backend.Features.Movies;
+using backend.Features.Users;
+using backend.Features.WatchlistItems.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -95,23 +97,40 @@ namespace backend.Features.WatchlistItems
 
         [HttpGet]
         [EndpointSummary("Get the current user's watchlist")]
-        public async Task<IActionResult> GetWatchlist()
+        public async Task<ActionResult<List<WatchlistEntryDto>>> GetWatchlist()
         {
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            var watchlist = await _context.WatchlistItems
+            return Ok(await GetEntries(userId));
+        }
+
+        [AllowAnonymous]
+        [HttpGet("/api/users/{userId:int}/watchlist")]
+        [EndpointSummary("Get a user's watchlist, if their watchlist visibility allows the caller to see it")]
+        public async Task<ActionResult<List<WatchlistEntryDto>>> GetUserWatchlist(int userId)
+        {
+            int? viewerId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+
+            // A hidden watchlist answers like a missing user, so it does not reveal that it exists.
+            if (await _context.CanSeeWatchlistAsync(viewerId, userId) != true)
+            {
+                return NotFound();
+            }
+
+            return Ok(await GetEntries(userId));
+        }
+
+        private Task<List<WatchlistEntryDto>> GetEntries(int userId) =>
+            _context.WatchlistItems
                 .Where(w => w.UserId == userId)
                 .OrderByDescending(w => w.AddedAt)
-                .Select(w => new
+                .Select(w => new WatchlistEntryDto
                 {
-                    w.Movie.TmdbId,
-                    w.Movie.Title,
-                    w.Movie.PosterUrl,
-                    w.AddedAt
+                    TmdbId = w.Movie.TmdbId,
+                    Title = w.Movie.Title,
+                    PosterUrl = w.Movie.PosterUrl,
+                    AddedAt = w.AddedAt
                 })
                 .ToListAsync();
-
-            return Ok(watchlist);
-        }
     }
 }

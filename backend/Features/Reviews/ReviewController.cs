@@ -25,27 +25,9 @@ namespace backend.Features.Reviews
         [EndpointSummary("Get reviews for a movie")]
         public async Task<ActionResult<List<ReviewDto>>> GetReviews(int tmdbId)
         {
-            var reviews = await (
-                from r in _context.Reviews
-                where r.Movie.TmdbId == tmdbId
-                join rating in _context.Ratings
-                    on new { r.UserId, r.MovieId } equals new { rating.UserId, rating.MovieId } into ratings
-                from rating in ratings.DefaultIfEmpty()
-                orderby r.CreatedAt descending
-                select new ReviewDto
-                {
-                    Id = r.Id,
-                    UserId = r.UserId,
-                    Username = r.User.UserName ?? string.Empty,
-                    ProfileImageUrl = r.User.ProfileImageUrl,
-                    TmdbId = tmdbId,
-                    Title = r.Movie.Title,
-                    PosterUrl = r.Movie.PosterUrl,
-                    Text = r.Text,
-                    Score = rating == null ? (decimal?)null : rating.Score,
-                    CreatedAt = r.CreatedAt,
-                    UpdatedAt = r.UpdatedAt
-                }).ToListAsync();
+            var reviews = await ToDtos(_context.Reviews.Where(r => r.Movie.TmdbId == tmdbId))
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
 
             return Ok(reviews);
         }
@@ -54,29 +36,25 @@ namespace backend.Features.Reviews
         [EndpointSummary("Get reviews by a user")]
         public async Task<ActionResult<List<ReviewDto>>> GetReviewsByUser(int userId)
         {
-            var reviews = await (
-                from r in _context.Reviews
-                where r.UserId == userId
-                join rating in _context.Ratings
-                    on new { r.UserId, r.MovieId } equals new { rating.UserId, rating.MovieId } into ratings
-                from rating in ratings.DefaultIfEmpty()
-                orderby r.CreatedAt descending
-                select new ReviewDto
-                {
-                    Id = r.Id,
-                    UserId = r.UserId,
-                    Username = r.User.UserName ?? string.Empty,
-                    ProfileImageUrl = r.User.ProfileImageUrl,
-                    TmdbId = r.Movie.TmdbId,
-                    Title = r.Movie.Title,
-                    PosterUrl = r.Movie.PosterUrl,
-                    Text = r.Text,
-                    Score = rating == null ? (decimal?)null : rating.Score,
-                    CreatedAt = r.CreatedAt,
-                    UpdatedAt = r.UpdatedAt
-                }).ToListAsync();
+            var reviews = await ToDtos(_context.Reviews.Where(r => r.UserId == userId))
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
 
             return Ok(reviews);
+        }
+
+        [HttpGet("/api/reviews/{id:int}")]
+        [EndpointSummary("Get a review")]
+        public async Task<ActionResult<ReviewDto>> GetReview(int id)
+        {
+            var review = await ToDtos(_context.Reviews.Where(r => r.Id == id)).FirstOrDefaultAsync();
+
+            if (review == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(review);
         }
 
         [HttpPost]
@@ -131,22 +109,7 @@ namespace backend.Features.Reviews
             _context.Reviews.Add(review);
             await _context.SaveChangesAsync();
 
-            await _context.Entry(review).Reference(r => r.User).LoadAsync();
-
-            return Ok(new ReviewDto
-            {
-                Id = review.Id,
-                UserId = review.UserId,
-                Username = review.User.UserName ?? string.Empty,
-                ProfileImageUrl = review.User.ProfileImageUrl,
-                TmdbId = tmdbId,
-                Title = movie.Title,
-                PosterUrl = movie.PosterUrl,
-                Text = review.Text,
-                Score = await GetScore(userId, movie.Id),
-                CreatedAt = review.CreatedAt,
-                UpdatedAt = review.UpdatedAt
-            });
+            return Ok(await ToDtos(_context.Reviews.Where(r => r.Id == review.Id)).SingleAsync());
         }
 
         [HttpPut("/api/reviews/{id:int}")]
@@ -157,8 +120,6 @@ namespace backend.Features.Reviews
             var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
             var review = await _context.Reviews
-                .Include(r => r.Movie)
-                .Include(r => r.User)
                 .FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
 
             if (review == null)
@@ -171,20 +132,7 @@ namespace backend.Features.Reviews
 
             await _context.SaveChangesAsync();
 
-            return Ok(new ReviewDto
-            {
-                Id = review.Id,
-                UserId = review.UserId,
-                Username = review.User.UserName ?? string.Empty,
-                ProfileImageUrl = review.User.ProfileImageUrl,
-                TmdbId = review.Movie.TmdbId,
-                Title = review.Movie.Title,
-                PosterUrl = review.Movie.PosterUrl,
-                Text = review.Text,
-                Score = await GetScore(userId, review.MovieId),
-                CreatedAt = review.CreatedAt,
-                UpdatedAt = review.UpdatedAt
-            });
+            return Ok(await ToDtos(_context.Reviews.Where(r => r.Id == id)).SingleAsync());
         }
 
         [HttpDelete("/api/reviews/{id:int}")]
@@ -208,12 +156,27 @@ namespace backend.Features.Reviews
             return NoContent();
         }
 
-        private async Task<decimal?> GetScore(int userId, int movieId)
-        {
-            var rating = await _context.Ratings
-                .FirstOrDefaultAsync(r => r.UserId == userId && r.MovieId == movieId);
-
-            return rating?.Score;
-        }
+        // Every review response has the same shape: author, film, the author's current rating,
+        // and the watch date of the diary entry that logged the review.
+        private IQueryable<ReviewDto> ToDtos(IQueryable<Review> reviews) =>
+            from r in reviews
+            join rating in _context.Ratings
+                on new { r.UserId, r.MovieId } equals new { rating.UserId, rating.MovieId } into ratings
+            from rating in ratings.DefaultIfEmpty()
+            select new ReviewDto
+            {
+                Id = r.Id,
+                UserId = r.UserId,
+                Username = r.User.UserName ?? string.Empty,
+                ProfileImageUrl = r.User.ProfileImageUrl,
+                TmdbId = r.Movie.TmdbId,
+                Title = r.Movie.Title,
+                PosterUrl = r.Movie.PosterUrl,
+                Text = r.Text,
+                Score = rating == null ? (decimal?)null : rating.Score,
+                WatchedAt = r.DiaryEntry == null ? (DateTime?)null : r.DiaryEntry.WatchedAt,
+                CreatedAt = r.CreatedAt,
+                UpdatedAt = r.UpdatedAt
+            };
     }
 }

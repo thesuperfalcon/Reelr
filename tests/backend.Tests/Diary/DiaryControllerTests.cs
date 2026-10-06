@@ -6,6 +6,7 @@ using backend.Features.Reviews;
 using backend.Features.Reviews.DTOs;
 using backend.Features.WatchedMovies.DTOs;
 using backend.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Tests.Diary;
 
@@ -169,6 +170,23 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
         Assert.True(edited.Rewatched);
         var rating = await user.Client.GetFromJsonAsync<RatingDto>($"/api/movies/{tmdbId}/rating");
         Assert.Equal(4m, rating!.Score);
+    }
+
+    [Fact]
+    public async Task LoggedAt_IsSetWhenLoggingAndKeptWhenEditing()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6027, "Logged time");
+        var before = DateTime.UtcNow;
+        var logged = await LogAsync(user, tmdbId, new LogDiaryEntryDto { WatchedOn = new DateOnly(2018, 1, 1) });
+        Task<DateTime> LoggedAtAsync() => _factory.WithContextAsync(context =>
+            context.DiaryEntries.Where(d => d.Id == logged.Id).Select(d => d.LoggedAt).SingleAsync());
+
+        var loggedAt = await LoggedAtAsync();
+        await user.Client.PutAsJsonAsync($"/api/diary/{logged.Id}", new UpdateDiaryEntryDto { WatchedOn = new DateOnly(2019, 2, 2) });
+
+        Assert.InRange(loggedAt, before.AddSeconds(-1), DateTime.UtcNow.AddSeconds(1));
+        Assert.Equal(loggedAt, await LoggedAtAsync());
     }
 
     [Fact]

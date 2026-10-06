@@ -214,9 +214,9 @@ function ReviewItem({ review, own }: { review: Review; own: boolean }) {
           avatarClassName="size-9 text-lg"
         />
         {review.score !== null && <Stars score={review.score} className="h-3.5" />}
-        <time dateTime={review.createdAt} className="text-haze">
-          {reviewDateFormat.format(new Date(review.createdAt))}
-        </time>
+        <Link to={`/review/${review.id}`} className="text-haze hover:text-screen hover:underline" title="Open review">
+          <time dateTime={review.createdAt}>{reviewDateFormat.format(new Date(review.createdAt))}</time>
+        </Link>
         {review.updatedAt && <span className="text-haze">(edited)</span>}
         {own && <DeleteReviewButton reviewId={review.id} className="ml-auto" />}
       </div>

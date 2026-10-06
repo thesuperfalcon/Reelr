@@ -1,8 +1,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using backend.Features.Ratings.DTOs;
+using backend.Features.Users;
+using backend.Features.Users.DTOs;
 using backend.Features.WatchedMovies.DTOs;
 using backend.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Tests.WatchlistItems;
 
@@ -208,5 +211,79 @@ public class WatchlistControllerTests : IClassFixture<ReelrApiFactory>
         (await bob.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/status", new CreateStatusDto())).EnsureSuccessStatusCode();
 
         Assert.Single((await GetWatchlistAsync(alice.Client))!);
+    }
+
+    // ---- Other users' watchlists ----
+
+    private Task<int> SetVisibilityAsync(int userId, WatchlistVisibility visibility) =>
+        _factory.WithContextAsync(async context =>
+        {
+            var user = await context.Users.SingleAsync(u => u.Id == userId);
+            user.WatchlistVisibility = visibility;
+            return await context.SaveChangesAsync();
+        });
+
+    [Theory]
+    [InlineData(WatchlistVisibility.Public, true, true, true)]
+    [InlineData(WatchlistVisibility.Followers, true, false, false)]
+    [InlineData(WatchlistVisibility.Private, false, false, false)]
+    public async Task GetUserWatchlist_FollowsVisibility(
+        WatchlistVisibility visibility, bool followerSees, bool strangerSees, bool anonymousSees)
+    {
+        var owner = await _factory.CreateAuthenticatedAsync();
+        var follower = await _factory.CreateAuthenticatedAsync();
+        var stranger = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(9015 + (int)visibility, "Visible?");
+        await AddAsync(owner.Client, tmdbId);
+        (await follower.Client.PostAsync($"/api/users/{owner.Id}/follow", null)).EnsureSuccessStatusCode();
+        await SetVisibilityAsync(owner.Id, visibility);
+        var url = $"/api/users/{owner.Id}/watchlist";
+
+        async Task<bool> Sees(HttpClient client)
+        {
+            var response = await client.GetAsync(url);
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return false;
+            }
+
+            response.EnsureSuccessStatusCode();
+            Assert.Equal(tmdbId, Assert.Single((await response.Content.ReadFromJsonAsync<List<WatchlistResponse>>())!).TmdbId);
+            return true;
+        }
+
+        Assert.True(await Sees(owner.Client));
+        Assert.Equal(followerSees, await Sees(follower.Client));
+        Assert.Equal(strangerSees, await Sees(stranger.Client));
+        Assert.Equal(anonymousSees, await Sees(_factory.CreateClient()));
+    }
+
+    [Fact]
+    public async Task GetUserWatchlist_UnknownUser_Returns404()
+    {
+        var response = await _factory.CreateClient().GetAsync("/api/users/999999/watchlist");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task NewUser_WatchlistIsFollowersOnlyAndProfileSaysWhoCanSeeIt()
+    {
+        var owner = await _factory.CreateAuthenticatedAsync();
+        var follower = await _factory.CreateAuthenticatedAsync();
+        var stranger = await _factory.CreateAuthenticatedAsync();
+        (await follower.Client.PostAsync($"/api/users/{owner.Id}/follow", null)).EnsureSuccessStatusCode();
+        var url = $"/api/users/{owner.Id}";
+
+        var asOwner = await owner.Client.GetFromJsonAsync<UserProfileDto>(url);
+        var asFollower = await follower.Client.GetFromJsonAsync<UserProfileDto>(url);
+        var asStranger = await stranger.Client.GetFromJsonAsync<UserProfileDto>(url);
+        var anonymous = await _factory.CreateClient().GetFromJsonAsync<UserProfileDto>(url);
+
+        Assert.Equal(WatchlistVisibility.Followers, asOwner!.WatchlistVisibility);
+        Assert.True(asOwner.CanSeeWatchlist);
+        Assert.True(asFollower!.CanSeeWatchlist);
+        Assert.False(asStranger!.CanSeeWatchlist);
+        Assert.False(anonymous!.CanSeeWatchlist);
     }
 }
