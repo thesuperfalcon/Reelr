@@ -1,6 +1,9 @@
 using backend.Data;
+using backend.Features.Diary;
 using backend.Features.Movies;
 using backend.Features.Ratings.DTOs;
+using backend.Features.WatchedMovies;
+using backend.Features.WatchlistItems;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -96,6 +99,7 @@ namespace backend.Features.Ratings
             };
 
             _context.Ratings.Add(rating);
+            await LogRatingAsync(userId, movie.Id, rating.Score);
             await _context.SaveChangesAsync();
 
             return Ok(new RatingDto
@@ -126,6 +130,7 @@ namespace backend.Features.Ratings
 
             rating.Score = dto.Score;
 
+            await LogRatingAsync(userId, rating.MovieId, rating.Score);
             await _context.SaveChangesAsync();
 
             return Ok(new RatingDto
@@ -153,6 +158,29 @@ namespace backend.Features.Ratings
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // A rated film counts as watched, so each rating logs a new diary entry and the film leaves the watchlist.
+        private async Task LogRatingAsync(int userId, int movieId, decimal score)
+        {
+            await _context.RemoveWatchedFromWatchlistAsync(userId, movieId);
+
+            var status = await _context.WatchedMovies
+                .FirstOrDefaultAsync(w => w.UserId == userId && w.MovieId == movieId);
+
+            if (status == null)
+            {
+                status = new WatchedMovie
+                {
+                    UserId = userId,
+                    MovieId = movieId,
+                    WatchedAt = DateTime.UtcNow
+                };
+
+                _context.WatchedMovies.Add(status);
+            }
+
+            _context.LogDiaryEntry(status, score);
         }
 
         private static bool IsHalfStep(decimal score)

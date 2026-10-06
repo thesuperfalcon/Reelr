@@ -32,6 +32,44 @@
   }
 }
 
+@layer components {
+  .review-text {
+    @apply max-w-prose text-screen/90;
+
+    & > * + * {
+      @apply mt-3;
+    }
+
+    & strong {
+      @apply font-semibold text-screen;
+    }
+
+    & a {
+      @apply text-projector underline underline-offset-4;
+    }
+
+    & blockquote {
+      @apply border-l-2 border-projector/60 pl-4 text-haze;
+    }
+
+    & ul {
+      @apply list-disc pl-5;
+    }
+
+    & ol {
+      @apply list-decimal pl-5;
+    }
+
+    & code {
+      @apply rounded-sm bg-row-raised px-1 py-0.5 text-sm;
+    }
+
+    & hr {
+      @apply border-white/10;
+    }
+  }
+}
+
 @utility marquee {
   font-family: var(--font-marquee);
   font-weight: 800;

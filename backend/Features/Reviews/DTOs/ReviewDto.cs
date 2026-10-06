@@ -8,7 +8,13 @@ namespace backend.Features.Reviews.DTOs
 
         public string Username { get; set; } = null!;
 
+        public string? ProfileImageUrl { get; set; }
+
         public int TmdbId { get; set; }
+
+        public string Title { get; set; } = string.Empty;
+
+        public string? PosterUrl { get; set; }
 
         public string Text { get; set; } = null!;
 

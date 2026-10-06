@@ -1,10 +1,24 @@
-import { useParams } from "react-router";
+import { useState } from "react";
+import { Link, useParams } from "react-router";
+import { useAuth } from "../auth/auth-context";
 import { Poster } from "../components/Poster";
+import { RatingDialog } from "../components/RatingDialog";
+import { ReviewText } from "../components/ReviewText";
+import { STAR_PATH, Stars } from "../components/Stars";
 import { ErrorMessage, Loading } from "../components/Status";
+import { UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
-import { useMovieDetails, useSimilarMovies } from "../lib/queries";
+import {
+  useMovieDetails,
+  useMovieReviews,
+  useMyRating,
+  useMyStatus,
+  useSimilarMovies,
+  useToggleWatchlist,
+  useWatchlist,
+} from "../lib/queries";
 import { formatRuntime, releaseYear, tmdbImage } from "../lib/tmdb";
-import type { CastMember, MovieDetails } from "../lib/types";
+import type { CastMember, MovieDetails, Review } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
 
 function Backdrop({ path }: { path: string | null }) {
@@ -18,6 +32,87 @@ function Backdrop({ path }: { path: string | null }) {
       <img src={src} alt="" className="h-full w-full object-cover object-top opacity-70" />
       <div className="absolute inset-0 bg-gradient-to-t from-salon via-salon/40 to-salon/10" />
     </div>
+  );
+}
+
+function WatchlistButton({ tmdbId, title }: { tmdbId: number; title: string | null }) {
+  const watchlist = useWatchlist();
+  const toggle = useToggleWatchlist(tmdbId);
+  const onWatchlist = watchlist.data?.some((entry) => entry.tmdbId === tmdbId) ?? false;
+  const label = `${onWatchlist ? "Remove" : "Add"} ${title ?? "film"} ${onWatchlist ? "from" : "to"} watchlist`;
+
+  return (
+    <button
+      type="button"
+      onClick={() => toggle.mutate(onWatchlist)}
+      disabled={watchlist.isPending || toggle.isPending}
+      aria-label={label}
+      aria-pressed={onWatchlist}
+      title={label}
+      className="inline-flex size-9 items-center justify-center rounded-sm text-projector ring-1 ring-white/15 transition hover:bg-row disabled:opacity-50"
+    >
+      <svg viewBox="0 0 24 24" fill={onWatchlist ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="size-5" aria-hidden="true">
+        <path d="M6 3h12v18l-6-4-6 4z" />
+      </svg>
+    </button>
+  );
+}
+
+function RateButton({ movie, userId }: { movie: MovieDetails; userId: number }) {
+  const rating = useMyRating(movie.id);
+  const status = useMyStatus(movie.id);
+  const reviews = useMovieReviews(movie.id);
+  const review = reviews.data?.find((r) => r.userId === userId) ?? null;
+  const [open, setOpen] = useState(false);
+  const score = rating.data?.score ?? null;
+  const liked = status.data?.liked === true;
+  const rewatched = status.data?.rewatched === true;
+  const statusText = [liked && "Liked", rewatched && "Rewatch"].filter(Boolean).join(", ");
+  const label =
+    (score === null ? `Rate ${movie.title ?? "film"}` : `Your rating: ${score} out of 5 stars. Change rating`) +
+    (statusText ? `. ${statusText}` : "");
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        disabled={rating.isPending || status.isPending || reviews.isPending}
+        aria-label={label}
+        title={label}
+        aria-haspopup="dialog"
+        className="inline-flex h-9 items-center gap-2 rounded-sm px-3 text-sm font-medium text-screen ring-1 ring-white/15 transition hover:bg-row disabled:opacity-50"
+      >
+        {score === null ? (
+          <>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="size-4 text-projector" aria-hidden="true">
+              <path d={STAR_PATH} />
+            </svg>
+            Rate
+          </>
+        ) : (
+          <>
+            <span className="text-haze">Rated</span>
+            <Stars score={score} className="h-4" />
+          </>
+        )}
+        {rewatched && <span className="text-haze">Rewatch</span>}
+        {liked && (
+          <span className="text-alarm" aria-hidden="true">
+            ♥
+          </span>
+        )}
+      </button>
+      {open && (
+        <RatingDialog
+          movie={movie}
+          current={score}
+          currentStatus={status.data ?? null}
+          currentReview={review}
+          onClose={() => setOpen(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -79,6 +174,71 @@ function CastList({ cast }: { cast: CastMember[] }) {
   );
 }
 
+const reviewDateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" });
+
+function ReviewItem({ review, own }: { review: Review; own: boolean }) {
+  return (
+    <li className="py-6">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+        <UserLink
+          user={{ id: review.userId, userName: review.username, profileImageUrl: review.profileImageUrl }}
+          label={own ? "Your review" : undefined}
+          avatarClassName="size-9 text-lg"
+        />
+        {review.score !== null && <Stars score={review.score} className="h-3.5" />}
+        <time dateTime={review.createdAt} className="text-haze">
+          {reviewDateFormat.format(new Date(review.createdAt))}
+        </time>
+        {review.updatedAt && <span className="text-haze">(edited)</span>}
+      </div>
+      <ReviewText text={review.text} className="mt-3" />
+    </li>
+  );
+}
+
+// Reviews are written and edited in the rating dialog, so writing one also logs the film.
+function Reviews({ tmdbId }: { tmdbId: number }) {
+  const { user } = useAuth();
+  const reviews = useMovieReviews(tmdbId);
+  const own = user ? (reviews.data?.find((r) => r.userId === user.id) ?? null) : null;
+  // The user's own review comes first; the rest stay newest first.
+  const ordered = own ? [own, ...(reviews.data ?? []).filter((r) => r !== own)] : (reviews.data ?? []);
+
+  return (
+    <section aria-labelledby="reviews-title" className="mt-16">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h2 id="reviews-title" className="marquee text-3xl">
+          Reviews
+          {reviews.data && reviews.data.length > 0 && <span className="ml-2 text-xl text-haze">{reviews.data.length}</span>}
+        </h2>
+        {user ? (
+          reviews.isSuccess && (
+            <p className="text-sm text-haze">{own ? "Edit your review with Rate." : "Write a review with Rate."}</p>
+          )
+        ) : (
+          <Link to="/login" className="text-sm font-medium text-projector underline underline-offset-4">
+            Log in to write a review
+          </Link>
+        )}
+      </div>
+
+      {reviews.isPending ? (
+        <Loading label="Loading reviews" />
+      ) : reviews.isError ? (
+        <ErrorMessage error={reviews.error} retry={() => reviews.refetch()} />
+      ) : ordered.length === 0 ? (
+        <p className="py-6 text-haze">No reviews yet.</p>
+      ) : (
+        <ul className="mt-2 divide-y divide-white/5">
+          {ordered.map((review) => (
+            <ReviewItem key={review.id} review={review} own={review === own} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function SimilarMovies({ tmdbId }: { tmdbId: number }) {
   const similar = useSimilarMovies(tmdbId);
   const movies = similar.data?.results.slice(0, 6) ?? [];
@@ -105,6 +265,7 @@ function SimilarMovies({ tmdbId }: { tmdbId: number }) {
 
 export function MoviePage() {
   const tmdbId = Number(useParams().tmdbId);
+  const { user } = useAuth();
   const details = useMovieDetails(tmdbId);
 
   if (!Number.isInteger(tmdbId) || tmdbId <= 0 || (details.error instanceof ApiError && details.error.status === 404)) {
@@ -159,15 +320,21 @@ export function MoviePage() {
             {movie.tagline && <p className="mt-6 text-lg text-projector">{movie.tagline}</p>}
             {movie.overview && <p className="mt-4 max-w-prose text-screen/90">{movie.overview}</p>}
 
-            {trailer && (
-              <a
-                href={`https://www.youtube.com/watch?v=${trailer.key}`}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-6 inline-block rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110"
-              >
-                Watch trailer on YouTube
-              </a>
+            {(trailer || user) && (
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                {trailer && (
+                  <a
+                    href={`https://www.youtube.com/watch?v=${trailer.key}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-block rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110"
+                  >
+                    Watch trailer on YouTube
+                  </a>
+                )}
+                {user && <RateButton movie={movie} userId={user.id} />}
+                {user && <WatchlistButton tmdbId={tmdbId} title={movie.title} />}
+              </div>
             )}
 
             <Facts movie={movie} />
@@ -175,6 +342,7 @@ export function MoviePage() {
         </div>
 
         <CastList cast={movie.cast} />
+        <Reviews tmdbId={tmdbId} />
         <SimilarMovies tmdbId={tmdbId} />
       </div>
     </article>

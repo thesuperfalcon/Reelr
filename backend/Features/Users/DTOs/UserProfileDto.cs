@@ -11,5 +11,8 @@ namespace backend.Features.Users.DTOs
         public int FollowerCount { get; set; }
 
         public int FollowingCount { get; set; }
+
+        // True when the logged-in caller follows this user. False for anonymous callers.
+        public bool IsFollowing { get; set; }
     }
 }
