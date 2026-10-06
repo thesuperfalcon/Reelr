@@ -93,6 +93,38 @@ export interface MovieDetails {
   images: MovieImage[];
 }
 
+export interface PersonCredit {
+  tmdbId: number;
+  title: string | null;
+  posterPath: string | null;
+  releaseDate: string | null;
+  voteAverage: number;
+  voteCount: number;
+  popularity: number;
+  /** "Acting", a crew department such as "Directing", or "Appearances" for roles as themselves. */
+  department: string;
+  /** Characters played or crew jobs held on this film. */
+  roles: string[];
+}
+
+export interface PersonDetails {
+  id: number;
+  name: string | null;
+  biography: string | null;
+  birthday: string | null;
+  deathday: string | null;
+  placeOfBirth: string | null;
+  profilePath: string | null;
+  knownForDepartment: string | null;
+  homepage: string | null;
+  imdbId: string | null;
+  instagramId: string | null;
+  twitterId: string | null;
+  facebookId: string | null;
+  knownFor: PersonCredit[];
+  credits: PersonCredit[];
+}
+
 export interface CurrentUser {
   id: number;
   username: string;

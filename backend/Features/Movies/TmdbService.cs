@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using backend.Features.Movies.DTOs;
+using backend.Features.People.DTOs;
 
 namespace backend.Features.Movies;
 
@@ -51,6 +52,11 @@ public class TmdbService
 
     public Task<TmdbPersonSearchResultDto?> SearchPeople(string query, int page = 1) =>
         GetFromTmdb<TmdbPersonSearchResultDto>($"search/person?query={Uri.EscapeDataString(query)}&language=en-US&page={page}");
+
+    public Task<TmdbPersonDetailsDto?> GetPerson(int personId) =>
+        GetFromTmdb<TmdbPersonDetailsDto>(
+            $"person/{personId}?append_to_response=movie_credits,external_ids&language=en-US",
+            notFoundReturnsNull: true);
 
     public Task<TmdbCompanySearchResultDto?> SearchCompanies(string query, int page = 1) =>
         GetFromTmdb<TmdbCompanySearchResultDto>($"search/company?query={Uri.EscapeDataString(query)}&page={page}");
