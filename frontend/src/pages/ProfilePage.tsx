@@ -8,6 +8,8 @@ import {
     useSearchParams,
 } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { DeleteReviewButton } from "../components/DeleteReviewButton";
+import { DiaryEntryDialog } from "../components/DiaryEntryDialog";
 import { ListCard } from "../components/ListCard";
 import { ListFormDialog } from "../components/ListFormDialog";
 import { Poster } from "../components/Poster";
@@ -105,6 +107,43 @@ function EmptyState({
                 </Link>
             )}
         </div>
+    );
+}
+
+function EditEntryButton({ entry }: { entry: DiaryEntry }) {
+    const [open, setOpen] = useState(false);
+    const label = `Edit diary entry for ${entry.title}`;
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                aria-label={label}
+                title={label}
+                aria-haspopup="dialog"
+                className="inline-flex size-8 items-center justify-center rounded-sm text-haze transition hover:bg-row hover:text-screen"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="size-4"
+                    aria-hidden="true"
+                >
+                    <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />
+                </svg>
+            </button>
+            {open && (
+                <DiaryEntryDialog
+                    entry={entry}
+                    onClose={() => setOpen(false)}
+                />
+            )}
+        </>
     );
 }
 
@@ -240,6 +279,9 @@ function Diary({
                                                 ♥
                                             </span>
                                         )}
+                                        {owner.own && (
+                                            <EditEntryButton entry={entry} />
+                                        )}
                                     </div>
                                 </li>
                             );
@@ -335,6 +377,12 @@ function Reviews({ owner }: { owner: Owner }) {
                                     <span className="text-sm text-haze">
                                         (edited)
                                     </span>
+                                )}
+                                {owner.own && (
+                                    <DeleteReviewButton
+                                        reviewId={review.id}
+                                        className="ml-auto"
+                                    />
                                 )}
                             </div>
                             <ReviewText text={review.text} className="mt-2" />

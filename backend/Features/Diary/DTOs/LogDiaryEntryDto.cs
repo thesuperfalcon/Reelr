@@ -12,6 +12,9 @@ namespace backend.Features.Diary.DTOs
 
         public bool Rewatched { get; set; }
 
+        // The day the film was watched. Null means now.
+        public DateOnly? WatchedOn { get; set; }
+
         // Markdown text that creates or replaces the user's review. Null or blank leaves the review as it is.
         [MaxLength(Reviews.Review.MaxLength)]
         public string? Review { get; set; }

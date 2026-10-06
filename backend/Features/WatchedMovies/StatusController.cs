@@ -154,8 +154,8 @@ namespace backend.Features.WatchedMovies
                 return NotFound();
             }
 
-            // An unwatched film has no viewings, so its diary entries go too.
-            _context.DiaryEntries.RemoveRange(await _context.DiaryEntries
+            // An unwatched film has no viewings, so its diary entries and the reviews they logged go too.
+            await _context.DeleteDiaryEntriesAsync(await _context.DiaryEntries
                 .Where(d => d.UserId == userId && d.MovieId == status.MovieId)
                 .ToListAsync());
 

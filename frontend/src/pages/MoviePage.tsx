@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { AddToListDialog } from "../components/AddToListDialog";
+import { DeleteReviewButton } from "../components/DeleteReviewButton";
 import { PersonLink } from "../components/PersonLink";
 import { Poster } from "../components/Poster";
 import { RatingDialog } from "../components/RatingDialog";
@@ -217,6 +218,7 @@ function ReviewItem({ review, own }: { review: Review; own: boolean }) {
           {reviewDateFormat.format(new Date(review.createdAt))}
         </time>
         {review.updatedAt && <span className="text-haze">(edited)</span>}
+        {own && <DeleteReviewButton reviewId={review.id} className="ml-auto" />}
       </div>
       <ReviewText text={review.text} className="mt-3" />
     </li>

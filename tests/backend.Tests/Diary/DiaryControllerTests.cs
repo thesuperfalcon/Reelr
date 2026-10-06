@@ -103,6 +103,222 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    // ---- Watch date ----
+
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow);
+
+    private static async Task<DiaryEntryDto> LogAsync(TestUser user, int tmdbId, LogDiaryEntryDto dto)
+    {
+        var response = await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), dto);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<DiaryEntryDto>())!;
+    }
+
+    [Fact]
+    public async Task LogEntry_WithWatchedOn_StoresThatDayAndKeepsLatestStatusDate()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6014, "Back-dated");
+        await LogAsync(user, tmdbId, new LogDiaryEntryDto());
+
+        var entry = await LogAsync(user, tmdbId, new LogDiaryEntryDto { WatchedOn = new DateOnly(2020, 5, 17) });
+
+        Assert.Equal(new DateTime(2020, 5, 17, 12, 0, 0), entry.WatchedAt);
+        var diary = await GetDiaryAsync(user.Client);
+        Assert.Equal(entry.Id, diary[^1].Id);
+        var status = await user.Client.GetFromJsonAsync<StatusDto>($"/api/movies/{tmdbId}/status");
+        Assert.Equal(Today, DateOnly.FromDateTime(status!.WatchedAt));
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(-200 * 365)]
+    public async Task LogEntry_WatchedOnOutOfRange_Returns400(int daysFromToday)
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6015, "Bad date");
+
+        var response = await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { WatchedOn = Today.AddDays(daysFromToday) });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // ---- Edit ----
+
+    [Fact]
+    public async Task UpdateEntry_ChangesOnlyThatEntry()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6016, "Edited");
+        var first = await LogAsync(user, tmdbId, new LogDiaryEntryDto { Score = 2, WatchedOn = new DateOnly(2021, 1, 1) });
+        await LogAsync(user, tmdbId, new LogDiaryEntryDto { Score = 4 });
+
+        var response = await user.Client.PutAsJsonAsync($"/api/diary/{first.Id}", new UpdateDiaryEntryDto
+        {
+            WatchedOn = new DateOnly(2021, 2, 3),
+            Rating = 3.5m,
+            Liked = true,
+            Rewatched = true
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var edited = (await GetDiaryAsync(user.Client)).Single(d => d.Id == first.Id);
+        Assert.Equal(new DateTime(2021, 2, 3, 12, 0, 0), edited.WatchedAt);
+        Assert.Equal(3.5m, edited.Rating);
+        Assert.True(edited.Liked);
+        Assert.True(edited.Rewatched);
+        var rating = await user.Client.GetFromJsonAsync<RatingDto>($"/api/movies/{tmdbId}/rating");
+        Assert.Equal(4m, rating!.Score);
+    }
+
+    [Fact]
+    public async Task UpdateEntry_SameDay_KeepsTimeAndCanClearRating()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6017, "Same day");
+        var logged = await LogAsync(user, tmdbId, new LogDiaryEntryDto { Score = 5 });
+
+        await user.Client.PutAsJsonAsync($"/api/diary/{logged.Id}", new UpdateDiaryEntryDto { WatchedOn = DateOnly.FromDateTime(logged.WatchedAt) });
+
+        var entry = Assert.Single(await GetDiaryAsync(user.Client));
+        Assert.Equal(logged.WatchedAt, entry.WatchedAt);
+        Assert.Null(entry.Rating);
+    }
+
+    [Fact]
+    public async Task UpdateEntry_OtherUsersEntry_Returns404()
+    {
+        var owner = await _factory.CreateAuthenticatedAsync();
+        var other = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6018, "Not yours");
+        var logged = await LogAsync(owner, tmdbId, new LogDiaryEntryDto { Score = 1 });
+
+        var response = await other.Client.PutAsJsonAsync($"/api/diary/{logged.Id}", new UpdateDiaryEntryDto { WatchedOn = Today, Rating = 5 });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(1m, Assert.Single(await GetDiaryAsync(owner.Client)).Rating);
+    }
+
+    [Fact]
+    public async Task UpdateEntry_InvalidRatingOrMissingDate_Returns400()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6019, "Invalid edit");
+        var logged = await LogAsync(user, tmdbId, new LogDiaryEntryDto());
+
+        var badRating = await user.Client.PutAsJsonAsync($"/api/diary/{logged.Id}", new UpdateDiaryEntryDto { WatchedOn = Today, Rating = 2.3m });
+        var noDate = await user.Client.PutAsJsonAsync($"/api/diary/{logged.Id}", new { Rating = 2 });
+
+        Assert.Equal(HttpStatusCode.BadRequest, badRating.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, noDate.StatusCode);
+    }
+
+    // ---- Delete ----
+
+    [Fact]
+    public async Task DeleteEntry_KeepsStatusWhileOtherEntriesRemain()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6020, "Two viewings");
+        var older = await LogAsync(user, tmdbId, new LogDiaryEntryDto { WatchedOn = new DateOnly(2019, 6, 1) });
+        var newer = await LogAsync(user, tmdbId, new LogDiaryEntryDto { WatchedOn = new DateOnly(2022, 6, 1) });
+
+        var response = await user.Client.DeleteAsync($"/api/diary/{newer.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Equal([older.Id], (await GetDiaryAsync(user.Client)).Select(d => d.Id));
+        var status = await user.Client.GetFromJsonAsync<StatusDto>($"/api/movies/{tmdbId}/status");
+        Assert.Equal(older.WatchedAt, status!.WatchedAt);
+    }
+
+    [Fact]
+    public async Task DeleteEntry_LastEntry_MarksFilmUnwatchedButKeepsRating()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6021, "Only viewing");
+        var logged = await LogAsync(user, tmdbId, new LogDiaryEntryDto { Score = 4.5m });
+
+        await user.Client.DeleteAsync($"/api/diary/{logged.Id}");
+
+        Assert.Empty(await GetDiaryAsync(user.Client));
+        Assert.Equal(HttpStatusCode.NotFound, (await user.Client.GetAsync($"/api/movies/{tmdbId}/status")).StatusCode);
+        var rating = await user.Client.GetFromJsonAsync<RatingDto>($"/api/movies/{tmdbId}/rating");
+        Assert.Equal(4.5m, rating!.Score);
+    }
+
+    private async Task<List<ReviewDto>> GetReviewsAsync(int tmdbId) =>
+        (await _factory.CreateClient().GetFromJsonAsync<List<ReviewDto>>($"/api/movies/{tmdbId}/reviews"))!;
+
+    [Fact]
+    public async Task DeleteEntry_WithReview_DeletesThatReview()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6023, "Reviewed then deleted");
+        var older = await LogAsync(user, tmdbId, new LogDiaryEntryDto { WatchedOn = new DateOnly(2020, 1, 1) });
+        var reviewed = await LogAsync(user, tmdbId, new LogDiaryEntryDto { Review = "Gone soon" });
+
+        await user.Client.DeleteAsync($"/api/diary/{reviewed.Id}");
+
+        Assert.Empty(await GetReviewsAsync(tmdbId));
+        Assert.Equal([older.Id], (await GetDiaryAsync(user.Client)).Select(d => d.Id));
+    }
+
+    [Fact]
+    public async Task DeleteEntry_WithoutReview_KeepsReviewOfAnotherEntry()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6024, "Review stays");
+        var reviewed = await LogAsync(user, tmdbId, new LogDiaryEntryDto { Review = "Keep me" });
+        var plain = await LogAsync(user, tmdbId, new LogDiaryEntryDto { Rewatched = true });
+
+        var diary = await GetDiaryAsync(user.Client);
+        Assert.True(diary.Single(d => d.Id == reviewed.Id).HasReview);
+        Assert.False(diary.Single(d => d.Id == plain.Id).HasReview);
+
+        await user.Client.DeleteAsync($"/api/diary/{plain.Id}");
+
+        Assert.Equal("Keep me", Assert.Single(await GetReviewsAsync(tmdbId)).Text);
+    }
+
+    [Fact]
+    public async Task DeleteStatus_DeletesReviewsOfItsEntries()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6025, "Unwatched with review");
+        await LogAsync(user, tmdbId, new LogDiaryEntryDto { Review = "Never mind" });
+
+        (await user.Client.DeleteAsync($"/api/movies/{tmdbId}/status")).EnsureSuccessStatusCode();
+
+        Assert.Empty(await GetReviewsAsync(tmdbId));
+    }
+
+    [Fact]
+    public async Task DeleteUser_WithReviewedDiaryEntries_Succeeds()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6026, "Account gone");
+        await LogAsync(user, tmdbId, new LogDiaryEntryDto { Score = 3, Review = "Last words" });
+
+        var response = await user.Client.DeleteAsync($"/api/users/{user.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.Empty(await GetReviewsAsync(tmdbId));
+    }
+
+    [Fact]
+    public async Task DeleteEntry_OtherUsersEntry_Returns404()
+    {
+        var owner = await _factory.CreateAuthenticatedAsync();
+        var other = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6022, "Still mine");
+        var logged = await LogAsync(owner, tmdbId, new LogDiaryEntryDto());
+
+        var response = await other.Client.DeleteAsync($"/api/diary/{logged.Id}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Single(await GetDiaryAsync(owner.Client));
+    }
+
     [Fact]
     public async Task UpdateStatus_LogsNewEntryWithCurrentRating()
     {
