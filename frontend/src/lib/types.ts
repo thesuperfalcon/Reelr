@@ -138,7 +138,12 @@ export interface UserProfile {
   followingCount: number;
   /** True when the logged-in user follows this user. */
   isFollowing: boolean;
+  watchlistVisibility: WatchlistVisibility;
+  /** Whether the logged-in user (or a visitor) may open this user's watchlist. */
+  canSeeWatchlist: boolean;
 }
+
+export type WatchlistVisibility = "Public" | "Followers" | "Private";
 
 export interface WatchlistEntry {
   tmdbId: number;
@@ -181,6 +186,8 @@ export interface Review {
   text: string;
   /** The author's current rating of the film, or null when they have not rated it. */
   score: number | null;
+  /** Watch date of the diary entry that logged the review, or null when it has none. */
+  watchedAt: string | null;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -221,3 +228,57 @@ export interface MovieListInput {
   description: string;
   isPublic: boolean;
 }
+
+export type ActivityType = "watched" | "reviewed" | "listCreated" | "listAdded" | "watchlistAdded";
+
+export interface ActivityMovie {
+  tmdbId: number;
+  title: string;
+  posterUrl: string | null;
+}
+
+export interface ActivityItem {
+  id: string;
+  /** Kept as string: the API may add kinds this client does not know yet, which are then skipped. */
+  type: ActivityType | (string & {});
+  occurredAt: string;
+  actor: { id: number; userName: string; profileImageUrl: string | null };
+  movie: ActivityMovie | null;
+  list: { id: number; name: string; movieCount: number } | null;
+  review: { id: number; excerpt: string; isTruncated: boolean } | null;
+  rating: number | null;
+  liked: boolean | null;
+  rewatched: boolean | null;
+  watchedAt: string | null;
+  /** More than 1 when several items were grouped; the item itself is the newest of them. */
+  groupCount: number;
+  groupMovies: ActivityMovie[];
+}
+
+export interface ActivityPage {
+  items: ActivityItem[];
+  nextCursor: string | null;
+}
+
+export interface FollowingFilm {
+  movie: ActivityMovie;
+  lastLoggedAt: string;
+  /** How many people you follow logged the film; watchers holds only the newest few. */
+  watcherCount: number;
+  watchers: {
+    actor: { id: number; userName: string; profileImageUrl: string | null };
+    rating: number | null;
+    liked: boolean | null;
+  }[];
+}
+
+export interface UserSettings {
+  userName: string;
+  email: string;
+  profileImageUrl: string | null;
+  watchlistVisibility: WatchlistVisibility;
+  showFriendReviews: boolean;
+}
+
+/** Only the fields that are set change. */
+export type UserSettingsUpdate = Partial<Pick<UserSettings, "userName" | "watchlistVisibility" | "showFriendReviews">>;

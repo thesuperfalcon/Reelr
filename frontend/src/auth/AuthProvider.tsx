@@ -52,8 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     setToken(token);
     setUser(userFromToken(token));
-    // Profiles fetched while logged out say isFollowing: false.
-    await queryClient.invalidateQueries({ queryKey: ["users"] });
+    // Profiles fetched while logged out say isFollowing: false, and the logged-out
+    // community feed still contains the user's own activity.
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["users"] }),
+      queryClient.invalidateQueries({ queryKey: ["feed"] }),
+    ]);
   }, [queryClient]);
 
   const register = useCallback(
@@ -64,9 +68,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [login],
   );
 
+  const replaceToken = useCallback((token: string) => {
+    setToken(token);
+    setUser(userFromToken(token));
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, login, register, logout }),
-    [user, login, register, logout],
+    () => ({ user, login, register, logout, replaceToken }),
+    [user, login, register, logout, replaceToken],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

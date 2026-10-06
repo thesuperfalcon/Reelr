@@ -1,7 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "../auth/auth-context";
 import { ApiError, api } from "./api";
 import type {
+  ActivityPage,
   DiaryEntry,
+  FollowingFilm,
   MovieDetails,
   MovieList,
   MovieListInput,
@@ -14,6 +17,8 @@ import type {
   SearchResult,
   Status,
   UserProfile,
+  UserSettings,
+  UserSettingsUpdate,
   UserSummary,
   WatchlistEntry,
 } from "./types";
@@ -57,10 +62,11 @@ export function useSearchAll(query: string) {
   });
 }
 
-export function useUserProfile(userId: number) {
+export function useUserProfile(userId: number, enabled = true) {
   return useQuery({
     queryKey: ["users", userId],
     queryFn: () => api<UserProfile>(`/api/users/${userId}`),
+    enabled,
   });
 }
 
@@ -69,6 +75,14 @@ export function useWatchlist() {
   return useQuery({
     queryKey: ["me", "watchlist"],
     queryFn: () => api<WatchlistEntry[]>("/api/watchlist"),
+  });
+}
+
+// Another user's watchlist. The API answers 404 when their visibility setting hides it from the caller.
+export function useUserWatchlist(userId: number) {
+  return useQuery({
+    queryKey: ["users", userId, "watchlist"],
+    queryFn: () => api<WatchlistEntry[]>(`/api/users/${userId}/watchlist`),
   });
 }
 
@@ -300,6 +314,14 @@ export function useUserReviews(userId: number) {
   });
 }
 
+export function useReview(reviewId: number) {
+  return useQuery({
+    queryKey: ["reviews", reviewId],
+    queryFn: () => api<Review>(`/api/reviews/${reviewId}`),
+    enabled: Number.isInteger(reviewId) && reviewId > 0,
+  });
+}
+
 // Reviews are written through useSaveDiaryEntry, so writing one also logs the film.
 export function useDeleteReview() {
   const queryClient = useQueryClient();
@@ -380,5 +402,107 @@ export function useToggleListMovie() {
         ? api<void>(`/api/lists/${listId}/movies/${tmdbId}`, { method: "DELETE" })
         : api<void>(`/api/lists/${listId}/movies`, { method: "POST", body: JSON.stringify({ tmdbId }) }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+export type FeedKind = "following" | "community";
+
+// Feed pages are fetched with the cursor of the previous page. Other people's activity changes without
+// anything happening in this tab, so the feed goes stale sooner than other data.
+export function useActivityFeed(kind: FeedKind, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: ["feed", kind],
+    queryFn: ({ pageParam }) =>
+      api<ActivityPage>(`/api/feed/${kind}?limit=15${pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : ""}`),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.nextCursor,
+    enabled,
+    staleTime: 30 * 1000,
+  });
+}
+
+// A short, fixed slice of a feed for the start page, e.g. the newest few reviews.
+export function useActivityPreview(kind: FeedKind, types: string, limit: number, enabled = true) {
+  return useQuery({
+    queryKey: ["feed", kind, "preview", types, limit],
+    queryFn: () => api<ActivityPage>(`/api/feed/${kind}?limit=${limit}&types=${encodeURIComponent(types)}`),
+    enabled,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useFollowingFilms(limit: number, enabled = true) {
+  return useQuery({
+    queryKey: ["feed", "following", "films", limit],
+    queryFn: () => api<FollowingFilm[]>(`/api/feed/following/films?limit=${limit}`),
+    enabled,
+    staleTime: 30 * 1000,
+  });
+}
+
+const settingsKey = ["me", "settings"];
+
+export function useSettings(enabled = true) {
+  return useQuery({
+    queryKey: settingsKey,
+    queryFn: () => api<UserSettings>("/api/settings"),
+    enabled,
+  });
+}
+
+// A new name or picture shows up in profiles, feeds, reviews and lists, so every cached query is refreshed.
+function useSettingsSaved() {
+  const queryClient = useQueryClient();
+
+  return (settings: UserSettings, refreshAll: boolean) => {
+    queryClient.setQueryData(settingsKey, settings);
+    if (refreshAll) {
+      queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] !== "me" || query.queryKey[1] !== "settings" });
+    }
+  };
+}
+
+export function useUpdateSettings() {
+  const saved = useSettingsSaved();
+  const { replaceToken } = useAuth();
+
+  return useMutation({
+    mutationFn: (update: UserSettingsUpdate) =>
+      api<UserSettings & { token: string | null }>("/api/settings", { method: "PATCH", body: JSON.stringify(update) }),
+    onSuccess: ({ token, ...settings }, update) => {
+      if (token) {
+        replaceToken(token);
+      }
+      saved(settings, update.userName !== undefined || update.watchlistVisibility !== undefined);
+    },
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (input: { currentPassword: string; newPassword: string }) =>
+      api<void>("/api/settings/password", { method: "POST", body: JSON.stringify(input) }),
+  });
+}
+
+export function useUploadAvatar() {
+  const saved = useSettingsSaved();
+
+  return useMutation({
+    mutationFn: (image: Blob) => {
+      const form = new FormData();
+      form.append("file", image, "avatar");
+      return api<UserSettings>("/api/settings/avatar", { method: "PUT", body: form });
+    },
+    onSuccess: (settings) => saved(settings, true),
+  });
+}
+
+export function useRemoveAvatar() {
+  const saved = useSettingsSaved();
+
+  return useMutation({
+    mutationFn: () => api<UserSettings>("/api/settings/avatar", { method: "DELETE" }),
+    onSuccess: (settings) => saved(settings, true),
   });
 }

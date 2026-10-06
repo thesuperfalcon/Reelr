@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { HomeActivity } from "../components/HomeActivity";
 import { Poster } from "../components/Poster";
 import { ErrorMessage, Loading } from "../components/Status";
 import { usePopularMovies, useTrendingMovies } from "../lib/queries";
@@ -72,6 +73,8 @@ export function HomePage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
       {featured && <Feature movie={featured} />}
+
+      <HomeActivity />
 
       <MovieShelf title="Trending this week" movies={rest.slice(0, 12)} />
 

@@ -166,6 +166,9 @@ namespace backend.Migrations
                     b.Property<bool?>("Liked")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime>("LoggedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("MovieId")
                         .HasColumnType("int");
 
@@ -184,7 +187,11 @@ namespace backend.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("LoggedAt");
+
                     b.HasIndex("MovieId");
+
+                    b.HasIndex("UserId", "LoggedAt");
 
                     b.HasIndex("UserId", "WatchedAt");
 
@@ -220,7 +227,9 @@ namespace backend.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("IsPublic", "CreatedAt");
+
+                    b.HasIndex("UserId", "CreatedAt");
 
                     b.ToTable("MovieLists");
                 });
@@ -237,6 +246,8 @@ namespace backend.Migrations
                         .HasColumnType("datetime2");
 
                     b.HasKey("MovieListId", "MovieId");
+
+                    b.HasIndex("AddedAt");
 
                     b.HasIndex("MovieId");
 
@@ -329,16 +340,42 @@ namespace backend.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedAt");
+
                     b.HasIndex("DiaryEntryId")
                         .IsUnique()
                         .HasFilter("[DiaryEntryId] IS NOT NULL");
 
                     b.HasIndex("MovieId");
 
+                    b.HasIndex("UserId", "CreatedAt");
+
                     b.HasIndex("UserId", "MovieId")
                         .IsUnique();
 
                     b.ToTable("Reviews");
+                });
+
+            modelBuilder.Entity("backend.Features.Settings.UserAvatar", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("UserAvatars");
                 });
 
             modelBuilder.Entity("backend.Features.Users.Follow", b =>
@@ -407,12 +444,18 @@ namespace backend.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("ShowFriendReviews")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<int>("WatchlistVisibility")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -465,6 +508,8 @@ namespace backend.Migrations
                     b.HasKey("UserId", "MovieId");
 
                     b.HasIndex("MovieId");
+
+                    b.HasIndex("UserId", "AddedAt");
 
                     b.ToTable("WatchlistItems");
                 });
@@ -610,6 +655,17 @@ namespace backend.Migrations
                     b.Navigation("DiaryEntry");
 
                     b.Navigation("Movie");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend.Features.Settings.UserAvatar", b =>
+                {
+                    b.HasOne("backend.Features.Users.User", "User")
+                        .WithOne()
+                        .HasForeignKey("backend.Features.Settings.UserAvatar", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });

@@ -14,7 +14,11 @@ namespace backend.Features.Diary
 
         public Movies.Movie Movie { get; set; } = null!;
 
+        // The day the film was watched. Can be back-dated and edited.
         public DateTime WatchedAt { get; set; }
+
+        // When the entry was saved. Never changes; the activity feed orders by it.
+        public DateTime LoggedAt { get; set; }
 
         public decimal? Rating { get; set; }
 

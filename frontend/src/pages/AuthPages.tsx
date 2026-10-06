@@ -1,35 +1,8 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { Field, FormError } from "../components/Form";
 import { ApiError } from "../lib/api";
-
-function Field({
-  id,
-  label,
-  hint,
-  ...input
-}: { id: string; label: string; hint?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium">
-        {label}
-      </label>
-      <input
-        id={id}
-        name={id}
-        required
-        aria-describedby={hint ? `${id}-hint` : undefined}
-        className="mt-1.5 w-full rounded-sm bg-row px-3 py-2.5 text-screen focus:bg-row-raised focus:outline-2 focus:outline-projector"
-        {...input}
-      />
-      {hint && (
-        <p id={`${id}-hint`} className="mt-1 text-xs text-haze">
-          {hint}
-        </p>
-      )}
-    </div>
-  );
-}
 
 function AuthShell({ title, children, footer }: { title: string; children: ReactNode; footer: ReactNode }) {
   return (
@@ -39,25 +12,6 @@ function AuthShell({ title, children, footer }: { title: string; children: React
         {children}
         <p className="mt-6 text-sm text-haze">{footer}</p>
       </div>
-    </div>
-  );
-}
-
-function FormError({ error }: { error: unknown }) {
-  if (!error) {
-    return null;
-  }
-
-  const messages =
-    error instanceof ApiError && error.details.length > 0
-      ? error.details
-      : [error instanceof Error ? error.message : "Something went wrong."];
-
-  return (
-    <div role="alert" className="text-sm text-alarm">
-      {messages.map((message) => (
-        <p key={message}>{message}</p>
-      ))}
     </div>
   );
 }

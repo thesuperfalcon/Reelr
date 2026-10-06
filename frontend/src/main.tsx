@@ -6,11 +6,14 @@ import "./index.css";
 import { AuthProvider } from "./auth/AuthProvider";
 import { ApiError } from "./lib/api";
 import { Layout } from "./components/Layout";
+import { ActivityPage } from "./pages/ActivityPage";
 import { HomePage } from "./pages/HomePage";
 import { ListPage } from "./pages/ListPage";
 import { MoviePage } from "./pages/MoviePage";
 import { PersonPage } from "./pages/PersonPage";
+import { ReviewPage } from "./pages/ReviewPage";
 import { SearchPage } from "./pages/SearchPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { LoginPage, RegisterPage } from "./pages/AuthPages";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ProfilePage, UserPage } from "./pages/ProfilePage";
@@ -32,16 +35,21 @@ const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: "activity", element: <ActivityPage /> },
       { path: "movie/:tmdbId", element: <MoviePage /> },
       { path: "person/:personId", element: <PersonPage /> },
       { path: "list/:listId", element: <ListPage /> },
+      { path: "review/:reviewId", element: <ReviewPage /> },
       { path: "search", element: <SearchPage /> },
       { path: "user/:userId", element: <UserPage /> },
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
       {
         element: <RequireAuth />,
-        children: [{ path: "profile", element: <ProfilePage /> }],
+        children: [
+          { path: "profile", element: <ProfilePage /> },
+          { path: "settings", element: <SettingsPage /> },
+        ],
       },
       { path: "*", element: <NotFoundPage /> },
     ],
