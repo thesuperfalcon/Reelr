@@ -3,6 +3,7 @@ import { ApiError, api } from "./api";
 import type {
   DiaryEntry,
   MovieDetails,
+  PersonDetails,
   Rating,
   Review,
   SearchAllResult,
@@ -76,10 +77,19 @@ export function useToggleWatchlist(tmdbId: number) {
   });
 }
 
-export function useDiary() {
+export function useDiary(enabled = true) {
   return useQuery({
     queryKey: ["me", "diary"],
     queryFn: () => api<DiaryEntry[]>("/api/watched"),
+    enabled,
+  });
+}
+
+export function usePersonDetails(personId: number) {
+  return useQuery({
+    queryKey: ["people", personId],
+    queryFn: () => api<PersonDetails>(`/api/person/${personId}`),
+    enabled: Number.isInteger(personId) && personId > 0,
   });
 }
 

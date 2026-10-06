@@ -1,9 +1,9 @@
 import { useSearchParams } from "react-router";
+import { PersonLink } from "../components/PersonLink";
 import { Poster } from "../components/Poster";
 import { ErrorMessage, Loading } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
 import { useSearchAll, useUserSearch } from "../lib/queries";
-import { tmdbImage } from "../lib/tmdb";
 import type { Person, UserSummary } from "../lib/types";
 
 function PeopleList({ title, people }: { title: string; people: Person[] }) {
@@ -15,22 +15,16 @@ function PeopleList({ title, people }: { title: string; people: Person[] }) {
     <section aria-label={title} className="mt-12">
       <h2 className="marquee text-3xl">{title}</h2>
       <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
-        {people.slice(0, 12).map((person) => {
-          const photo = tmdbImage(person.profile_path, "w185");
-          return (
-            <li key={person.id} className="flex items-center gap-3">
-              {photo ? (
-                <img src={photo} alt="" loading="lazy" className="size-12 shrink-0 rounded-full object-cover" />
-              ) : (
-                <div className="size-12 shrink-0 rounded-full bg-row" aria-hidden="true" />
-              )}
-              <div className="min-w-0 text-sm">
-                <p className="truncate font-medium">{person.name}</p>
-                {person.known_for_department && <p className="truncate text-haze">{person.known_for_department}</p>}
-              </div>
-            </li>
-          );
-        })}
+        {people.slice(0, 12).map((person) => (
+          <li key={person.id}>
+            <PersonLink
+              id={person.id}
+              name={person.name}
+              profilePath={person.profile_path}
+              detail={person.known_for_department}
+            />
+          </li>
+        ))}
       </ul>
     </section>
   );
