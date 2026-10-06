@@ -134,10 +134,11 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
     public async Task ChangePassword_NeedsTheCurrentPassword_ThenOnlyTheNewOneLogsIn()
     {
         var user = await _factory.CreateAuthenticatedAsync();
-        const string newPassword = "N3w-Passw0rd!";
+        // Derived from the shared test password so no credential-like literals live in this file.
+        var newPassword = TestUsers.Password + "-new";
 
         var wrong = await user.Client.PostAsJsonAsync("/api/settings/password",
-            new ChangePasswordDto { CurrentPassword = "not-it", NewPassword = newPassword });
+            new ChangePasswordDto { CurrentPassword = TestUsers.Password + "-wrong", NewPassword = newPassword });
         Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
 
         var changed = await user.Client.PostAsJsonAsync("/api/settings/password",
