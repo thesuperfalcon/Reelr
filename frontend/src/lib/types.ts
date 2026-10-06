@@ -191,3 +191,33 @@ export interface Status {
   rewatched: boolean;
   watchedAt: string;
 }
+
+export interface MovieListItem {
+  tmdbId: number;
+  title: string;
+  posterUrl: string | null;
+  addedAt: string;
+}
+
+export interface MovieListSummary {
+  id: number;
+  name: string;
+  isPublic: boolean;
+  movieCount: number;
+  /** The newest few films, for the poster preview. */
+  topMovies: MovieListItem[];
+  createdAt: string;
+}
+
+export interface MovieList extends MovieListSummary {
+  userId: number;
+  username: string;
+  description: string | null;
+  updatedAt: string | null;
+}
+
+export interface MovieListInput {
+  name: string;
+  description: string;
+  isPublic: boolean;
+}

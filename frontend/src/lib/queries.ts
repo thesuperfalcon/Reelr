@@ -3,6 +3,10 @@ import { ApiError, api } from "./api";
 import type {
   DiaryEntry,
   MovieDetails,
+  MovieList,
+  MovieListInput,
+  MovieListItem,
+  MovieListSummary,
   PersonDetails,
   Rating,
   Review,
@@ -259,5 +263,75 @@ export function useDeleteReview() {
         queryClient.invalidateQueries({ queryKey: ["reviews"] }),
         queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
       ]),
+  });
+}
+
+// Lists change from several places (movie page, profile, list page), so every write refreshes all of them.
+export function useUserLists(userId: number) {
+  return useQuery({
+    queryKey: ["lists", "user", userId],
+    queryFn: () => api<MovieListSummary[]>(`/api/users/${userId}/lists`),
+  });
+}
+
+export function useMyLists() {
+  return useQuery({
+    queryKey: ["lists", "mine"],
+    queryFn: () => api<MovieListSummary[]>("/api/lists"),
+  });
+}
+
+export function useListsContaining(tmdbId: number) {
+  return useQuery({
+    queryKey: ["lists", "containing", tmdbId],
+    queryFn: () => api<number[]>(`/api/lists/containing/${tmdbId}`),
+  });
+}
+
+export function useMovieList(listId: number) {
+  return useQuery({
+    queryKey: ["lists", listId],
+    queryFn: () => api<MovieList>(`/api/lists/${listId}`),
+    enabled: Number.isInteger(listId) && listId > 0,
+  });
+}
+
+export function useMovieListMovies(listId: number) {
+  return useQuery({
+    queryKey: ["lists", listId, "movies"],
+    queryFn: () => api<MovieListItem[]>(`/api/lists/${listId}/movies`),
+    enabled: Number.isInteger(listId) && listId > 0,
+  });
+}
+
+// Creates a list when id is null, otherwise updates it.
+export function useSaveMovieList() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: number | null; input: MovieListInput }) =>
+      id === null
+        ? api<MovieList>("/api/lists", { method: "POST", body: JSON.stringify(input) })
+        : api<MovieList>(`/api/lists/${id}`, { method: "PUT", body: JSON.stringify(input) }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+export function useDeleteMovieList() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api<void>(`/api/lists/${id}`, { method: "DELETE" }),
+    onSuccess: (_data, id) => queryClient.removeQueries({ queryKey: ["lists", id] }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+export function useToggleListMovie() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ listId, tmdbId, inList }: { listId: number; tmdbId: number; inList: boolean }) =>
+      inList
+        ? api<void>(`/api/lists/${listId}/movies/${tmdbId}`, { method: "DELETE" })
+        : api<void>(`/api/lists/${listId}/movies`, { method: "POST", body: JSON.stringify({ tmdbId }) }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
   });
 }

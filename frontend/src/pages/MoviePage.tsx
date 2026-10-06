@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { AddToListDialog } from "../components/AddToListDialog";
 import { PersonLink } from "../components/PersonLink";
 import { Poster } from "../components/Poster";
 import { RatingDialog } from "../components/RatingDialog";
@@ -56,6 +57,29 @@ function WatchlistButton({ tmdbId, title }: { tmdbId: number; title: string | nu
         <path d="M6 3h12v18l-6-4-6 4z" />
       </svg>
     </button>
+  );
+}
+
+function AddToListButton({ movie }: { movie: MovieDetails }) {
+  const [open, setOpen] = useState(false);
+  const label = `Add ${movie.title ?? "film"} to a list`;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={label}
+        title={label}
+        aria-haspopup="dialog"
+        className="inline-flex size-9 items-center justify-center rounded-sm text-screen ring-1 ring-white/15 transition hover:bg-row"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-5" aria-hidden="true">
+          <path d="M4 6h11M4 12h11M4 18h7M18 15v6M15 18h6" />
+        </svg>
+      </button>
+      {open && <AddToListDialog movie={movie} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
@@ -337,6 +361,7 @@ export function MoviePage() {
                 )}
                 {user && <RateButton movie={movie} userId={user.id} />}
                 {user && <WatchlistButton tmdbId={tmdbId} title={movie.title} />}
+                {user && <AddToListButton movie={movie} />}
               </div>
             )}
 

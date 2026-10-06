@@ -112,6 +112,58 @@ public class MovieListControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
+    public async Task GetUserLists_HidesPrivateListsFromOthers()
+    {
+        var owner = await _factory.CreateAuthenticatedAsync();
+        var other = await _factory.CreateAuthenticatedAsync();
+        await CreateListAsync(owner.Client, "Public one");
+        await CreateListAsync(owner.Client, "Secret", isPublic: false);
+        await CreateListAsync(other.Client, "Not theirs");
+        var url = $"/api/users/{owner.Id}/lists";
+
+        var asOwner = await owner.Client.GetFromJsonAsync<List<MovieListSummaryDto>>(url);
+        var asOther = await other.Client.GetFromJsonAsync<List<MovieListSummaryDto>>(url);
+        var anonymous = await _factory.CreateClient().GetFromJsonAsync<List<MovieListSummaryDto>>(url);
+
+        Assert.Equal(["Secret", "Public one"], asOwner!.Select(l => l.Name));
+        Assert.Equal(["Public one"], asOther!.Select(l => l.Name));
+        Assert.Equal(["Public one"], anonymous!.Select(l => l.Name));
+    }
+
+    [Fact]
+    public async Task GetUserLists_UnknownUser_Returns404()
+    {
+        var response = await _factory.CreateClient().GetAsync("/api/users/999999/lists");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetListsContaining_ReturnsOnlyOwnListsWithThatMovie()
+    {
+        var owner = await _factory.CreateAuthenticatedAsync();
+        var other = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = AddTmdbMovie(4901, "Listed");
+        var withMovie = await CreateListAsync(owner.Client, "With");
+        await CreateListAsync(owner.Client, "Without");
+        var othersList = await CreateListAsync(other.Client, "Other user's");
+        await AddMovieAsync(owner.Client, withMovie.Id, tmdbId);
+        await AddMovieAsync(other.Client, othersList.Id, tmdbId);
+
+        var ids = await owner.Client.GetFromJsonAsync<List<int>>($"/api/lists/containing/{tmdbId}");
+
+        Assert.Equal([withMovie.Id], ids);
+    }
+
+    [Fact]
+    public async Task GetListsContaining_WithoutToken_Returns401()
+    {
+        var response = await _factory.CreateClient().GetAsync("/api/lists/containing/4901");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task GetList_PublicList_IsVisibleWithoutToken()
     {
         var owner = await _factory.CreateAuthenticatedAsync();
