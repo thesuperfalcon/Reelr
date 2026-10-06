@@ -1,4 +1,5 @@
 using backend.Data;
+using backend.Features.Activity;
 using backend.Features.Auth;
 using backend.Features.Movies;
 using backend.Features.Users;
@@ -33,6 +34,16 @@ builder.Services
     .AddDefaultTokenProviders();
 
 builder.Services.AddScoped<TokenService>();
+
+// Activity feed. "Activity:Implementation" picks how the feed is computed; only "Derived" exists so far.
+builder.Services.AddMemoryCache();
+builder.Services.Configure<ActivityOptions>(builder.Configuration.GetSection("Activity"));
+builder.Services.AddScoped<IActivityFeed>(services =>
+    builder.Configuration["Activity:Implementation"] switch
+    {
+        null or "Derived" => ActivatorUtilities.CreateInstance<DerivedActivityFeed>(services),
+        var name => throw new InvalidOperationException($"Unknown Activity:Implementation '{name}'.")
+    });
 
 builder.Services
     .AddAuthentication(options =>

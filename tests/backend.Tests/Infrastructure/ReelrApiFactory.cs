@@ -38,6 +38,8 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("ConnectionStrings:ReelrContext", _connectionString);
         builder.UseSetting("Jwt:Key", "test-signing-key-that-is-long-enough-for-hmac-sha256");
         builder.UseSetting("TMDB_READ_ACCESS_TOKEN", "test-token");
+        // Tests read the community feed right after changing data, so its short cache is off.
+        builder.UseSetting("Activity:CommunityCacheSeconds", "0");
 
         builder.ConfigureServices(services =>
         {

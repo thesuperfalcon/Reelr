@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "./api";
 import type {
+  ActivityPage,
   DiaryEntry,
   MovieDetails,
   MovieList,
@@ -57,10 +58,11 @@ export function useSearchAll(query: string) {
   });
 }
 
-export function useUserProfile(userId: number) {
+export function useUserProfile(userId: number, enabled = true) {
   return useQuery({
     queryKey: ["users", userId],
     queryFn: () => api<UserProfile>(`/api/users/${userId}`),
+    enabled,
   });
 }
 
@@ -396,5 +398,21 @@ export function useToggleListMovie() {
         ? api<void>(`/api/lists/${listId}/movies/${tmdbId}`, { method: "DELETE" })
         : api<void>(`/api/lists/${listId}/movies`, { method: "POST", body: JSON.stringify({ tmdbId }) }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["lists"] }),
+  });
+}
+
+export type FeedKind = "following" | "community";
+
+// Feed pages are fetched with the cursor of the previous page. Other people's activity changes without
+// anything happening in this tab, so the feed goes stale sooner than other data.
+export function useActivityFeed(kind: FeedKind, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: ["feed", kind],
+    queryFn: ({ pageParam }) =>
+      api<ActivityPage>(`/api/feed/${kind}?limit=15${pageParam ? `&cursor=${encodeURIComponent(pageParam)}` : ""}`),
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.nextCursor,
+    enabled,
+    staleTime: 30 * 1000,
   });
 }

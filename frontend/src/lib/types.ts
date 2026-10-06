@@ -228,3 +228,34 @@ export interface MovieListInput {
   description: string;
   isPublic: boolean;
 }
+
+export type ActivityType = "watched" | "reviewed" | "listCreated" | "listAdded" | "watchlistAdded";
+
+export interface ActivityMovie {
+  tmdbId: number;
+  title: string;
+  posterUrl: string | null;
+}
+
+export interface ActivityItem {
+  id: string;
+  /** Kept as string: the API may add kinds this client does not know yet, which are then skipped. */
+  type: ActivityType | (string & {});
+  occurredAt: string;
+  actor: { id: number; userName: string; profileImageUrl: string | null };
+  movie: ActivityMovie | null;
+  list: { id: number; name: string; movieCount: number } | null;
+  review: { id: number; excerpt: string; isTruncated: boolean } | null;
+  rating: number | null;
+  liked: boolean | null;
+  rewatched: boolean | null;
+  watchedAt: string | null;
+  /** More than 1 when several items were grouped; the item itself is the newest of them. */
+  groupCount: number;
+  groupMovies: ActivityMovie[];
+}
+
+export interface ActivityPage {
+  items: ActivityItem[];
+  nextCursor: string | null;
+}
