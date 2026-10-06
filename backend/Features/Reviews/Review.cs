@@ -2,6 +2,9 @@ namespace backend.Features.Reviews
 {
     public class Review
     {
+        // Longest review text in characters. Markdown syntax counts toward it.
+        public const int MaxLength = 5000;
+
         public int Id { get; set; }
 
         public int UserId { get; set; }

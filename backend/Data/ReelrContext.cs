@@ -1,3 +1,4 @@
+using backend.Features.Diary;
 using backend.Features.MovieLists;
 using backend.Features.Movies;
 using backend.Features.Ratings;
@@ -26,6 +27,8 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
 
     public DbSet<WatchedMovie> WatchedMovies => Set<WatchedMovie>();
 
+    public DbSet<DiaryEntry> DiaryEntries => Set<DiaryEntry>();
+
     public DbSet<WatchlistItem> WatchlistItems => Set<WatchlistItem>();
 
     public DbSet<Follow> Follows => Set<Follow>();
@@ -46,6 +49,26 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
         // WatchedMovie
         modelBuilder.Entity<WatchedMovie>()
             .HasKey(w => new { w.UserId, w.MovieId });
+
+        // DiaryEntry
+        modelBuilder.Entity<DiaryEntry>()
+            .HasOne(d => d.User)
+            .WithMany()
+            .HasForeignKey(d => d.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DiaryEntry>()
+            .HasOne(d => d.Movie)
+            .WithMany()
+            .HasForeignKey(d => d.MovieId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DiaryEntry>()
+            .HasIndex(d => new { d.UserId, d.WatchedAt });
+
+        modelBuilder.Entity<DiaryEntry>()
+            .Property(d => d.Rating)
+            .HasPrecision(2, 1);
 
         // Rating
         modelBuilder.Entity<Rating>()

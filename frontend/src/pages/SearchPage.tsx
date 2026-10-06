@@ -1,9 +1,10 @@
 import { useSearchParams } from "react-router";
 import { Poster } from "../components/Poster";
 import { ErrorMessage, Loading } from "../components/Status";
-import { useSearchAll } from "../lib/queries";
+import { UserLink } from "../components/UserAvatar";
+import { useSearchAll, useUserSearch } from "../lib/queries";
 import { tmdbImage } from "../lib/tmdb";
-import type { Person } from "../lib/types";
+import type { Person, UserSummary } from "../lib/types";
 
 function PeopleList({ title, people }: { title: string; people: Person[] }) {
   if (people.length === 0) {
@@ -35,10 +36,30 @@ function PeopleList({ title, people }: { title: string; people: Person[] }) {
   );
 }
 
+function MemberList({ members }: { members: UserSummary[] }) {
+  if (members.length === 0) {
+    return null;
+  }
+
+  return (
+    <section aria-label="Members" className="mt-12">
+      <h2 className="marquee text-3xl">Members</h2>
+      <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
+        {members.map((member) => (
+          <li key={member.id}>
+            <UserLink user={member} className="text-sm" />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function SearchPage() {
   const [params] = useSearchParams();
   const query = params.get("q")?.trim() ?? "";
   const search = useSearchAll(query);
+  const members = useUserSearch(query);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -48,14 +69,16 @@ export function SearchPage() {
         <h1 className="marquee text-5xl sm:text-6xl">Search</h1>
       )}
 
-      {!query && <p className="mt-4 text-haze">Type a film title, a name or a studio in the search field above.</p>}
+      {!query && <p className="mt-4 text-haze">Type a film title, a name, a studio or a member's username in the search field above.</p>}
 
-      {query && search.isPending && <Loading label="Searching" />}
+      {query && (search.isPending || members.isPending) && <Loading label="Searching" />}
       {search.isError && <ErrorMessage error={search.error} retry={() => search.refetch()} />}
+      {members.isError && <ErrorMessage error={members.error} retry={() => members.refetch()} />}
 
-      {search.data && (
+      {search.data && !members.isPending && (
         <>
-          {search.data.movies.length === 0 &&
+          {(members.data ?? []).length === 0 &&
+            search.data.movies.length === 0 &&
             search.data.cast.length === 0 &&
             search.data.crew.length === 0 &&
             search.data.studios.length === 0 && (
@@ -75,6 +98,7 @@ export function SearchPage() {
             </section>
           )}
 
+          <MemberList members={members.data ?? []} />
           <PeopleList title="Cast" people={search.data.cast} />
           <PeopleList title="Crew" people={search.data.crew} />
 

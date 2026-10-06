@@ -52,7 +52,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     setToken(token);
     setUser(userFromToken(token));
-  }, []);
+    // Profiles fetched while logged out say isFollowing: false.
+    await queryClient.invalidateQueries({ queryKey: ["users"] });
+  }, [queryClient]);
 
   const register = useCallback(
     async (input: RegisterInput) => {

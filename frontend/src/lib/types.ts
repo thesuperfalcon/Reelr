@@ -104,6 +104,8 @@ export interface UserProfile {
   profileImageUrl: string | null;
   followerCount: number;
   followingCount: number;
+  /** True when the logged-in user follows this user. */
+  isFollowing: boolean;
 }
 
 export interface WatchlistEntry {
@@ -114,11 +116,14 @@ export interface WatchlistEntry {
 }
 
 export interface DiaryEntry {
+  id: number;
   tmdbId: number;
   title: string;
   posterUrl: string | null;
   liked: boolean | null;
   rewatched: boolean;
+  rating: number | null;
+  hasReview: boolean;
   watchedAt: string;
 }
 
@@ -126,4 +131,31 @@ export interface UserSummary {
   id: number;
   userName: string;
   profileImageUrl: string | null;
+}
+
+export interface Rating {
+  tmdbId: number;
+  score: number;
+}
+
+export interface Review {
+  id: number;
+  userId: number;
+  username: string;
+  profileImageUrl: string | null;
+  tmdbId: number;
+  title: string;
+  posterUrl: string | null;
+  text: string;
+  /** The author's current rating of the film, or null when they have not rated it. */
+  score: number | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface Status {
+  tmdbId: number;
+  liked: boolean | null;
+  rewatched: boolean;
+  watchedAt: string;
 }

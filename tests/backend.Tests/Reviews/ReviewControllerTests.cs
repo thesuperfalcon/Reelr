@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using backend.Features.Ratings.DTOs;
+using backend.Features.Reviews;
 using backend.Features.Reviews.DTOs;
 using backend.Tests.Infrastructure;
 
@@ -80,6 +81,17 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
+    public async Task CreateReview_TextTooLong_Returns400()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6013, "Too long");
+
+        var response = await user.Client.PostAsJsonAsync(ReviewsUrl(tmdbId), new CreateReviewDto { Text = new string('a', Review.MaxLength + 1) });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CreateReview_AlreadyReviewed_Returns409()
     {
         var user = await _factory.CreateAuthenticatedAsync();
@@ -146,6 +158,8 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
         Assert.NotNull(reviews);
         Assert.Equal(["Alice on two", "Alice on one"], reviews.Select(r => r.Text));
         Assert.Equal([secondId, firstId], reviews.Select(r => r.TmdbId));
+        Assert.Equal(["Two", "One"], reviews.Select(r => r.Title));
+        Assert.Equal([$"/{secondId}.jpg", $"/{firstId}.jpg"], reviews.Select(r => r.PosterUrl));
     }
 
     // ---- Update ----

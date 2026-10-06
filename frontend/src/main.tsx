@@ -11,7 +11,7 @@ import { MoviePage } from "./pages/MoviePage";
 import { SearchPage } from "./pages/SearchPage";
 import { LoginPage, RegisterPage } from "./pages/AuthPages";
 import { NotFoundPage } from "./pages/NotFoundPage";
-import { ProfilePage } from "./pages/ProfilePage";
+import { ProfilePage, UserPage } from "./pages/ProfilePage";
 import { RequireAuth } from "./auth/RequireAuth";
 
 const queryClient = new QueryClient({
@@ -32,6 +32,7 @@ const router = createBrowserRouter([
       { index: true, element: <HomePage /> },
       { path: "movie/:tmdbId", element: <MoviePage /> },
       { path: "search", element: <SearchPage /> },
+      { path: "user/:userId", element: <UserPage /> },
       { path: "login", element: <LoginPage /> },
       { path: "register", element: <RegisterPage /> },
       {

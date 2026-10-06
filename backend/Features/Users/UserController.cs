@@ -35,14 +35,47 @@ namespace backend.Features.Users
             var followerCount = await _context.Set<Follow>().CountAsync(f => f.FollowedId == id);
             var followingCount = await _context.Set<Follow>().CountAsync(f => f.FollowerId == id);
 
+            // The endpoint is public; a valid token only adds whether the caller follows this user.
+            var isFollowing = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
+                && await _context.Set<Follow>().AnyAsync(f => f.FollowerId == currentUserId && f.FollowedId == id);
+
             return Ok(new UserProfileDto
             {
                 Id = user.Id,
                 UserName = user.UserName ?? string.Empty,
                 ProfileImageUrl = user.ProfileImageUrl,
                 FollowerCount = followerCount,
-                FollowingCount = followingCount
+                FollowingCount = followingCount,
+                IsFollowing = isFollowing
             });
+        }
+
+        [HttpGet("search")]
+        [EndpointSummary("Search users by username")]
+        public async Task<ActionResult<List<UserSummaryDto>>> SearchUsers([FromQuery] string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return BadRequest("Query must not be empty.");
+            }
+
+            // NormalizedUserName is upper case, so matching on it ignores case on every database.
+            var normalized = query.Trim().ToUpperInvariant();
+
+            var users = await _context.Users
+                .Where(u => u.NormalizedUserName != null && u.NormalizedUserName.Contains(normalized))
+                .OrderBy(u => u.NormalizedUserName!.StartsWith(normalized) ? 0 : 1)
+                .ThenBy(u => u.UserName)
+                .Take(20)
+                .Select(u => new UserSummaryDto
+                {
+                    Id = u.Id,
+                    UserName = u.UserName ?? string.Empty,
+                    ProfileImageUrl = u.ProfileImageUrl
+                })
+                .ToListAsync();
+
+            return Ok(users);
         }
 
         [HttpGet("{id:int}/followers")]
