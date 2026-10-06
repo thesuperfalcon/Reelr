@@ -93,6 +93,38 @@ export interface MovieDetails {
   images: MovieImage[];
 }
 
+export interface PersonCredit {
+  tmdbId: number;
+  title: string | null;
+  posterPath: string | null;
+  releaseDate: string | null;
+  voteAverage: number;
+  voteCount: number;
+  popularity: number;
+  /** "Acting", a crew department such as "Directing", or "Appearances" for roles as themselves. */
+  department: string;
+  /** Characters played or crew jobs held on this film. */
+  roles: string[];
+}
+
+export interface PersonDetails {
+  id: number;
+  name: string | null;
+  biography: string | null;
+  birthday: string | null;
+  deathday: string | null;
+  placeOfBirth: string | null;
+  profilePath: string | null;
+  knownForDepartment: string | null;
+  homepage: string | null;
+  imdbId: string | null;
+  instagramId: string | null;
+  twitterId: string | null;
+  facebookId: string | null;
+  knownFor: PersonCredit[];
+  credits: PersonCredit[];
+}
+
 export interface CurrentUser {
   id: number;
   username: string;
@@ -158,4 +190,34 @@ export interface Status {
   liked: boolean | null;
   rewatched: boolean;
   watchedAt: string;
+}
+
+export interface MovieListItem {
+  tmdbId: number;
+  title: string;
+  posterUrl: string | null;
+  addedAt: string;
+}
+
+export interface MovieListSummary {
+  id: number;
+  name: string;
+  isPublic: boolean;
+  movieCount: number;
+  /** The newest few films, for the poster preview. */
+  topMovies: MovieListItem[];
+  createdAt: string;
+}
+
+export interface MovieList extends MovieListSummary {
+  userId: number;
+  username: string;
+  description: string | null;
+  updatedAt: string | null;
+}
+
+export interface MovieListInput {
+  name: string;
+  description: string;
+  isPublic: boolean;
 }

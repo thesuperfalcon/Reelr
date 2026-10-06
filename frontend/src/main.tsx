@@ -7,7 +7,9 @@ import { AuthProvider } from "./auth/AuthProvider";
 import { ApiError } from "./lib/api";
 import { Layout } from "./components/Layout";
 import { HomePage } from "./pages/HomePage";
+import { ListPage } from "./pages/ListPage";
 import { MoviePage } from "./pages/MoviePage";
+import { PersonPage } from "./pages/PersonPage";
 import { SearchPage } from "./pages/SearchPage";
 import { LoginPage, RegisterPage } from "./pages/AuthPages";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -31,6 +33,8 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <HomePage /> },
       { path: "movie/:tmdbId", element: <MoviePage /> },
+      { path: "person/:personId", element: <PersonPage /> },
+      { path: "list/:listId", element: <ListPage /> },
       { path: "search", element: <SearchPage /> },
       { path: "user/:userId", element: <UserPage /> },
       { path: "login", element: <LoginPage /> },

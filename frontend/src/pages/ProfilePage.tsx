@@ -1,6 +1,17 @@
 import type { UseQueryResult } from "@tanstack/react-query";
-import { Link, Navigate, useParams, useSearchParams } from "react-router";
+import { useState } from "react";
+import {
+    Link,
+    Navigate,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { DeleteReviewButton } from "../components/DeleteReviewButton";
+import { DiaryEntryDialog } from "../components/DiaryEntryDialog";
+import { ListCard } from "../components/ListCard";
+import { ListFormDialog } from "../components/ListFormDialog";
 import { Poster } from "../components/Poster";
 import { ReviewText } from "../components/ReviewText";
 import { Stars } from "../components/Stars";
@@ -12,6 +23,7 @@ import {
     useFollowList,
     useToggleFollow,
     useUserDiary,
+    useUserLists,
     useUserProfile,
     useUserReviews,
     useWatchlist,
@@ -20,7 +32,13 @@ import { tmdbImage } from "../lib/tmdb";
 import type { DiaryEntry, SearchMovie, UserProfile } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
 
-type Tab = "diary" | "reviews" | "watchlist" | "followers" | "following";
+type Tab =
+    | "diary"
+    | "reviews"
+    | "lists"
+    | "watchlist"
+    | "followers"
+    | "following";
 
 // Who the page belongs to. Empty states and private tabs depend on it.
 interface Owner {
@@ -89,6 +107,43 @@ function EmptyState({
                 </Link>
             )}
         </div>
+    );
+}
+
+function EditEntryButton({ entry }: { entry: DiaryEntry }) {
+    const [open, setOpen] = useState(false);
+    const label = `Edit diary entry for ${entry.title}`;
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                aria-label={label}
+                title={label}
+                aria-haspopup="dialog"
+                className="inline-flex size-8 items-center justify-center rounded-sm text-haze transition hover:bg-row hover:text-screen"
+            >
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="size-4"
+                    aria-hidden="true"
+                >
+                    <path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />
+                </svg>
+            </button>
+            {open && (
+                <DiaryEntryDialog
+                    entry={entry}
+                    onClose={() => setOpen(false)}
+                />
+            )}
+        </>
     );
 }
 
@@ -224,6 +279,9 @@ function Diary({
                                                 ♥
                                             </span>
                                         )}
+                                        {owner.own && (
+                                            <EditEntryButton entry={entry} />
+                                        )}
                                     </div>
                                 </li>
                             );
@@ -320,6 +378,12 @@ function Reviews({ owner }: { owner: Owner }) {
                                         (edited)
                                     </span>
                                 )}
+                                {owner.own && (
+                                    <DeleteReviewButton
+                                        reviewId={review.id}
+                                        className="ml-auto"
+                                    />
+                                )}
                             </div>
                             <ReviewText text={review.text} className="mt-2" />
                         </div>
@@ -327,6 +391,64 @@ function Reviews({ owner }: { owner: Owner }) {
                 );
             })}
         </ol>
+    );
+}
+
+function Lists({ owner }: { owner: Owner }) {
+    const lists = useUserLists(owner.id);
+    const navigate = useNavigate();
+    const [creating, setCreating] = useState(false);
+
+    let content: React.ReactNode;
+    if (lists.isPending) {
+        content = <Loading label="Loading lists" />;
+    } else if (lists.isError) {
+        content = (
+            <ErrorMessage error={lists.error} retry={() => lists.refetch()} />
+        );
+    } else if (lists.data.length === 0) {
+        content = (
+            <p className="py-10 text-haze">
+                {owner.own
+                    ? "You have no lists yet. Make one here or from a film's page."
+                    : `${owner.name} has no public lists yet.`}
+            </p>
+        );
+    } else {
+        content = (
+            <ul className="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
+                {lists.data.map((list) => (
+                    <li key={list.id}>
+                        <ListCard list={list} />
+                    </li>
+                ))}
+            </ul>
+        );
+    }
+
+    return (
+        <div>
+            {owner.own && (
+                <div className="mt-8 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={() => setCreating(true)}
+                        aria-haspopup="dialog"
+                        className="inline-flex h-9 items-center rounded-sm bg-projector px-4 text-sm font-semibold text-salon transition hover:brightness-110"
+                    >
+                        New list
+                    </button>
+                </div>
+            )}
+            {content}
+            {creating && (
+                <ListFormDialog
+                    current={null}
+                    onSaved={(list) => navigate(`/list/${list.id}`)}
+                    onClose={() => setCreating(false)}
+                />
+            )}
+        </div>
     );
 }
 
@@ -483,6 +605,7 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
     const tabs: { id: Tab; label: string; count?: number }[] = [
         { id: "diary", label: "Diary" },
         { id: "reviews", label: "Reviews" },
+        { id: "lists", label: "Lists" },
         ...(own ? [{ id: "watchlist" as const, label: "Watchlist" }] : []),
         {
             id: "followers",
@@ -580,6 +703,7 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                         <UserDiary owner={owner} />
                     ))}
                 {tab === "reviews" && <Reviews owner={owner} />}
+                {tab === "lists" && <Lists owner={owner} />}
                 {tab === "watchlist" && <Watchlist owner={owner} />}
                 {(tab === "followers" || tab === "following") && (
                     <FollowList owner={owner} list={tab} />

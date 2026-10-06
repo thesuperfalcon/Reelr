@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { AddToListDialog } from "../components/AddToListDialog";
+import { DeleteReviewButton } from "../components/DeleteReviewButton";
+import { PersonLink } from "../components/PersonLink";
 import { Poster } from "../components/Poster";
 import { RatingDialog } from "../components/RatingDialog";
 import { ReviewText } from "../components/ReviewText";
@@ -18,7 +21,7 @@ import {
   useWatchlist,
 } from "../lib/queries";
 import { formatRuntime, releaseYear, tmdbImage } from "../lib/tmdb";
-import type { CastMember, MovieDetails, Review } from "../lib/types";
+import type { CastMember, CrewMember, MovieDetails, Review } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
 
 function Backdrop({ path }: { path: string | null }) {
@@ -55,6 +58,29 @@ function WatchlistButton({ tmdbId, title }: { tmdbId: number; title: string | nu
         <path d="M6 3h12v18l-6-4-6 4z" />
       </svg>
     </button>
+  );
+}
+
+function AddToListButton({ movie }: { movie: MovieDetails }) {
+  const [open, setOpen] = useState(false);
+  const label = `Add ${movie.title ?? "film"} to a list`;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={label}
+        title={label}
+        aria-haspopup="dialog"
+        className="inline-flex size-9 items-center justify-center rounded-sm text-screen ring-1 ring-white/15 transition hover:bg-row"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-5" aria-hidden="true">
+          <path d="M4 6h11M4 12h11M4 18h7M18 15v6M15 18h6" />
+        </svg>
+      </button>
+      {open && <AddToListDialog movie={movie} onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
@@ -116,13 +142,26 @@ function RateButton({ movie, userId }: { movie: MovieDetails; userId: number }) 
   );
 }
 
+// Names as links to each person's page, one per person even when they hold several jobs.
+function PeopleLinks({ people }: { people: CrewMember[] }) {
+  const unique = people.filter((p, i) => people.findIndex((q) => q.id === p.id) === i);
+  return unique.map((person, i) => (
+    <span key={person.id}>
+      {i > 0 && ", "}
+      <Link to={`/person/${person.id}`} className="hover:text-projector hover:underline hover:underline-offset-4">
+        {person.name}
+      </Link>
+    </span>
+  ));
+}
+
 function Facts({ movie }: { movie: MovieDetails }) {
-  const directors = movie.crew.filter((c) => c.job === "Director").map((c) => c.name);
-  const writers = [...new Set(movie.crew.filter((c) => c.job === "Screenplay" || c.job === "Writer").map((c) => c.name))];
+  const directors = movie.crew.filter((c) => c.job === "Director");
+  const writers = movie.crew.filter((c) => c.job === "Screenplay" || c.job === "Writer");
 
   const facts = [
-    { term: "Directed by", value: directors.join(", ") },
-    { term: "Written by", value: writers.join(", ") },
+    { term: "Directed by", value: directors.length > 0 && <PeopleLinks people={directors} /> },
+    { term: "Written by", value: writers.length > 0 && <PeopleLinks people={writers} /> },
     { term: "Genres", value: movie.genres.map((g) => g.name).join(", ") },
     {
       term: "TMDB score",
@@ -153,22 +192,11 @@ function CastList({ cast }: { cast: CastMember[] }) {
         Cast
       </h2>
       <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 lg:grid-cols-5">
-        {cast.map((person) => {
-          const photo = tmdbImage(person.profilePath, "w185");
-          return (
-            <li key={`${person.id}-${person.order}`} className="flex items-center gap-3">
-              {photo ? (
-                <img src={photo} alt="" loading="lazy" className="size-12 shrink-0 rounded-full object-cover" />
-              ) : (
-                <div className="size-12 shrink-0 rounded-full bg-row" aria-hidden="true" />
-              )}
-              <div className="min-w-0 text-sm">
-                <p className="truncate font-medium">{person.name}</p>
-                {person.character && <p className="truncate text-haze">{person.character}</p>}
-              </div>
-            </li>
-          );
-        })}
+        {cast.map((person) => (
+          <li key={`${person.id}-${person.order}`}>
+            <PersonLink id={person.id} name={person.name} profilePath={person.profilePath} detail={person.character} />
+          </li>
+        ))}
       </ul>
     </section>
   );
@@ -190,6 +218,7 @@ function ReviewItem({ review, own }: { review: Review; own: boolean }) {
           {reviewDateFormat.format(new Date(review.createdAt))}
         </time>
         {review.updatedAt && <span className="text-haze">(edited)</span>}
+        {own && <DeleteReviewButton reviewId={review.id} className="ml-auto" />}
       </div>
       <ReviewText text={review.text} className="mt-3" />
     </li>
@@ -334,6 +363,7 @@ export function MoviePage() {
                 )}
                 {user && <RateButton movie={movie} userId={user.id} />}
                 {user && <WatchlistButton tmdbId={tmdbId} title={movie.title} />}
+                {user && <AddToListButton movie={movie} />}
               </div>
             )}
 
