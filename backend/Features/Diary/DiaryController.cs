@@ -168,6 +168,7 @@ namespace backend.Features.Diary
                 }
 
                 review.Text = dto.Review.Trim();
+                review.ContainsSpoilers = dto.ContainsSpoilers ?? review.ContainsSpoilers;
             }
 
             var entry = _context.LogDiaryEntry(status, rating?.Score, watchedAt);

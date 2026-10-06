@@ -184,10 +184,33 @@ export interface Review {
   title: string;
   posterUrl: string | null;
   text: string;
+  /** Set by the author. Readers see the text only after choosing to. */
+  containsSpoilers: boolean;
+  likeCount: number;
+  commentCount: number;
+  /** Whether the signed-in user likes this review. Always false when signed out. */
+  likedByMe: boolean;
   /** The author's current rating of the film, or null when they have not rated it. */
   score: number | null;
   /** Watch date of the diary entry that logged the review, or null when it has none. */
   watchedAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface ReviewLikeState {
+  likeCount: number;
+  likedByMe: boolean;
+}
+
+/** A plain-text reply to a review. */
+export interface ReviewComment {
+  id: number;
+  reviewId: number;
+  userId: number;
+  username: string;
+  profileImageUrl: string | null;
+  text: string;
   createdAt: string;
   updatedAt: string | null;
 }
@@ -245,7 +268,15 @@ export interface ActivityItem {
   actor: { id: number; userName: string; profileImageUrl: string | null };
   movie: ActivityMovie | null;
   list: { id: number; name: string; movieCount: number } | null;
-  review: { id: number; excerpt: string; isTruncated: boolean } | null;
+  /** A review with spoilers has an empty excerpt. */
+  review: {
+    id: number;
+    excerpt: string;
+    isTruncated: boolean;
+    containsSpoilers: boolean;
+    likeCount: number;
+    commentCount: number;
+  } | null;
   rating: number | null;
   liked: boolean | null;
   rewatched: boolean | null;

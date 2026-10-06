@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { dayFormat, fullFormat, timeAgo } from "../lib/activity";
 import { tmdbImage } from "../lib/tmdb";
 import type { ActivityItem as Item, ActivityMovie } from "../lib/types";
+import { ReviewCounts } from "./ReviewReactions";
 import { ReviewText } from "./ReviewText";
 import { Stars } from "./Stars";
 import { UserAvatar } from "./UserAvatar";
@@ -139,10 +140,18 @@ export function ActivityItem({ item }: { item: Item }) {
 
         {review && (
           <div className="mt-3">
-            <ReviewText text={review.isTruncated ? `${review.excerpt}…` : review.excerpt} className="text-sm" />
-            <Link to={`/review/${review.id}`} className="mt-2 inline-block text-sm font-medium text-projector underline underline-offset-4">
-              {review.isTruncated ? "Read the full review" : "Open review"}
-            </Link>
+            {/* The feed sends no excerpt for a review with spoilers. */}
+            {review.containsSpoilers ? (
+              <p className="text-sm text-haze">This review contains spoilers.</p>
+            ) : (
+              <ReviewText text={review.isTruncated ? `${review.excerpt}…` : review.excerpt} className="text-sm" />
+            )}
+            <p className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <Link to={`/review/${review.id}`} className="text-sm font-medium text-projector underline underline-offset-4">
+                {review.isTruncated ? "Read the full review" : "Open review"}
+              </Link>
+              <ReviewCounts review={review} />
+            </p>
           </div>
         )}
 

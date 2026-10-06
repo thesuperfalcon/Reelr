@@ -26,6 +26,10 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
 
     public DbSet<Review> Reviews => Set<Review>();
 
+    public DbSet<ReviewLike> ReviewLikes => Set<ReviewLike>();
+
+    public DbSet<ReviewComment> ReviewComments => Set<ReviewComment>();
+
     public DbSet<WatchedMovie> WatchedMovies => Set<WatchedMovie>();
 
     public DbSet<DiaryEntry> DiaryEntries => Set<DiaryEntry>();
@@ -124,6 +128,37 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
             .WithOne()
             .HasForeignKey<Review>(r => r.DiaryEntryId)
             .OnDelete(DeleteBehavior.NoAction);
+
+        // ReviewLike and ReviewComment go with their review. The link to the user is Restrict because
+        // users already cascade to reviews; UserController.DeleteUser removes them in code.
+        modelBuilder.Entity<ReviewLike>(like =>
+        {
+            like.HasKey(l => new { l.ReviewId, l.UserId });
+            like.HasOne(l => l.Review)
+                .WithMany(r => r.Likes)
+                .HasForeignKey(l => l.ReviewId)
+                .OnDelete(DeleteBehavior.Cascade);
+            like.HasOne(l => l.User)
+                .WithMany()
+                .HasForeignKey(l => l.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            like.HasIndex(l => l.UserId);
+        });
+
+        modelBuilder.Entity<ReviewComment>(comment =>
+        {
+            comment.HasOne(c => c.Review)
+                .WithMany(r => r.Comments)
+                .HasForeignKey(c => c.ReviewId)
+                .OnDelete(DeleteBehavior.Cascade);
+            comment.HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            comment.Property(c => c.Text).HasMaxLength(ReviewComment.MaxLength);
+            comment.HasIndex(c => new { c.ReviewId, c.CreatedAt });
+            comment.HasIndex(c => c.UserId);
+        });
 
         // Follow
         modelBuilder.Entity<Follow>()

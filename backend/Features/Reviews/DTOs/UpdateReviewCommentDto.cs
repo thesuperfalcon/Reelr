@@ -2,12 +2,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace backend.Features.Reviews.DTOs
 {
-    public class CreateReviewDto
+    public class UpdateReviewCommentDto
     {
         [Required]
-        [MaxLength(Review.MaxLength)]
+        [MaxLength(ReviewComment.MaxLength)]
         public string Text { get; set; } = null!;
-
-        public bool ContainsSpoilers { get; set; }
     }
 }

@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { fullFormat, timeAgo } from "../lib/activity";
 import type { ActivityItem } from "../lib/types";
 import { FilmLink, SmallPoster } from "./ActivityItem";
+import { ReviewCounts } from "./ReviewReactions";
 import { ReviewText } from "./ReviewText";
 import { Stars } from "./Stars";
 import { UserAvatar } from "./UserAvatar";
@@ -32,9 +33,14 @@ export function ActivityReviewCard({ item }: { item: ActivityItem }) {
           )}
         </p>
 
-        <div className="mt-3 line-clamp-3">
-          <ReviewText text={review.excerpt} className="text-sm" />
-        </div>
+        {/* The feed sends no excerpt for a review with spoilers. */}
+        {review.containsSpoilers ? (
+          <p className="mt-3 text-sm text-haze">This review contains spoilers.</p>
+        ) : (
+          <div className="mt-3 line-clamp-3">
+            <ReviewText text={review.excerpt} className="text-sm" />
+          </div>
+        )}
 
         <p className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <Link to={`/review/${review.id}`} className="text-sm font-medium text-projector underline underline-offset-4">
@@ -43,6 +49,7 @@ export function ActivityReviewCard({ item }: { item: ActivityItem }) {
           <time dateTime={item.occurredAt} title={fullFormat.format(occurred)} className="text-xs text-haze">
             {timeAgo(occurred)}
           </time>
+          <ReviewCounts review={review} />
         </p>
       </div>
 

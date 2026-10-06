@@ -103,6 +103,7 @@ namespace backend.Features.Reviews
                 UserId = userId,
                 MovieId = movie.Id,
                 Text = dto.Text,
+                ContainsSpoilers = dto.ContainsSpoilers,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -127,8 +128,26 @@ namespace backend.Features.Reviews
                 return NotFound();
             }
 
-            review.Text = dto.Text;
-            review.UpdatedAt = DateTime.UtcNow;
+            if (dto.Text != null)
+            {
+                if (string.IsNullOrWhiteSpace(dto.Text))
+                {
+                    ModelState.AddModelError(nameof(dto.Text), "Review text cannot be blank.");
+                    return ValidationProblem(ModelState);
+                }
+
+                // Only a text change marks the review as edited.
+                if (dto.Text != review.Text)
+                {
+                    review.Text = dto.Text;
+                    review.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
+            if (dto.ContainsSpoilers is bool containsSpoilers)
+            {
+                review.ContainsSpoilers = containsSpoilers;
+            }
 
             await _context.SaveChangesAsync();
 
@@ -157,26 +176,36 @@ namespace backend.Features.Reviews
         }
 
         // Every review response has the same shape: author, film, the author's current rating,
-        // and the watch date of the diary entry that logged the review.
-        private IQueryable<ReviewDto> ToDtos(IQueryable<Review> reviews) =>
-            from r in reviews
-            join rating in _context.Ratings
-                on new { r.UserId, r.MovieId } equals new { rating.UserId, rating.MovieId } into ratings
-            from rating in ratings.DefaultIfEmpty()
-            select new ReviewDto
-            {
-                Id = r.Id,
-                UserId = r.UserId,
-                Username = r.User.UserName ?? string.Empty,
-                ProfileImageUrl = r.User.ProfileImageUrl,
-                TmdbId = r.Movie.TmdbId,
-                Title = r.Movie.Title,
-                PosterUrl = r.Movie.PosterUrl,
-                Text = r.Text,
-                Score = rating == null ? (decimal?)null : rating.Score,
-                WatchedAt = r.DiaryEntry == null ? (DateTime?)null : r.DiaryEntry.WatchedAt,
-                CreatedAt = r.CreatedAt,
-                UpdatedAt = r.UpdatedAt
-            };
+        // the watch date of the diary entry that logged the review, and its likes and comments.
+        // The endpoints are public; a valid token only adds whether the caller likes each review.
+        private IQueryable<ReviewDto> ToDtos(IQueryable<Review> reviews)
+        {
+            int? viewerId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId) ? currentUserId : null;
+
+            return
+                from r in reviews
+                join rating in _context.Ratings
+                    on new { r.UserId, r.MovieId } equals new { rating.UserId, rating.MovieId } into ratings
+                from rating in ratings.DefaultIfEmpty()
+                select new ReviewDto
+                {
+                    Id = r.Id,
+                    UserId = r.UserId,
+                    Username = r.User.UserName ?? string.Empty,
+                    ProfileImageUrl = r.User.ProfileImageUrl,
+                    TmdbId = r.Movie.TmdbId,
+                    Title = r.Movie.Title,
+                    PosterUrl = r.Movie.PosterUrl,
+                    Text = r.Text,
+                    ContainsSpoilers = r.ContainsSpoilers,
+                    LikeCount = r.Likes.Count,
+                    CommentCount = r.Comments.Count,
+                    LikedByMe = viewerId != null && r.Likes.Any(l => l.UserId == viewerId),
+                    Score = rating == null ? (decimal?)null : rating.Score,
+                    WatchedAt = r.DiaryEntry == null ? (DateTime?)null : r.DiaryEntry.WatchedAt,
+                    CreatedAt = r.CreatedAt,
+                    UpdatedAt = r.UpdatedAt
+                };
+        }
     }
 }

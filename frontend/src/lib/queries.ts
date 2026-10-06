@@ -13,6 +13,8 @@ import type {
   PersonDetails,
   Rating,
   Review,
+  ReviewComment,
+  ReviewLikeState,
   SearchAllResult,
   SearchResult,
   Status,
@@ -207,6 +209,8 @@ export interface DiaryEntryInput {
   rewatched: boolean;
   /** Markdown review that creates or replaces the user's review, or null to leave it as it is. */
   review: string | null;
+  /** Applies only with a review. Null keeps the review's current flag. */
+  containsSpoilers: boolean | null;
   /** Day watched as "YYYY-MM-DD", or null for now. */
   watchedOn: string | null;
 }
@@ -333,6 +337,97 @@ export function useDeleteReview() {
         queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
       ]),
   });
+}
+
+// Changes only the spoiler flag, so it logs nothing in the diary.
+export function useSetReviewSpoilers() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, containsSpoilers }: { id: number; containsSpoilers: boolean }) =>
+      api<Review>(`/api/reviews/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ containsSpoilers }),
+      }),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["reviews"] }),
+  });
+}
+
+// Applies a change to one review wherever it is cached: in film and profile lists and on its own page.
+function patchCachedReview(queryClient: ReturnType<typeof useQueryClient>, id: number, patch: Partial<Review>) {
+  queryClient.setQueriesData<Review | Review[]>({ queryKey: ["reviews"] }, (data) => {
+    if (Array.isArray(data)) {
+      return data.map((review) => (review.id === id ? { ...review, ...patch } : review));
+    }
+    return data?.id === id ? { ...data, ...patch } : data;
+  });
+}
+
+// Likes show at once and roll back if the request fails.
+export function useLikeReview(review: Pick<Review, "id" | "likeCount" | "likedByMe">) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (like: boolean) =>
+      api<ReviewLikeState>(`/api/reviews/${review.id}/like`, { method: like ? "PUT" : "DELETE" }),
+    onMutate: async (like) => {
+      await queryClient.cancelQueries({ queryKey: ["reviews"] });
+      const before = { likeCount: review.likeCount, likedByMe: review.likedByMe };
+      patchCachedReview(queryClient, review.id, {
+        likedByMe: like,
+        likeCount: review.likeCount + (like === review.likedByMe ? 0 : like ? 1 : -1),
+      });
+      return before;
+    },
+    onSuccess: (state) => patchCachedReview(queryClient, review.id, state),
+    onError: (_error, _like, before) => before && patchCachedReview(queryClient, review.id, before),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["reviews"] }),
+  });
+}
+
+// Matches ReviewComment.MaxLength on the server.
+export const COMMENT_MAX_LENGTH = 1000;
+
+// Comments have their own key, so review list updates never touch them.
+export function useReviewComments(reviewId: number) {
+  return useQuery({
+    queryKey: ["review-comments", reviewId],
+    queryFn: () => api<ReviewComment[]>(`/api/reviews/${reviewId}/comments`),
+    enabled: Number.isInteger(reviewId) && reviewId > 0,
+  });
+}
+
+// Every comment write refreshes the thread and the review's comment count.
+function useCommentMutation<TInput, TResult>(reviewId: number, mutationFn: (input: TInput) => Promise<TResult>) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn,
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["review-comments", reviewId] }),
+        queryClient.invalidateQueries({ queryKey: ["reviews"] }),
+      ]),
+  });
+}
+
+export function useAddComment(reviewId: number) {
+  return useCommentMutation(reviewId, (text: string) =>
+    api<ReviewComment>(`/api/reviews/${reviewId}/comments`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
+  );
+}
+
+export function useUpdateComment(reviewId: number) {
+  return useCommentMutation(reviewId, ({ id, text }: { id: number; text: string }) =>
+    api<ReviewComment>(`/api/comments/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ text }),
+    }),
+  );
+}
+
+export function useDeleteComment(reviewId: number) {
+  return useCommentMutation(reviewId, (id: number) => api<void>(`/api/comments/${id}`, { method: "DELETE" }));
 }
 
 // Lists change from several places (movie page, profile, list page), so every write refreshes all of them.

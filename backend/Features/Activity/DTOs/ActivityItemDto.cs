@@ -69,5 +69,12 @@ namespace backend.Features.Activity.DTOs
         public string Excerpt { get; set; } = string.Empty;
 
         public bool IsTruncated { get; set; }
+
+        // When true the excerpt is empty, so the feed does not spoil anything.
+        public bool ContainsSpoilers { get; set; }
+
+        public int LikeCount { get; set; }
+
+        public int CommentCount { get; set; }
     }
 }
