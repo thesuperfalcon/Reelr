@@ -1,6 +1,8 @@
+using backend.Data;
 using backend.Features.Activity.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
@@ -17,21 +19,24 @@ namespace backend.Features.Activity
         private const int MaxFilmLimit = 24;
 
         private readonly IActivityFeed _feed;
+        private readonly ReelrContext _context;
         private readonly IMemoryCache _cache;
         private readonly ActivityOptions _options;
 
-        public ActivityController(IActivityFeed feed, IMemoryCache cache, IOptions<ActivityOptions> options)
+        public ActivityController(IActivityFeed feed, ReelrContext context, IMemoryCache cache, IOptions<ActivityOptions> options)
         {
             _feed = feed;
+            _context = context;
             _cache = cache;
             _options = options.Value;
         }
 
         [Authorize]
         [HttpGet("following")]
-        [EndpointSummary("Get activity from the people the current user follows, newest first")]
+        [EndpointSummary("Get activity from the people the current user follows, and their own, newest first")]
         public async Task<ActionResult<ActivityPageDto>> GetFollowing(
-            [FromQuery] string? cursor, [FromQuery] int limit = DefaultLimit, [FromQuery] string? types = null)
+            [FromQuery] string? cursor, [FromQuery] int limit = DefaultLimit, [FromQuery] string? types = null,
+            [FromQuery] bool? includeOwn = null)
         {
             if (!TryReadCursor(cursor, out var before))
             {
@@ -40,7 +45,14 @@ namespace backend.Features.Activity
 
             var viewerId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-            return Ok(await _feed.GetFollowingAsync(viewerId, before, Math.Clamp(limit, 1, MaxLimit), ReadTypes(types)));
+            // The user's ShowOwnActivity setting decides, unless the caller asks for one or the other,
+            // e.g. "Reviews from friends" on the start page never includes the user's own reviews.
+            var own = includeOwn ?? await _context.Users
+                .Where(u => u.Id == viewerId)
+                .Select(u => u.ShowOwnActivity)
+                .FirstOrDefaultAsync();
+
+            return Ok(await _feed.GetFollowingAsync(viewerId, own, before, Math.Clamp(limit, 1, MaxLimit), ReadTypes(types)));
         }
 
         [Authorize]

@@ -11,6 +11,9 @@ namespace backend.Features.Users
         // Whether the start page shows "Reviews from friends".
         public bool ShowFriendReviews { get; set; } = true;
 
+        // Whether the Following feed also shows the user's own activity.
+        public bool ShowOwnActivity { get; set; } = true;
+
         public ICollection<WatchedMovies.WatchedMovie> WatchedMovies { get; set; } = [];
 
         public ICollection<Ratings.Rating> Ratings { get; set; } = [];

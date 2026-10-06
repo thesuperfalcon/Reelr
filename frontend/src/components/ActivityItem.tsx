@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { useAuth } from "../auth/auth-context";
 import { dayFormat, fullFormat, timeAgo } from "../lib/activity";
 import { tmdbImage } from "../lib/tmdb";
 import type { ActivityItem as Item, ActivityMovie } from "../lib/types";
@@ -62,12 +63,14 @@ function Details({ item }: { item: Item }) {
 
 // One feed row: who did what, with every name, film, list, review and watchlist clickable.
 export function ActivityItem({ item }: { item: Item }) {
+  const { user } = useAuth();
   const { actor, movie, list, review } = item;
+  const own = user?.id === actor.id;
   const grouped = item.groupCount > 1;
   const userUrl = `/user/${actor.id}`;
   const who = (
     <Link to={userUrl} className="font-medium text-screen hover:text-projector">
-      {actor.userName}
+      {own ? "You" : actor.userName}
     </Link>
   );
 
@@ -118,7 +121,7 @@ export function ActivityItem({ item }: { item: Item }) {
     default:
       action = (
         <>
-          {who} added {movie && <FilmLink movie={movie} />} to their{" "}
+          {who} added {movie && <FilmLink movie={movie} />} to {own ? "your" : "their"}{" "}
           <Link to={`${userUrl}?tab=watchlist`} className="font-medium text-screen hover:text-projector">
             watchlist
           </Link>

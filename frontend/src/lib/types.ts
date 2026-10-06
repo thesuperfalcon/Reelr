@@ -309,7 +309,11 @@ export interface UserSettings {
   profileImageUrl: string | null;
   watchlistVisibility: WatchlistVisibility;
   showFriendReviews: boolean;
+  /** Whether the Following feed also shows the user's own activity. */
+  showOwnActivity: boolean;
 }
 
 /** Only the fields that are set change. */
-export type UserSettingsUpdate = Partial<Pick<UserSettings, "userName" | "watchlistVisibility" | "showFriendReviews">>;
+export type UserSettingsUpdate = Partial<
+  Pick<UserSettings, "userName" | "watchlistVisibility" | "showFriendReviews" | "showOwnActivity">
+>;

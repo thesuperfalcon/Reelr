@@ -517,10 +517,12 @@ export function useActivityFeed(kind: FeedKind, enabled = true) {
 }
 
 // A short, fixed slice of a feed for the start page, e.g. the newest few reviews.
+// Previews of Following leave out the user's own activity, since they show what friends did.
 export function useActivityPreview(kind: FeedKind, types: string, limit: number, enabled = true) {
+  const own = kind === "following" ? "&includeOwn=false" : "";
   return useQuery({
     queryKey: ["feed", kind, "preview", types, limit],
-    queryFn: () => api<ActivityPage>(`/api/feed/${kind}?limit=${limit}&types=${encodeURIComponent(types)}`),
+    queryFn: () => api<ActivityPage>(`/api/feed/${kind}?limit=${limit}&types=${encodeURIComponent(types)}${own}`),
     enabled,
     staleTime: 30 * 1000,
   });
@@ -558,6 +560,7 @@ function useSettingsSaved() {
 }
 
 export function useUpdateSettings() {
+  const queryClient = useQueryClient();
   const saved = useSettingsSaved();
   const { replaceToken } = useAuth();
 
@@ -569,6 +572,10 @@ export function useUpdateSettings() {
         replaceToken(token);
       }
       saved(settings, update.userName !== undefined || update.watchlistVisibility !== undefined);
+      // The Following feed reads this setting on the server.
+      if (update.showOwnActivity !== undefined) {
+        void queryClient.invalidateQueries({ queryKey: ["feed", "following"] });
+      }
     },
   });
 }

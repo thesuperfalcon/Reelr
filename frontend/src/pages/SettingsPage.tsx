@@ -25,6 +25,7 @@ interface Draft {
   userName: string;
   watchlistVisibility: WatchlistVisibility;
   showFriendReviews: boolean;
+  showOwnActivity: boolean;
   currentPassword: string;
   newPassword: string;
   confirmPassword: string;
@@ -35,6 +36,7 @@ function draftFrom(settings: UserSettings): Draft {
     userName: settings.userName,
     watchlistVisibility: settings.watchlistVisibility,
     showFriendReviews: settings.showFriendReviews,
+    showOwnActivity: settings.showOwnActivity,
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
@@ -47,6 +49,7 @@ function changedSettings(draft: Draft, settings: UserSettings): UserSettingsUpda
   if (draft.userName.trim() !== settings.userName) update.userName = draft.userName.trim();
   if (draft.watchlistVisibility !== settings.watchlistVisibility) update.watchlistVisibility = draft.watchlistVisibility;
   if (draft.showFriendReviews !== settings.showFriendReviews) update.showFriendReviews = draft.showFriendReviews;
+  if (draft.showOwnActivity !== settings.showOwnActivity) update.showOwnActivity = draft.showOwnActivity;
   return update;
 }
 
@@ -306,6 +309,24 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
           <span>
             <span className="font-medium">Show reviews from friends</span>
             <span className="block text-haze">The newest reviews from people you follow, below "New from friends".</span>
+          </span>
+        </label>
+      </Section>
+
+      <Section id="settings-activity" title="Activity">
+        <label className="flex items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={draft.showOwnActivity}
+            onChange={(event) => edit("showOwnActivity", event.target.checked)}
+            className="mt-0.5 size-4 accent-projector"
+          />
+          <span>
+            <span className="font-medium">Show my activity in Following</span>
+            <span className="block text-haze">
+              Your own logs, reviews, lists and watchlist additions appear alongside the people you follow. Only you see
+              them there.
+            </span>
           </span>
         </label>
       </Section>
