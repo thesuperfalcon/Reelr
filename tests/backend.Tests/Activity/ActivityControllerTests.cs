@@ -285,6 +285,83 @@ public class ActivityControllerTests : IClassFixture<ReelrApiFactory>
         Assert.True(page.Items.Count <= 1);
     }
 
+    // ---- Filtering by kind ----
+
+    [Fact]
+    public async Task Types_LimitsBothFeedsToTheKindsAsked_AndIgnoresUnknownKinds()
+    {
+        var alice = await _factory.CreateAuthenticatedAsync();
+        var bob = await _factory.CreateAuthenticatedAsync();
+        await FollowAsync(alice, bob);
+        await LogAsync(bob, _factory.Tmdb.AddMovie(7201, "Just seen"));
+        await LogAsync(bob, _factory.Tmdb.AddMovie(7202, "Written up"), new LogDiaryEntryDto { Review = "Worth it" });
+        await AddToWatchlistAsync(bob, _factory.Tmdb.AddMovie(7203, "Later"));
+
+        async Task<List<string>> TypesIn(HttpClient client, string feed, string types)
+        {
+            var response = await client.GetAsync($"/api/feed/{feed}?types={types}");
+            response.EnsureSuccessStatusCode();
+            var page = (await response.Content.ReadFromJsonAsync<ActivityPageDto>())!;
+            return By(page, bob).Select(i => i.Type).Order().ToList();
+        }
+
+        Assert.Equal([ActivityTypes.Reviewed], await TypesIn(alice.Client, "following", "reviewed"));
+        Assert.Equal([ActivityTypes.Reviewed, ActivityTypes.WatchlistAdded], await TypesIn(alice.Client, "following", "watchlistAdded,reviewed"));
+        Assert.Equal([ActivityTypes.Reviewed], await TypesIn(_factory.CreateClient(), "community", "reviewed,nonsense"));
+        Assert.Empty(await TypesIn(alice.Client, "following", "nonsense"));
+    }
+
+    // ---- New from friends ----
+
+    private async Task<List<FollowingFilmDto>> GetFilmsAsync(HttpClient client, int? limit = null)
+    {
+        var response = await client.GetAsync($"/api/feed/following/films{(limit != null ? $"?limit={limit}" : "")}");
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<List<FollowingFilmDto>>())!;
+    }
+
+    [Fact]
+    public async Task FollowingFilms_ShowsEachFilmOnce_NewestFirst_WithTheNewestWatcherFirst()
+    {
+        var alice = await _factory.CreateAuthenticatedAsync();
+        var bob = await _factory.CreateAuthenticatedAsync();
+        var carol = await _factory.CreateAuthenticatedAsync();
+        var dave = await _factory.CreateAuthenticatedAsync();
+        await FollowAsync(alice, bob);
+        await FollowAsync(alice, carol);
+        var (shared, older, unseen) = (
+            _factory.Tmdb.AddMovie(7211, "Shared"), _factory.Tmdb.AddMovie(7212, "Older"), _factory.Tmdb.AddMovie(7213, "Not followed"));
+
+        var first = await LogAsync(bob, older, new LogDiaryEntryDto { Score = 2 });
+        await SetLoggedAtAsync(first.Id, DateTime.UtcNow.AddHours(-5));
+        var bobShared = await LogAsync(bob, shared, new LogDiaryEntryDto { Score = 3 });
+        await SetLoggedAtAsync(bobShared.Id, DateTime.UtcNow.AddHours(-2));
+        var bobRewatch = await LogAsync(bob, shared, new LogDiaryEntryDto { Score = 4 });
+        await SetLoggedAtAsync(bobRewatch.Id, DateTime.UtcNow.AddHours(-1));
+        await LogAsync(carol, shared, new LogDiaryEntryDto { Score = 5, Liked = true });
+        await LogAsync(dave, unseen);
+
+        var films = await GetFilmsAsync(alice.Client);
+
+        Assert.Equal([shared, older], films.Select(f => f.Movie.TmdbId));
+        var top = films[0];
+        Assert.Equal(2, top.WatcherCount);
+        Assert.Equal([carol.Id, bob.Id], top.Watchers.Select(w => w.Actor.Id));
+        Assert.Equal(5m, top.Watchers[0].Rating);
+        Assert.True(top.Watchers[0].Liked);
+        // Bob's newest log of the film counts, not the first one.
+        Assert.Equal(4m, top.Watchers[1].Rating);
+        Assert.Single(await GetFilmsAsync(alice.Client, limit: 1));
+    }
+
+    [Fact]
+    public async Task FollowingFilms_WithoutToken_Returns401()
+    {
+        var response = await _factory.CreateClient().GetAsync("/api/feed/following/films");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     // ---- Deleted and hidden content ----
 
     [Fact]

@@ -259,3 +259,26 @@ export interface ActivityPage {
   items: ActivityItem[];
   nextCursor: string | null;
 }
+
+export interface FollowingFilm {
+  movie: ActivityMovie;
+  lastLoggedAt: string;
+  /** How many people you follow logged the film; watchers holds only the newest few. */
+  watcherCount: number;
+  watchers: {
+    actor: { id: number; userName: string; profileImageUrl: string | null };
+    rating: number | null;
+    liked: boolean | null;
+  }[];
+}
+
+export interface UserSettings {
+  userName: string;
+  email: string;
+  profileImageUrl: string | null;
+  watchlistVisibility: WatchlistVisibility;
+  showFriendReviews: boolean;
+}
+
+/** Only the fields that are set change. */
+export type UserSettingsUpdate = Partial<Pick<UserSettings, "userName" | "watchlistVisibility" | "showFriendReviews">>;

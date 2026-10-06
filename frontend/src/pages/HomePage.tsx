@@ -1,9 +1,8 @@
-import { Link, useSearchParams } from "react-router";
-import { useAuth } from "../auth/auth-context";
-import { ActivityFeed } from "../components/ActivityFeed";
+import { Link } from "react-router";
+import { HomeActivity } from "../components/HomeActivity";
 import { Poster } from "../components/Poster";
 import { ErrorMessage, Loading } from "../components/Status";
-import { type FeedKind, usePopularMovies, useTrendingMovies, useUserProfile } from "../lib/queries";
+import { usePopularMovies, useTrendingMovies } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { SearchMovie } from "../lib/types";
 
@@ -28,77 +27,6 @@ function Feature({ movie }: { movie: SearchMovie }) {
         </h1>
         {year && <p className="mt-4 text-haze">{year}</p>}
         {movie.overview && <p className="mt-4 max-w-prose text-screen/85">{movie.overview}</p>}
-      </div>
-    </section>
-  );
-}
-
-const feedTabs: { id: FeedKind; label: string }[] = [
-  { id: "following", label: "Following" },
-  { id: "community", label: "Community" },
-];
-
-// Following is the default once you follow someone; until then Community, so the page is never empty.
-function FeedSection() {
-  const { user } = useAuth();
-  const profile = useUserProfile(user?.id ?? 0, user !== null);
-  const [params, setParams] = useSearchParams();
-
-  if (!user) {
-    return (
-      <section aria-labelledby="feed-title" className="mt-16 max-w-3xl">
-        <h2 id="feed-title" className="marquee text-3xl">
-          Recent on Reelr
-        </h2>
-        <ActivityFeed kind="community" empty="Nothing logged on Reelr in the last 30 days yet." />
-      </section>
-    );
-  }
-
-  const requested = params.get("feed");
-  const fallback: FeedKind = profile.data?.followingCount === 0 ? "community" : "following";
-  const tab: FeedKind = requested === "following" || requested === "community" ? requested : fallback;
-
-  return (
-    <section aria-labelledby="feed-title" className="mt-16 max-w-3xl">
-      <h2 id="feed-title" className="marquee text-3xl">
-        Activity
-      </h2>
-      <div role="tablist" aria-label="Activity feeds" className="mt-4 flex gap-6 border-b border-white/5">
-        {feedTabs.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            id={`feed-tab-${id}`}
-            aria-selected={tab === id}
-            aria-controls="feed-panel"
-            onClick={() => setParams({ feed: id }, { replace: true, preventScrollReset: true })}
-            className={`-mb-px shrink-0 border-b-2 pb-3 text-sm font-medium transition-colors ${
-              tab === id ? "border-projector text-screen" : "border-transparent text-haze hover:text-screen"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel" id="feed-panel" aria-labelledby={`feed-tab-${tab}`}>
-        {tab === "following" ? (
-          <ActivityFeed
-            key="following"
-            kind="following"
-            empty={
-              <>
-                <p>Follow people to see what they watch, review and list.</p>
-                <Link to="/search" className="mt-3 inline-block font-medium text-projector underline underline-offset-4">
-                  Find people to follow
-                </Link>
-              </>
-            }
-          />
-        ) : (
-          <ActivityFeed key="community" kind="community" empty="Nothing logged on Reelr in the last 30 days yet." />
-        )}
       </div>
     </section>
   );
@@ -146,7 +74,7 @@ export function HomePage() {
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
       {featured && <Feature movie={featured} />}
 
-      <FeedSection />
+      <HomeActivity />
 
       <MovieShelf title="Trending this week" movies={rest.slice(0, 12)} />
 

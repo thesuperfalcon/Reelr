@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, NavLink, Outlet, ScrollRestoration, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { useSettings } from "../lib/queries";
 
 function SearchBox() {
   const navigate = useNavigate();
@@ -46,6 +47,9 @@ const navLinkClass =({ isActive }: { isActive: boolean }) =>
 
 export function Layout() {
   const { user, logout } = useAuth();
+  // Shares the cached settings with the settings page, so a new picture shows here as soon as it is saved.
+  const settings = useSettings(user !== null);
+  const profileImageUrl = user ? settings.data?.profileImageUrl : null;
 
   return (
     <div className="flex min-h-dvh flex-col">
@@ -59,6 +63,9 @@ export function Layout() {
           <nav className="flex items-center gap-6" aria-label="Main">
             <NavLink to="/" end className={navLinkClass}>
               Films
+            </NavLink>
+            <NavLink to="/activity" className={navLinkClass}>
+              Activity
             </NavLink>
           </nav>
 
@@ -79,16 +86,29 @@ export function Layout() {
                 >
                   {({ isActive }) => (
                     <>
-                      <span
-                        className={`flex size-8 items-center justify-center rounded-full transition-colors ${
-                          isActive ? "bg-projector text-salon" : "bg-row text-screen hover:bg-row-raised"
-                        }`}
-                      >
-                        <UserIcon />
-                      </span>
+                      {profileImageUrl ? (
+                        <img
+                          src={profileImageUrl}
+                          alt=""
+                          className={`size-8 rounded-full object-cover ring-2 transition ${
+                            isActive ? "ring-projector" : "ring-transparent hover:ring-white/20"
+                          }`}
+                        />
+                      ) : (
+                        <span
+                          className={`flex size-8 items-center justify-center rounded-full transition-colors ${
+                            isActive ? "bg-projector text-salon" : "bg-row text-screen hover:bg-row-raised"
+                          }`}
+                        >
+                          <UserIcon />
+                        </span>
+                      )}
                       <span className="hidden sm:inline">{user.username}</span>
                     </>
                   )}
+                </NavLink>
+                <NavLink to="/settings" className={navLinkClass}>
+                  Settings
                 </NavLink>
                 <button
                   type="button"

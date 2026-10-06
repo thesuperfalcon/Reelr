@@ -668,6 +668,14 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                         {name}
                     </h1>
                 </div>
+                {own && (
+                    <Link
+                        to="/settings"
+                        className="rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-white/15 transition hover:bg-row sm:ml-auto"
+                    >
+                        Edit profile
+                    </Link>
+                )}
                 {!own && user && profile.data && (
                     <div className="sm:ml-auto">
                         <FollowButton

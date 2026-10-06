@@ -3,6 +3,7 @@ using backend.Features.MovieLists;
 using backend.Features.Movies;
 using backend.Features.Ratings;
 using backend.Features.Reviews;
+using backend.Features.Settings;
 using backend.Features.Users;
 using backend.Features.WatchedMovies;
 using backend.Features.WatchlistItems;
@@ -37,9 +38,22 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
 
     public DbSet<MovieListItem> MovieListItems => Set<MovieListItem>();
 
+    public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // UserAvatar: one per user, removed with the user.
+        modelBuilder.Entity<UserAvatar>(avatar =>
+        {
+            avatar.HasKey(a => a.UserId);
+            avatar.HasOne(a => a.User)
+                .WithOne()
+                .HasForeignKey<UserAvatar>(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            avatar.Property(a => a.ContentType).HasMaxLength(32);
+        });
 
         // Movie
         modelBuilder.Entity<Movie>()

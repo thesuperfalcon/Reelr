@@ -53,6 +53,24 @@ namespace backend.Features.Users
             });
         }
 
+        [HttpGet("{id:int}/avatar")]
+        [EndpointSummary("Get a user's uploaded profile picture")]
+        public async Task<IActionResult> GetAvatar(int id)
+        {
+            var avatar = await _context.UserAvatars.AsNoTracking().FirstOrDefaultAsync(a => a.UserId == id);
+
+            if (avatar == null)
+            {
+                return NotFound();
+            }
+
+            // The URL carries a version that changes with every upload, so the image can be cached for good.
+            Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+            Response.Headers.XContentTypeOptions = "nosniff";
+
+            return File(avatar.Data, avatar.ContentType);
+        }
+
         [HttpGet("search")]
         [EndpointSummary("Search users by username")]
         public async Task<ActionResult<List<UserSummaryDto>>> SearchUsers([FromQuery] string query)
@@ -159,12 +177,6 @@ namespace backend.Features.Users
 
                     return ValidationProblem(ModelState);
                 }
-            }
-
-            if (dto.ProfileImageUrl != null)
-            {
-                user.ProfileImageUrl = dto.ProfileImageUrl;
-                await _userManager.UpdateAsync(user);
             }
 
             var followerCount = await _context.Set<Follow>().CountAsync(f => f.FollowedId == id);
