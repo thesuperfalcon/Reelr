@@ -3,8 +3,6 @@ using backend.Features.Auth;
 using backend.Features.Diary;
 using backend.Features.Movies;
 using backend.Features.Ratings.DTOs;
-using backend.Features.WatchedMovies;
-using backend.Features.WatchlistItems;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,11 +16,13 @@ namespace backend.Features.Ratings
     {
         private readonly ReelrContext _context;
         private readonly MovieCatalog _movieCatalog;
+        private readonly JournalService _journal;
 
-        public RatingController(ReelrContext context, MovieCatalog movieCatalog)
+        public RatingController(ReelrContext context, MovieCatalog movieCatalog, JournalService journal)
         {
             _context = context;
             _movieCatalog = movieCatalog;
+            _journal = journal;
         }
 
         [HttpGet]
@@ -50,7 +50,7 @@ namespace backend.Features.Ratings
         [EndpointSummary("Rate a movie")]
         public async Task<ActionResult<RatingDto>> CreateRating(int tmdbId, CreateRatingDto dto)
         {
-            if (!IsHalfStep(dto.Score))
+            if (!JournalService.IsHalfStep(dto.Score))
             {
                 return BadRequest("Score must be in increments of 0.5.");
             }
@@ -72,16 +72,7 @@ namespace backend.Features.Ratings
                 return Conflict("User has already rated this movie.");
             }
 
-            var rating = new Rating
-            {
-                UserId = userId,
-                MovieId = movie.Id,
-                Score = dto.Score
-            };
-
-            _context.Ratings.Add(rating);
-            await LogRatingAsync(userId, movie.Id, rating.Score);
-            await _context.SaveChangesAsync();
+            var rating = await _journal.RateAsync(userId, movie.Id, dto.Score);
 
             return Ok(new RatingDto
             {
@@ -94,7 +85,7 @@ namespace backend.Features.Ratings
         [EndpointSummary("Update the current user's rating for a movie")]
         public async Task<ActionResult<RatingDto>> UpdateRating(int tmdbId, UpdateRatingDto dto)
         {
-            if (!IsHalfStep(dto.Score))
+            if (!JournalService.IsHalfStep(dto.Score))
             {
                 return BadRequest("Score must be in increments of 0.5.");
             }
@@ -109,10 +100,7 @@ namespace backend.Features.Ratings
                 return NotFound();
             }
 
-            rating.Score = dto.Score;
-
-            await LogRatingAsync(userId, rating.MovieId, rating.Score);
-            await _context.SaveChangesAsync();
+            await _journal.RateAsync(userId, rating.MovieId, dto.Score);
 
             return Ok(new RatingDto
             {
@@ -139,34 +127,6 @@ namespace backend.Features.Ratings
             await _context.SaveChangesAsync();
 
             return NoContent();
-        }
-
-        // A rated film counts as watched, so each rating logs a new diary entry and the film leaves the watchlist.
-        private async Task LogRatingAsync(int userId, int movieId, decimal score)
-        {
-            await _context.RemoveWatchedFromWatchlistAsync(userId, movieId);
-
-            var status = await _context.WatchedMovies
-                .FirstOrDefaultAsync(w => w.UserId == userId && w.MovieId == movieId);
-
-            if (status == null)
-            {
-                status = new WatchedMovie
-                {
-                    UserId = userId,
-                    MovieId = movieId,
-                    WatchedAt = DateTime.UtcNow
-                };
-
-                _context.WatchedMovies.Add(status);
-            }
-
-            _context.LogDiaryEntry(status, score);
-        }
-
-        private static bool IsHalfStep(decimal score)
-        {
-            return decimal.Remainder(score * 2, 1) == 0;
         }
     }
 }
