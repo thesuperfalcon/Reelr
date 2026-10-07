@@ -78,6 +78,11 @@ namespace backend.Features.Settings
                 user.ShowFriendReviews = show;
             }
 
+            if (dto.ShowOwnActivity is bool showOwn)
+            {
+                user.ShowOwnActivity = showOwn;
+            }
+
             var updated = await _userManager.UpdateAsync(user);
 
             return updated.Succeeded ? Ok(ToDto(user, result)) : IdentityProblem(updated);
@@ -177,6 +182,7 @@ namespace backend.Features.Settings
             dto.ProfileImageUrl = user.ProfileImageUrl;
             dto.WatchlistVisibility = user.WatchlistVisibility;
             dto.ShowFriendReviews = user.ShowFriendReviews;
+            dto.ShowOwnActivity = user.ShowOwnActivity;
             return dto;
         }
 

@@ -54,6 +54,7 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
         Assert.Null(settings.ProfileImageUrl);
         Assert.Equal(WatchlistVisibility.Followers, settings.WatchlistVisibility);
         Assert.True(settings.ShowFriendReviews);
+        Assert.True(settings.ShowOwnActivity);
     }
 
     [Fact]
@@ -76,6 +77,7 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
         var updated = (await response.Content.ReadFromJsonAsync<UpdatedSettingsDto>())!;
 
         Assert.False(updated.ShowFriendReviews);
+        Assert.True(updated.ShowOwnActivity);
         Assert.Equal(WatchlistVisibility.Followers, updated.WatchlistVisibility);
         Assert.Null(updated.Token);
 

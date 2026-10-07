@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using backend.Data;
 
@@ -11,9 +12,11 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(ReelrContext))]
-    partial class ReelrContextModelSnapshot : ModelSnapshot
+    [Migration("20261006170724_AddReviewLikesCommentsSpoilers")]
+    partial class AddReviewLikesCommentsSpoilers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -500,9 +503,6 @@ namespace backend.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("ShowFriendReviews")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("ShowOwnActivity")
                         .HasColumnType("bit");
 
                     b.Property<bool>("TwoFactorEnabled")

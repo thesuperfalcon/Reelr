@@ -12,5 +12,7 @@ namespace backend.Features.Settings.DTOs
         public WatchlistVisibility? WatchlistVisibility { get; set; }
 
         public bool? ShowFriendReviews { get; set; }
+
+        public bool? ShowOwnActivity { get; set; }
     }
 }

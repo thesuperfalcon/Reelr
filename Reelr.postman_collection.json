@@ -817,7 +817,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"text\": \"Great movie!\"\n}"
+              "raw": "{\n  \"text\": \"Great movie!\",\n  \"containsSpoilers\": false\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/movies/{{tmdbId}}/reviews",
@@ -847,7 +847,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"text\": \"Updated review text.\"\n}"
+              "raw": "{\n  \"text\": \"Updated review text.\",\n  \"containsSpoilers\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/reviews/{{reviewId}}",
@@ -860,7 +860,7 @@
                 "{{reviewId}}"
               ]
             },
-            "description": "Update a review. Only the review's author can update it."
+            "description": "Update a review. Only the review's author can update it. Both fields are optional; leave out text to change only the spoiler flag."
           },
           "response": []
         },
@@ -881,6 +881,203 @@
               ]
             },
             "description": "Delete a review. Only the review's author can delete it."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Review",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{reviewId}}"
+              ]
+            },
+            "description": "Get one review with its like and comment counts. A token adds likedByMe."
+          },
+          "response": []
+        },
+        {
+          "name": "Like Review",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{reviewId}}",
+                "like"
+              ]
+            },
+            "description": "Like a review. Liking twice counts once. You cannot like your own review."
+          },
+          "response": []
+        },
+        {
+          "name": "Unlike Review",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{reviewId}}",
+                "like"
+              ]
+            },
+            "description": "Remove your like from a review."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Review Likes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}/likes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{reviewId}}",
+                "likes"
+              ]
+            },
+            "description": "Users who like a review, newest like first."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Review Comments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{reviewId}}",
+                "comments"
+              ]
+            },
+            "description": "Comments on a review, oldest first."
+          },
+          "response": []
+        },
+        {
+          "name": "Add Review Comment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.environment.set('commentId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Agreed!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reviews/{{reviewId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "reviews",
+                "{{reviewId}}",
+                "comments"
+              ]
+            },
+            "description": "Comment on a review. Plain text, at most 1000 characters. Saves the new comment's id to {{commentId}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Review Comment",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Agreed, mostly.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/comments/{{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "comments",
+                "{{commentId}}"
+              ]
+            },
+            "description": "Edit a comment. Only its author can edit it."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Review Comment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/comments/{{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "comments",
+                "{{commentId}}"
+              ]
+            },
+            "description": "Delete a comment. Its author or the review's author can delete it."
           },
           "response": []
         }

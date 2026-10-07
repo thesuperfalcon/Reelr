@@ -34,21 +34,27 @@ namespace backend.Features.Activity
             _options = options.Value;
         }
 
-        public Task<ActivityPageDto> GetFollowingAsync(int viewerId, ActivityCursor? before, int limit, IReadOnlySet<string>? types = null)
+        public Task<ActivityPageDto> GetFollowingAsync(int viewerId, bool includeOwn, ActivityCursor? before, int limit, IReadOnlySet<string>? types = null)
         {
             var since = DateTime.UtcNow.AddDays(-_options.FollowingDays);
             var followed = Followed(viewerId);
 
             // Everything the people you follow do, as long as it is public or shared with followers.
+            // Your own activity is all yours to see, private lists and watchlist included.
             var sources = new[]
             {
-                (ActivityTypes.Watched, WatchedRank, Watched(_context.DiaryEntries.Where(d => followed.Contains(d.UserId)))),
-                (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r => followed.Contains(r.UserId)))),
-                (ActivityTypes.ListCreated, ListCreatedRank, ListsCreated(_context.MovieLists.Where(l => l.IsPublic && followed.Contains(l.UserId)))),
-                (ActivityTypes.ListAdded, ListAddedRank, ListItemsAdded(_context.MovieListItems.Where(i => i.MovieList.IsPublic && followed.Contains(i.MovieList.UserId)))),
+                (ActivityTypes.Watched, WatchedRank, Watched(_context.DiaryEntries.Where(d =>
+                    followed.Contains(d.UserId) || (includeOwn && d.UserId == viewerId)))),
+                (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r =>
+                    followed.Contains(r.UserId) || (includeOwn && r.UserId == viewerId)))),
+                (ActivityTypes.ListCreated, ListCreatedRank, ListsCreated(_context.MovieLists.Where(l =>
+                    (l.IsPublic && followed.Contains(l.UserId)) || (includeOwn && l.UserId == viewerId)))),
+                (ActivityTypes.ListAdded, ListAddedRank, ListItemsAdded(_context.MovieListItems.Where(i =>
+                    (i.MovieList.IsPublic && followed.Contains(i.MovieList.UserId)) || (includeOwn && i.MovieList.UserId == viewerId)))),
                 // The viewer follows these users, so UserVisibility.CanSeeWatchlist comes down to "not private".
                 (ActivityTypes.WatchlistAdded, WatchlistAddedRank, WatchlistAdds(_context.WatchlistItems.Where(w =>
-                    followed.Contains(w.UserId) && w.User.WatchlistVisibility != WatchlistVisibility.Private)))
+                    (followed.Contains(w.UserId) && w.User.WatchlistVisibility != WatchlistVisibility.Private)
+                    || (includeOwn && w.UserId == viewerId))))
             };
 
             return BuildPageAsync(Only(sources, types), since, before, limit);
@@ -179,6 +185,9 @@ namespace backend.Features.Activity
                 // A little more than the excerpt, so it can be cut at a word.
                 ReviewText = r.Text.Substring(0, ExcerptLength + 40),
                 ReviewLength = r.Text.Length,
+                ReviewContainsSpoilers = r.ContainsSpoilers,
+                ReviewLikeCount = r.Likes.Count,
+                ReviewCommentCount = r.Comments.Count,
                 Rating = r.DiaryEntry != null ? r.DiaryEntry.Rating : null,
                 Liked = r.DiaryEntry != null ? r.DiaryEntry.Liked : null,
                 Rewatched = r.DiaryEntry != null ? r.DiaryEntry.Rewatched : null,
@@ -355,27 +364,40 @@ namespace backend.Features.Activity
             Actor = new ActivityActorDto { Id = row.ActorId, UserName = row.ActorName ?? string.Empty, ProfileImageUrl = row.ActorAvatar },
             Movie = row.TmdbId == null ? null : new ActivityMovieDto { TmdbId = row.TmdbId.Value, Title = row.Title ?? string.Empty, PosterUrl = row.PosterUrl },
             List = row.ListId == null ? null : new ActivityListDto { Id = row.ListId.Value, Name = row.ListName ?? string.Empty, MovieCount = row.ListCount },
-            Review = row.ReviewId == null ? null : Excerpt(row.ReviewId.Value, row.ReviewText ?? string.Empty, row.ReviewLength),
+            Review = row.ReviewId == null ? null : ToReview(row),
             Rating = row.Rating,
             Liked = row.Liked,
             Rewatched = row.Rewatched,
             WatchedAt = row.WatchedAt == null ? null : DateTime.SpecifyKind(row.WatchedAt.Value, DateTimeKind.Utc)
         };
 
-        private static ActivityReviewDto Excerpt(int id, string text, int fullLength)
+        // A review marked as containing spoilers has no excerpt; the feed links to the full review instead.
+        private static ActivityReviewDto ToReview(RawActivity row)
+        {
+            var (excerpt, isTruncated) = row.ReviewContainsSpoilers
+                ? (string.Empty, true)
+                : Excerpt(row.ReviewText ?? string.Empty, row.ReviewLength);
+
+            return new ActivityReviewDto
+            {
+                Id = row.ReviewId!.Value,
+                Excerpt = excerpt,
+                IsTruncated = isTruncated,
+                ContainsSpoilers = row.ReviewContainsSpoilers,
+                LikeCount = row.ReviewLikeCount,
+                CommentCount = row.ReviewCommentCount
+            };
+        }
+
+        private static (string Excerpt, bool IsTruncated) Excerpt(string text, int fullLength)
         {
             if (fullLength <= ExcerptLength)
             {
-                return new ActivityReviewDto { Id = id, Excerpt = text };
+                return (text, false);
             }
 
             var cut = text.LastIndexOf(' ', ExcerptLength);
-            return new ActivityReviewDto
-            {
-                Id = id,
-                Excerpt = text[..(cut > ExcerptLength / 2 ? cut : ExcerptLength)].TrimEnd(),
-                IsTruncated = true
-            };
+            return (text[..(cut > ExcerptLength / 2 ? cut : ExcerptLength)].TrimEnd(), true);
         }
 
         // One row from any source, before it becomes a feed item.
@@ -397,6 +419,9 @@ namespace backend.Features.Activity
             public int? ReviewId { get; init; }
             public string? ReviewText { get; init; }
             public int ReviewLength { get; init; }
+            public bool ReviewContainsSpoilers { get; init; }
+            public int ReviewLikeCount { get; init; }
+            public int ReviewCommentCount { get; init; }
             public decimal? Rating { get; init; }
             public bool? Liked { get; init; }
             public bool? Rewatched { get; init; }

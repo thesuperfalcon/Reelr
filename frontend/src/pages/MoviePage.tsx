@@ -6,7 +6,9 @@ import { DeleteReviewButton } from "../components/DeleteReviewButton";
 import { PersonLink } from "../components/PersonLink";
 import { Poster } from "../components/Poster";
 import { RatingDialog } from "../components/RatingDialog";
+import { ReviewReactions } from "../components/ReviewReactions";
 import { ReviewText } from "../components/ReviewText";
+import { SpoilerGate, SpoilerTag } from "../components/SpoilerGate";
 import { STAR_PATH, Stars } from "../components/Stars";
 import { ErrorMessage, Loading } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
@@ -218,9 +220,13 @@ function ReviewItem({ review, own }: { review: Review; own: boolean }) {
           <time dateTime={review.createdAt}>{reviewDateFormat.format(new Date(review.createdAt))}</time>
         </Link>
         {review.updatedAt && <span className="text-haze">(edited)</span>}
+        {review.containsSpoilers && <SpoilerTag />}
         {own && <DeleteReviewButton reviewId={review.id} className="ml-auto" />}
       </div>
-      <ReviewText text={review.text} className="mt-3" />
+      <SpoilerGate active={review.containsSpoilers && !own}>
+        <ReviewText text={review.text} className="mt-3" />
+      </SpoilerGate>
+      <ReviewReactions review={review} className="mt-3" />
     </li>
   );
 }

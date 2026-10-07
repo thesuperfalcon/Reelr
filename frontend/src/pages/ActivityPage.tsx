@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { ActivityFeed } from "../components/ActivityFeed";
-import { type FeedKind, useUserProfile } from "../lib/queries";
+import { type FeedKind, useSettings, useUpdateSettings, useUserProfile } from "../lib/queries";
 
 const feedTabs: { id: FeedKind; label: string }[] = [
   { id: "following", label: "Following" },
@@ -9,6 +9,36 @@ const feedTabs: { id: FeedKind; label: string }[] = [
 ];
 
 const communityEmpty = "Nothing logged on Reelr in the last 30 days yet.";
+
+// Shows or hides the user's own activity in Following. The choice is the showOwnActivity setting.
+function OwnActivityToggle() {
+  const settings = useSettings();
+  const update = useUpdateSettings();
+
+  if (!settings.data) {
+    return null;
+  }
+
+  return (
+    <div className="mt-4 flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm">
+      {update.isError && (
+        <span role="alert" className="text-alarm">
+          Could not save that. Try again.
+        </span>
+      )}
+      <label className="flex items-center gap-2 text-haze">
+        <input
+          type="checkbox"
+          checked={settings.data.showOwnActivity}
+          onChange={(event) => update.mutate({ showOwnActivity: event.target.checked })}
+          disabled={update.isPending}
+          className="size-4 accent-projector"
+        />
+        Show my activity
+      </label>
+    </div>
+  );
+}
 
 // The full activity stream. Following is the default once you follow someone; until then Community,
 // so the page is never empty. Logged out, only Community exists.
@@ -54,6 +84,7 @@ export function ActivityPage() {
               ))}
             </div>
             <div role="tabpanel" id="feed-panel" aria-labelledby={`feed-tab-${tab}`}>
+              {tab === "following" && <OwnActivityToggle />}
               {tab === "following" ? (
                 <ActivityFeed
                   key="following"

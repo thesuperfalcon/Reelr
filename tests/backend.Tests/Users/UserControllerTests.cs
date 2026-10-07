@@ -175,6 +175,25 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
+    public async Task DeleteUser_WithReviewLikesAndComments_RemovesThemFromOthersReviews()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var author = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(7002, "Talked about");
+        var created = await author.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/reviews", new CreateReviewDto { Text = "Thoughts" });
+        var review = (await created.Content.ReadFromJsonAsync<ReviewDto>())!;
+        (await user.Client.PutAsync($"/api/reviews/{review.Id}/like", null)).EnsureSuccessStatusCode();
+        (await user.Client.PostAsJsonAsync($"/api/reviews/{review.Id}/comments", new CreateReviewCommentDto { Text = "Agreed" })).EnsureSuccessStatusCode();
+
+        var response = await user.Client.DeleteAsync($"/api/users/{user.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        var after = await _factory.CreateClient().GetFromJsonAsync<ReviewDto>($"/api/reviews/{review.Id}");
+        Assert.Equal(0, after!.LikeCount);
+        Assert.Equal(0, after.CommentCount);
+    }
+
+    [Fact]
     public async Task DeleteUser_OtherUser_Returns403AndKeepsAccount()
     {
         var user = await _factory.CreateAuthenticatedAsync();

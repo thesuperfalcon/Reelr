@@ -18,6 +18,15 @@ namespace backend.Features.Reviews.DTOs
 
         public string Text { get; set; } = null!;
 
+        public bool ContainsSpoilers { get; set; }
+
+        public int LikeCount { get; set; }
+
+        public int CommentCount { get; set; }
+
+        // Whether the caller likes this review. Always false without a token.
+        public bool LikedByMe { get; set; }
+
         public decimal? Score { get; set; }
 
         // Watch date of the diary entry that logged the review. Null for reviews without one.

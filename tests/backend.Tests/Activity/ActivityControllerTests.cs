@@ -4,6 +4,7 @@ using backend.Features.Activity;
 using backend.Features.Activity.DTOs;
 using backend.Features.Diary.DTOs;
 using backend.Features.MovieLists.DTOs;
+using backend.Features.Settings.DTOs;
 using backend.Features.Users;
 using backend.Tests.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -200,6 +201,69 @@ public class ActivityControllerTests : IClassFixture<ReelrApiFactory>
         var after = Assert.Single((await GetPageAsync(alice.Client, "following")).Items);
         Assert.Equal(ActivityTypes.Watched, after.Type);
         Assert.Equal(4m, after.Rating);
+    }
+
+    // ---- Own activity in Following ----
+
+    [Fact]
+    public async Task Following_IncludesOwnActivity_PrivateOnesToo_ByDefault()
+    {
+        var alice = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(7301, "My own log");
+        await LogAsync(alice, tmdbId);
+        await CreateListAsync(alice, "Secret list", isPublic: false);
+
+        var page = await GetPageAsync(alice.Client, "following");
+
+        Assert.Equal([ActivityTypes.ListCreated, ActivityTypes.Watched], page.Items.Select(i => i.Type));
+        Assert.All(page.Items, i => Assert.Equal(alice.Id, i.Actor.Id));
+    }
+
+    [Fact]
+    public async Task Following_LeavesOutOwnActivity_WhenTheSettingIsOff()
+    {
+        var alice = await _factory.CreateAuthenticatedAsync();
+        var bob = await _factory.CreateAuthenticatedAsync();
+        await FollowAsync(alice, bob);
+        await LogAsync(alice, _factory.Tmdb.AddMovie(7302, "Mine"));
+        await LogAsync(bob, _factory.Tmdb.AddMovie(7303, "Bob's"));
+
+        (await alice.Client.PatchAsJsonAsync("/api/settings", new UpdateUserSettingsDto { ShowOwnActivity = false })).EnsureSuccessStatusCode();
+
+        var item = Assert.Single((await GetPageAsync(alice.Client, "following")).Items);
+        Assert.Equal(bob.Id, item.Actor.Id);
+    }
+
+    [Fact]
+    public async Task Following_IncludeOwnQuery_OverridesTheSetting()
+    {
+        var alice = await _factory.CreateAuthenticatedAsync();
+        await LogAsync(alice, _factory.Tmdb.AddMovie(7304, "Hidden by query"), new LogDiaryEntryDto { Review = "Mine" });
+
+        var response = await alice.Client.GetAsync("/api/feed/following?types=reviewed&includeOwn=false");
+
+        response.EnsureSuccessStatusCode();
+        Assert.Empty((await response.Content.ReadFromJsonAsync<ActivityPageDto>())!.Items);
+    }
+
+    [Fact]
+    public async Task ReviewedItem_WithSpoilers_HasNoExcerpt_AndCarriesLikeAndCommentCounts()
+    {
+        var alice = await _factory.CreateAuthenticatedAsync();
+        var bob = await _factory.CreateAuthenticatedAsync();
+        await FollowAsync(alice, bob);
+        var tmdbId = _factory.Tmdb.AddMovie(7152, "Spoiled");
+        await LogAsync(bob, tmdbId, new LogDiaryEntryDto { Review = "The butler did it", ContainsSpoilers = true });
+        var reviewId = Assert.Single((await GetPageAsync(alice.Client, "following")).Items).Review!.Id;
+        (await alice.Client.PutAsync($"/api/reviews/{reviewId}/like", null)).EnsureSuccessStatusCode();
+        (await alice.Client.PostAsJsonAsync($"/api/reviews/{reviewId}/comments", new { Text = "No!" })).EnsureSuccessStatusCode();
+
+        var review = Assert.Single((await GetPageAsync(alice.Client, "following")).Items).Review!;
+
+        Assert.True(review.ContainsSpoilers);
+        Assert.Equal(string.Empty, review.Excerpt);
+        Assert.Equal(1, review.LikeCount);
+        Assert.Equal(1, review.CommentCount);
     }
 
     [Fact]

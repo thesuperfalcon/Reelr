@@ -13,6 +13,8 @@ namespace backend.Features.Settings.DTOs
         public WatchlistVisibility WatchlistVisibility { get; set; }
 
         public bool ShowFriendReviews { get; set; }
+
+        public bool ShowOwnActivity { get; set; }
     }
 
     // Returned after a change. Token is set when the username changed, since the old token still carries the old name.

@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { useAuth } from "../auth/auth-context";
 import { dayFormat, fullFormat, timeAgo } from "../lib/activity";
 import { tmdbImage } from "../lib/tmdb";
 import type { ActivityItem as Item, ActivityMovie } from "../lib/types";
+import { ReviewCounts } from "./ReviewReactions";
 import { ReviewText } from "./ReviewText";
 import { Stars } from "./Stars";
 import { UserAvatar } from "./UserAvatar";
@@ -61,12 +63,14 @@ function Details({ item }: { item: Item }) {
 
 // One feed row: who did what, with every name, film, list, review and watchlist clickable.
 export function ActivityItem({ item }: { item: Item }) {
+  const { user } = useAuth();
   const { actor, movie, list, review } = item;
+  const own = user?.id === actor.id;
   const grouped = item.groupCount > 1;
   const userUrl = `/user/${actor.id}`;
   const who = (
     <Link to={userUrl} className="font-medium text-screen hover:text-projector">
-      {actor.userName}
+      {own ? "You" : actor.userName}
     </Link>
   );
 
@@ -117,7 +121,7 @@ export function ActivityItem({ item }: { item: Item }) {
     default:
       action = (
         <>
-          {who} added {movie && <FilmLink movie={movie} />} to their{" "}
+          {who} added {movie && <FilmLink movie={movie} />} to {own ? "your" : "their"}{" "}
           <Link to={`${userUrl}?tab=watchlist`} className="font-medium text-screen hover:text-projector">
             watchlist
           </Link>
@@ -139,10 +143,18 @@ export function ActivityItem({ item }: { item: Item }) {
 
         {review && (
           <div className="mt-3">
-            <ReviewText text={review.isTruncated ? `${review.excerpt}…` : review.excerpt} className="text-sm" />
-            <Link to={`/review/${review.id}`} className="mt-2 inline-block text-sm font-medium text-projector underline underline-offset-4">
-              {review.isTruncated ? "Read the full review" : "Open review"}
-            </Link>
+            {/* The feed sends no excerpt for a review with spoilers. */}
+            {review.containsSpoilers ? (
+              <p className="text-sm text-haze">This review contains spoilers.</p>
+            ) : (
+              <ReviewText text={review.isTruncated ? `${review.excerpt}…` : review.excerpt} className="text-sm" />
+            )}
+            <p className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <Link to={`/review/${review.id}`} className="text-sm font-medium text-projector underline underline-offset-4">
+                {review.isTruncated ? "Read the full review" : "Open review"}
+              </Link>
+              <ReviewCounts review={review} />
+            </p>
           </div>
         )}
 

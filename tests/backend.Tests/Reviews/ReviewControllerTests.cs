@@ -236,6 +236,63 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
         Assert.Equal("Original", Assert.Single(reviews!).Text);
     }
 
+    // ---- Spoilers ----
+
+    [Fact]
+    public async Task CreateReview_WithSpoilerFlag_ReturnsIt()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6020, "Twist ending");
+
+        var response = await user.Client.PostAsJsonAsync(ReviewsUrl(tmdbId), new CreateReviewDto { Text = "The twist!", ContainsSpoilers = true });
+
+        var review = await response.Content.ReadFromJsonAsync<ReviewDto>();
+        Assert.True(review!.ContainsSpoilers);
+    }
+
+    [Fact]
+    public async Task UpdateReview_SpoilerFlagOnly_KeepsTextAndDoesNotMarkEdited()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6021, "Flagged later");
+        var review = await CreateReviewAsync(user.Client, tmdbId, "Careful");
+
+        var response = await user.Client.PutAsJsonAsync($"/api/reviews/{review.Id}", new UpdateReviewDto { ContainsSpoilers = true });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var updated = await response.Content.ReadFromJsonAsync<ReviewDto>();
+        Assert.True(updated!.ContainsSpoilers);
+        Assert.Equal("Careful", updated.Text);
+        Assert.Null(updated.UpdatedAt);
+    }
+
+    [Fact]
+    public async Task UpdateReview_BlankText_Returns400()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var review = await CreateReviewAsync(user.Client, _factory.Tmdb.AddMovie(6022, "Blank"), "Words");
+
+        var response = await user.Client.PutAsJsonAsync($"/api/reviews/{review.Id}", new UpdateReviewDto { Text = "   " });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task LogDiaryEntry_SetsSpoilerFlag_AndKeepsItWhenRewrittenWithoutOne()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6023, "Logged spoiler");
+        (await user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/diary",
+            new LogDiaryEntryDto { Review = "He was dead", ContainsSpoilers = true })).EnsureSuccessStatusCode();
+
+        (await user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/diary",
+            new LogDiaryEntryDto { Review = "He was dead all along" })).EnsureSuccessStatusCode();
+
+        var review = Assert.Single((await _factory.CreateClient().GetFromJsonAsync<List<ReviewDto>>(ReviewsUrl(tmdbId)))!);
+        Assert.True(review.ContainsSpoilers);
+        Assert.Equal("He was dead all along", review.Text);
+    }
+
     // ---- Delete ----
 
     [Fact]
