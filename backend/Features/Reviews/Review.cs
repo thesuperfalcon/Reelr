@@ -25,5 +25,12 @@ namespace backend.Features.Reviews
         public int? DiaryEntryId { get; set; }
 
         public Diary.DiaryEntry? DiaryEntry { get; set; }
+
+        // Set by the author. Readers see the text only after choosing to.
+        public bool ContainsSpoilers { get; set; }
+
+        public ICollection<ReviewLike> Likes { get; set; } = [];
+
+        public ICollection<ReviewComment> Comments { get; set; } = [];
     }
 }

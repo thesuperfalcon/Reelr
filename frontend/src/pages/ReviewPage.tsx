@@ -1,7 +1,10 @@
 import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { DeleteReviewButton } from "../components/DeleteReviewButton";
+import { ReviewComments } from "../components/ReviewComments";
+import { ReviewReactions } from "../components/ReviewReactions";
 import { ReviewText } from "../components/ReviewText";
+import { SpoilerGate, SpoilerTag } from "../components/SpoilerGate";
 import { Stars } from "../components/Stars";
 import { ErrorMessage, Loading } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
@@ -80,9 +83,14 @@ export function ReviewPage() {
               Written <time dateTime={data.createdAt}>{dateFormat.format(new Date(data.createdAt))}</time>
               {data.updatedAt && " (edited)"}
             </span>
+            {data.containsSpoilers && <SpoilerTag />}
           </div>
 
-          <ReviewText text={data.text} className="mt-8 text-lg" />
+          <SpoilerGate active={data.containsSpoilers && !own} className="mt-8">
+            <ReviewText text={data.text} className="mt-8 text-lg" />
+          </SpoilerGate>
+
+          <ReviewReactions review={data} className="mt-6" />
 
           {own && (
             <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-white/5 pt-6 text-sm">
@@ -92,6 +100,8 @@ export function ReviewPage() {
               <DeleteReviewButton reviewId={data.id} onDeleted={() => navigate(filmUrl, { replace: true })} />
             </div>
           )}
+
+          <ReviewComments review={data} />
         </div>
       </div>
     </article>

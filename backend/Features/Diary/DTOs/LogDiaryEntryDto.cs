@@ -18,5 +18,8 @@ namespace backend.Features.Diary.DTOs
         // Markdown text that creates or replaces the user's review. Null or blank leaves the review as it is.
         [MaxLength(Reviews.Review.MaxLength)]
         public string? Review { get; set; }
+
+        // Applies only when Review is written. Null keeps the review's current flag, or false for a new review.
+        public bool? ContainsSpoilers { get; set; }
     }
 }

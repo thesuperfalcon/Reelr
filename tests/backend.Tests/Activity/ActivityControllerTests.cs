@@ -203,6 +203,26 @@ public class ActivityControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
+    public async Task ReviewedItem_WithSpoilers_HasNoExcerpt_AndCarriesLikeAndCommentCounts()
+    {
+        var alice = await _factory.CreateAuthenticatedAsync();
+        var bob = await _factory.CreateAuthenticatedAsync();
+        await FollowAsync(alice, bob);
+        var tmdbId = _factory.Tmdb.AddMovie(7152, "Spoiled");
+        await LogAsync(bob, tmdbId, new LogDiaryEntryDto { Review = "The butler did it", ContainsSpoilers = true });
+        var reviewId = Assert.Single((await GetPageAsync(alice.Client, "following")).Items).Review!.Id;
+        (await alice.Client.PutAsync($"/api/reviews/{reviewId}/like", null)).EnsureSuccessStatusCode();
+        (await alice.Client.PostAsJsonAsync($"/api/reviews/{reviewId}/comments", new { Text = "No!" })).EnsureSuccessStatusCode();
+
+        var review = Assert.Single((await GetPageAsync(alice.Client, "following")).Items).Review!;
+
+        Assert.True(review.ContainsSpoilers);
+        Assert.Equal(string.Empty, review.Excerpt);
+        Assert.Equal(1, review.LikeCount);
+        Assert.Equal(1, review.CommentCount);
+    }
+
+    [Fact]
     public async Task LogsCloseTogether_AreGrouped_AndSplitWhenFarApart()
     {
         var alice = await _factory.CreateAuthenticatedAsync();

@@ -214,13 +214,16 @@ namespace backend.Features.Users
                 return NotFound();
             }
 
-            // Follows use DeleteBehavior.Restrict (SQL Server disallows two cascade paths),
-            // so they must be removed before the user.
+            // Follows, review likes and review comments use DeleteBehavior.Restrict (SQL Server disallows
+            // two cascade paths), so they must be removed before the user.
             await using var transaction = await _context.Database.BeginTransactionAsync();
 
             await _context.Set<Follow>()
                 .Where(f => f.FollowerId == id || f.FollowedId == id)
                 .ExecuteDeleteAsync();
+
+            await _context.ReviewLikes.Where(l => l.UserId == id).ExecuteDeleteAsync();
+            await _context.ReviewComments.Where(c => c.UserId == id).ExecuteDeleteAsync();
 
             var result = await _userManager.DeleteAsync(user);
 

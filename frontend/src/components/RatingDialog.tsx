@@ -6,6 +6,7 @@ import {
   useDeleteReview,
   useRemoveWatched,
   useSaveDiaryEntry,
+  useSetReviewSpoilers,
 } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { MovieDetails, Review, Status } from "../lib/types";
@@ -59,14 +60,16 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
   const [reviewDeleted, setReviewDeleted] = useState(false);
   const currentReview = reviewDeleted ? null : reviewProp;
   const [review, setReview] = useState(reviewProp?.text ?? "");
+  const [containsSpoilers, setContainsSpoilers] = useState(reviewProp?.containsSpoilers ?? false);
   const [watchedOn, setWatchedOn] = useState(today);
   const [confirmUnwatch, setConfirmUnwatch] = useState(false);
   const save = useSaveDiaryEntry(movie.id);
   const remove = useDeleteRating(movie.id);
   const removeReview = useDeleteReview();
+  const setSpoilers = useSetReviewSpoilers();
   const unwatch = useRemoveWatched(movie.id);
-  const busy = save.isPending || remove.isPending || removeReview.isPending || unwatch.isPending;
-  const error = save.error ?? remove.error ?? removeReview.error ?? unwatch.error;
+  const busy = save.isPending || remove.isPending || removeReview.isPending || setSpoilers.isPending || unwatch.isPending;
+  const error = save.error ?? remove.error ?? removeReview.error ?? setSpoilers.error ?? unwatch.error;
   const poster = tmdbImage(movie.posterPath, "w185");
   const year = releaseYear(movie.releaseDate);
 
@@ -85,10 +88,17 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
     const reviewCleared = trimmed === "" && currentReview !== null;
     // Picking an earlier day is a log of that viewing on its own.
     const backDated = watchedOn !== today();
+    // Flipping only the spoiler flag is not a watch either, so it is saved on its own.
+    const spoilersOnly =
+      !reviewChanged && !reviewCleared && currentReview !== null && containsSpoilers !== currentReview.containsSpoilers;
 
     try {
       if (reviewCleared) {
         await removeReview.mutateAsync(currentReview.id);
+      }
+
+      if (spoilersOnly) {
+        await setSpoilers.mutateAsync({ id: currentReview.id, containsSpoilers });
       }
 
       if (scoreChanged || statusChanged || reviewChanged || backDated) {
@@ -97,6 +107,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
           liked,
           rewatched,
           review: reviewChanged ? trimmed : null,
+          containsSpoilers: reviewChanged ? containsSpoilers : null,
           watchedOn: backDated ? watchedOn : null,
         });
       }
@@ -204,6 +215,18 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
                 : "Saving a review logs the film in your diary."
             }
           />
+          {review.trim() !== "" && (
+            <label className="mt-3 flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={containsSpoilers}
+                onChange={(event) => setContainsSpoilers(event.target.checked)}
+                className="size-4 accent-projector"
+              />
+              Contains spoilers
+              <span className="text-haze">· readers must choose to show it</span>
+            </label>
+          )}
         </div>
 
         {error && (

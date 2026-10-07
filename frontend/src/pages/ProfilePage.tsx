@@ -13,7 +13,9 @@ import { DiaryEntryDialog } from "../components/DiaryEntryDialog";
 import { ListCard } from "../components/ListCard";
 import { ListFormDialog } from "../components/ListFormDialog";
 import { Poster } from "../components/Poster";
+import { ReviewReactions } from "../components/ReviewReactions";
 import { ReviewText } from "../components/ReviewText";
+import { SpoilerGate, SpoilerTag } from "../components/SpoilerGate";
 import { Stars } from "../components/Stars";
 import { ErrorMessage, Loading } from "../components/Status";
 import { UserAvatar, UserLink } from "../components/UserAvatar";
@@ -387,6 +389,7 @@ function Reviews({ owner }: { owner: Owner }) {
                                         (edited)
                                     </span>
                                 )}
+                                {review.containsSpoilers && <SpoilerTag />}
                                 {owner.own && (
                                     <DeleteReviewButton
                                         reviewId={review.id}
@@ -394,7 +397,16 @@ function Reviews({ owner }: { owner: Owner }) {
                                     />
                                 )}
                             </div>
-                            <ReviewText text={review.text} className="mt-2" />
+                            <SpoilerGate
+                                active={review.containsSpoilers && !owner.own}
+                                className="mt-2"
+                            >
+                                <ReviewText
+                                    text={review.text}
+                                    className="mt-2"
+                                />
+                            </SpoilerGate>
+                            <ReviewReactions review={review} className="mt-3" />
                         </div>
                     </li>
                 );
