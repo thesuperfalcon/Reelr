@@ -34,21 +34,27 @@ namespace backend.Features.Activity
             _options = options.Value;
         }
 
-        public Task<ActivityPageDto> GetFollowingAsync(int viewerId, ActivityCursor? before, int limit, IReadOnlySet<string>? types = null)
+        public Task<ActivityPageDto> GetFollowingAsync(int viewerId, bool includeOwn, ActivityCursor? before, int limit, IReadOnlySet<string>? types = null)
         {
             var since = DateTime.UtcNow.AddDays(-_options.FollowingDays);
             var followed = Followed(viewerId);
 
             // Everything the people you follow do, as long as it is public or shared with followers.
+            // Your own activity is all yours to see, private lists and watchlist included.
             var sources = new[]
             {
-                (ActivityTypes.Watched, WatchedRank, Watched(_context.DiaryEntries.Where(d => followed.Contains(d.UserId)))),
-                (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r => followed.Contains(r.UserId)))),
-                (ActivityTypes.ListCreated, ListCreatedRank, ListsCreated(_context.MovieLists.Where(l => l.IsPublic && followed.Contains(l.UserId)))),
-                (ActivityTypes.ListAdded, ListAddedRank, ListItemsAdded(_context.MovieListItems.Where(i => i.MovieList.IsPublic && followed.Contains(i.MovieList.UserId)))),
+                (ActivityTypes.Watched, WatchedRank, Watched(_context.DiaryEntries.Where(d =>
+                    followed.Contains(d.UserId) || (includeOwn && d.UserId == viewerId)))),
+                (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r =>
+                    followed.Contains(r.UserId) || (includeOwn && r.UserId == viewerId)))),
+                (ActivityTypes.ListCreated, ListCreatedRank, ListsCreated(_context.MovieLists.Where(l =>
+                    (l.IsPublic && followed.Contains(l.UserId)) || (includeOwn && l.UserId == viewerId)))),
+                (ActivityTypes.ListAdded, ListAddedRank, ListItemsAdded(_context.MovieListItems.Where(i =>
+                    (i.MovieList.IsPublic && followed.Contains(i.MovieList.UserId)) || (includeOwn && i.MovieList.UserId == viewerId)))),
                 // The viewer follows these users, so UserVisibility.CanSeeWatchlist comes down to "not private".
                 (ActivityTypes.WatchlistAdded, WatchlistAddedRank, WatchlistAdds(_context.WatchlistItems.Where(w =>
-                    followed.Contains(w.UserId) && w.User.WatchlistVisibility != WatchlistVisibility.Private)))
+                    (followed.Contains(w.UserId) && w.User.WatchlistVisibility != WatchlistVisibility.Private)
+                    || (includeOwn && w.UserId == viewerId))))
             };
 
             return BuildPageAsync(Only(sources, types), since, before, limit);
