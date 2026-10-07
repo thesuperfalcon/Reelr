@@ -1,4 +1,5 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Diary;
 using backend.Features.Movies;
 using backend.Features.WatchedMovies.DTOs;
@@ -6,7 +7,6 @@ using backend.Features.WatchlistItems;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.WatchedMovies
 {
@@ -16,19 +16,19 @@ namespace backend.Features.WatchedMovies
     public class StatusController : ControllerBase
     {
         private readonly ReelrContext _context;
-        private readonly TmdbService _tmdbService;
+        private readonly MovieCatalog _movieCatalog;
 
-        public StatusController(ReelrContext context, TmdbService tmdbService)
+        public StatusController(ReelrContext context, MovieCatalog movieCatalog)
         {
             _context = context;
-            _tmdbService = tmdbService;
+            _movieCatalog = movieCatalog;
         }
 
         [HttpGet]
         [EndpointSummary("Get the current user's watched status for a movie")]
         public async Task<ActionResult<StatusDto>> GetStatus(int tmdbId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var status = await _context.WatchedMovies
                 .FirstOrDefaultAsync(w => w.UserId == userId && w.Movie.TmdbId == tmdbId);
@@ -51,32 +51,13 @@ namespace backend.Features.WatchedMovies
         [EndpointSummary("Mark a movie as watched for the current user")]
         public async Task<ActionResult<StatusDto>> CreateStatus(int tmdbId, CreateStatusDto dto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
-            var movie = await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
+            var movie = await _movieCatalog.GetOrCreateAsync(tmdbId);
 
             if (movie == null)
             {
-                var tmdbMovie = await _tmdbService.GetMovie(tmdbId);
-
-                if (tmdbMovie == null)
-                {
-                    return NotFound();
-                }
-
-                movie = new Movie
-                {
-                    TmdbId = tmdbId,
-                    Title = tmdbMovie.Title ?? string.Empty,
-                    Description = tmdbMovie.Overview,
-                    ReleaseDate = DateOnly.TryParse(tmdbMovie.ReleaseDate, out var releaseDate) ? releaseDate : null,
-                    Runtime = tmdbMovie.Runtime,
-                    PosterUrl = tmdbMovie.PosterPath,
-                    BackdropUrl = tmdbMovie.BackdropPath
-                };
-
-                _context.Movies.Add(movie);
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
 
             var alreadyWatched = await _context.WatchedMovies
@@ -114,7 +95,7 @@ namespace backend.Features.WatchedMovies
         [EndpointSummary("Update the current user's watched status for a movie")]
         public async Task<ActionResult<StatusDto>> UpdateStatus(int tmdbId, UpdateStatusDto dto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var status = await _context.WatchedMovies
                 .FirstOrDefaultAsync(w => w.UserId == userId && w.Movie.TmdbId == tmdbId);
@@ -144,7 +125,7 @@ namespace backend.Features.WatchedMovies
         [EndpointSummary("Remove the current user's watched status for a movie")]
         public async Task<IActionResult> DeleteStatus(int tmdbId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var status = await _context.WatchedMovies
                 .FirstOrDefaultAsync(w => w.UserId == userId && w.Movie.TmdbId == tmdbId);

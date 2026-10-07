@@ -1,10 +1,10 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Users.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.Users
 {
@@ -36,7 +36,7 @@ namespace backend.Features.Users
             var followingCount = await _context.Set<Follow>().CountAsync(f => f.FollowerId == id);
 
             // The endpoint is public; a valid token only adds whether the caller follows this user.
-            int? viewerId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId) ? currentUserId : null;
+            var viewerId = User.FindUserId();
             var isFollowing = viewerId != null
                 && await _context.Set<Follow>().AnyAsync(f => f.FollowerId == viewerId && f.FollowedId == id);
 
@@ -150,7 +150,7 @@ namespace backend.Features.Users
         [EndpointSummary("Update the current user's profile")]
         public async Task<ActionResult<UserProfileDto>> UpdateUser(int id, UpdateUserDto dto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             if (userId != id)
             {
@@ -200,7 +200,7 @@ namespace backend.Features.Users
         [EndpointSummary("Delete the current user's account")]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             if (userId != id)
             {
@@ -247,7 +247,7 @@ namespace backend.Features.Users
         [EndpointSummary("Follow a user")]
         public async Task<IActionResult> FollowUser(int id)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             if (userId == id)
             {
@@ -285,7 +285,7 @@ namespace backend.Features.Users
         [EndpointSummary("Unfollow a user")]
         public async Task<IActionResult> UnfollowUser(int id)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var follow = await _context.Set<Follow>()
                 .FirstOrDefaultAsync(f => f.FollowerId == userId && f.FollowedId == id);

@@ -34,6 +34,7 @@ builder.Services
     .AddDefaultTokenProviders();
 
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<MovieCatalog>();
 
 // Activity feed. "Activity:Implementation" picks how the feed is computed; only "Derived" exists so far.
 builder.Services.AddMemoryCache();

@@ -1,10 +1,10 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Movies;
 using backend.Features.MovieLists.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.MovieLists
 {
@@ -15,12 +15,12 @@ namespace backend.Features.MovieLists
         private const int TopMoviesCount = 3;
 
         private readonly ReelrContext _context;
-        private readonly TmdbService _tmdbService;
+        private readonly MovieCatalog _movieCatalog;
 
-        public MovieListController(ReelrContext context, TmdbService tmdbService)
+        public MovieListController(ReelrContext context, MovieCatalog movieCatalog)
         {
             _context = context;
-            _tmdbService = tmdbService;
+            _movieCatalog = movieCatalog;
         }
 
         [Authorize]
@@ -28,7 +28,7 @@ namespace backend.Features.MovieLists
         [EndpointSummary("Get the current user's movie lists")]
         public async Task<ActionResult<List<MovieListSummaryDto>>> GetLists()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var lists = await ToSummaries(_context.MovieLists.Where(l => l.UserId == userId))
                 .ToListAsync();
@@ -45,8 +45,7 @@ namespace backend.Features.MovieLists
                 return NotFound();
             }
 
-            var own = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId)
-                && currentUserId == userId;
+            var own = User.FindUserId() == userId;
 
             var lists = await ToSummaries(_context.MovieLists.Where(l => l.UserId == userId && (own || l.IsPublic)))
                 .ToListAsync();
@@ -59,7 +58,7 @@ namespace backend.Features.MovieLists
         [EndpointSummary("Get the ids of the current user's lists that contain a movie")]
         public async Task<ActionResult<List<int>>> GetListsContaining(int tmdbId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var ids = await _context.MovieListItems
                 .Where(i => i.MovieList.UserId == userId && i.Movie.TmdbId == tmdbId)
@@ -141,7 +140,7 @@ namespace backend.Features.MovieLists
         [EndpointSummary("Create a movie list")]
         public async Task<ActionResult<MovieListDto>> CreateList(CreateMovieListDto dto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var list = new MovieList
             {
@@ -165,7 +164,7 @@ namespace backend.Features.MovieLists
         [EndpointSummary("Update a movie list")]
         public async Task<ActionResult<MovieListDto>> UpdateList(int id, UpdateMovieListDto dto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var list = await _context.MovieLists
                 .Include(l => l.User)
@@ -218,7 +217,7 @@ namespace backend.Features.MovieLists
         [EndpointSummary("Delete a movie list")]
         public async Task<IActionResult> DeleteList(int id)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var list = await _context.MovieLists
                 .FirstOrDefaultAsync(l => l.Id == id && l.UserId == userId);
@@ -239,7 +238,7 @@ namespace backend.Features.MovieLists
         [EndpointSummary("Add a movie to a list")]
         public async Task<IActionResult> AddMovie(int id, AddMovieToListDto dto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var list = await _context.MovieLists
                 .FirstOrDefaultAsync(l => l.Id == id && l.UserId == userId);
@@ -249,30 +248,11 @@ namespace backend.Features.MovieLists
                 return NotFound();
             }
 
-            var movie = await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == dto.TmdbId);
+            var movie = await _movieCatalog.GetOrCreateAsync(dto.TmdbId);
 
             if (movie == null)
             {
-                var tmdbMovie = await _tmdbService.GetMovie(dto.TmdbId);
-
-                if (tmdbMovie == null)
-                {
-                    return NotFound();
-                }
-
-                movie = new Movie
-                {
-                    TmdbId = dto.TmdbId,
-                    Title = tmdbMovie.Title ?? string.Empty,
-                    Description = tmdbMovie.Overview,
-                    ReleaseDate = DateOnly.TryParse(tmdbMovie.ReleaseDate, out var releaseDate) ? releaseDate : null,
-                    Runtime = tmdbMovie.Runtime,
-                    PosterUrl = tmdbMovie.PosterPath,
-                    BackdropUrl = tmdbMovie.BackdropPath
-                };
-
-                _context.Movies.Add(movie);
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
 
             var alreadyInList = await _context.MovieListItems
@@ -300,7 +280,7 @@ namespace backend.Features.MovieLists
         [EndpointSummary("Remove a movie from a list")]
         public async Task<IActionResult> RemoveMovie(int id, int tmdbId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var listExists = await _context.MovieLists.AnyAsync(l => l.Id == id && l.UserId == userId);
 
@@ -349,8 +329,7 @@ namespace backend.Features.MovieLists
 
         private bool IsOwner(MovieList list)
         {
-            var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            return claim != null && int.Parse(claim) == list.UserId;
+            return User.FindUserId() == list.UserId;
         }
 
         private static MovieListDto ToDto(MovieList list, int movieCount, List<MovieListItemDto> topMovies)

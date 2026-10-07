@@ -1,4 +1,5 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Diary;
 using backend.Features.Movies;
 using backend.Features.Ratings.DTOs;
@@ -7,7 +8,6 @@ using backend.Features.WatchlistItems;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.Ratings
 {
@@ -17,19 +17,19 @@ namespace backend.Features.Ratings
     public class RatingController : ControllerBase
     {
         private readonly ReelrContext _context;
-        private readonly TmdbService _tmdbService;
+        private readonly MovieCatalog _movieCatalog;
 
-        public RatingController(ReelrContext context, TmdbService tmdbService)
+        public RatingController(ReelrContext context, MovieCatalog movieCatalog)
         {
             _context = context;
-            _tmdbService = tmdbService;
+            _movieCatalog = movieCatalog;
         }
 
         [HttpGet]
         [EndpointSummary("Get the current user's rating for a movie")]
         public async Task<ActionResult<RatingDto>> GetRating(int tmdbId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var rating = await _context.Ratings
                 .FirstOrDefaultAsync(r => r.UserId == userId && r.Movie.TmdbId == tmdbId);
@@ -55,32 +55,13 @@ namespace backend.Features.Ratings
                 return BadRequest("Score must be in increments of 0.5.");
             }
 
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
-            var movie = await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
+            var movie = await _movieCatalog.GetOrCreateAsync(tmdbId);
 
             if (movie == null)
             {
-                var tmdbMovie = await _tmdbService.GetMovie(tmdbId);
-
-                if (tmdbMovie == null)
-                {
-                    return NotFound();
-                }
-
-                movie = new Movie
-                {
-                    TmdbId = tmdbId,
-                    Title = tmdbMovie.Title ?? string.Empty,
-                    Description = tmdbMovie.Overview,
-                    ReleaseDate = DateOnly.TryParse(tmdbMovie.ReleaseDate, out var releaseDate) ? releaseDate : null,
-                    Runtime = tmdbMovie.Runtime,
-                    PosterUrl = tmdbMovie.PosterPath,
-                    BackdropUrl = tmdbMovie.BackdropPath
-                };
-
-                _context.Movies.Add(movie);
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
 
             var alreadyRated = await _context.Ratings
@@ -118,7 +99,7 @@ namespace backend.Features.Ratings
                 return BadRequest("Score must be in increments of 0.5.");
             }
 
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var rating = await _context.Ratings
                 .FirstOrDefaultAsync(r => r.UserId == userId && r.Movie.TmdbId == tmdbId);
@@ -144,7 +125,7 @@ namespace backend.Features.Ratings
         [EndpointSummary("Remove the current user's rating for a movie")]
         public async Task<IActionResult> DeleteRating(int tmdbId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var rating = await _context.Ratings
                 .FirstOrDefaultAsync(r => r.UserId == userId && r.Movie.TmdbId == tmdbId);

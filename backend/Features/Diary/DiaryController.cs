@@ -1,4 +1,5 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Diary.DTOs;
 using backend.Features.Movies;
 using backend.Features.Ratings;
@@ -8,7 +9,6 @@ using backend.Features.WatchlistItems;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.Diary
 {
@@ -17,19 +17,19 @@ namespace backend.Features.Diary
     public class DiaryController : ControllerBase
     {
         private readonly ReelrContext _context;
-        private readonly TmdbService _tmdbService;
+        private readonly MovieCatalog _movieCatalog;
 
-        public DiaryController(ReelrContext context, TmdbService tmdbService)
+        public DiaryController(ReelrContext context, MovieCatalog movieCatalog)
         {
             _context = context;
-            _tmdbService = tmdbService;
+            _movieCatalog = movieCatalog;
         }
 
         [HttpGet("api/watched")]
         [EndpointSummary("Get the current user's diary, newest entry first")]
         public async Task<ActionResult<List<DiaryEntryDto>>> GetDiary()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             return Ok(await GetEntries(userId));
         }
@@ -81,32 +81,13 @@ namespace backend.Features.Diary
             }
 
             var watchedAt = dto.WatchedOn is DateOnly day ? DiaryExtensions.ToWatchedAt(day) : DateTime.UtcNow;
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
-            var movie = await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
+            var movie = await _movieCatalog.GetOrCreateAsync(tmdbId);
 
             if (movie == null)
             {
-                var tmdbMovie = await _tmdbService.GetMovie(tmdbId);
-
-                if (tmdbMovie == null)
-                {
-                    return NotFound();
-                }
-
-                movie = new Movie
-                {
-                    TmdbId = tmdbId,
-                    Title = tmdbMovie.Title ?? string.Empty,
-                    Description = tmdbMovie.Overview,
-                    ReleaseDate = DateOnly.TryParse(tmdbMovie.ReleaseDate, out var releaseDate) ? releaseDate : null,
-                    Runtime = tmdbMovie.Runtime,
-                    PosterUrl = tmdbMovie.PosterPath,
-                    BackdropUrl = tmdbMovie.BackdropPath
-                };
-
-                _context.Movies.Add(movie);
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
 
             var rating = await _context.Ratings
@@ -213,7 +194,7 @@ namespace backend.Features.Diary
                 return BadRequest(dateError);
             }
 
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var entry = await _context.DiaryEntries
                 .Include(d => d.Movie)
@@ -256,7 +237,7 @@ namespace backend.Features.Diary
         [EndpointSummary("Delete one of the current user's diary entries. Its review goes too, and deleting the last one marks the film unwatched")]
         public async Task<IActionResult> DeleteEntry(int entryId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var entry = await _context.DiaryEntries
                 .FirstOrDefaultAsync(d => d.Id == entryId && d.UserId == userId);
