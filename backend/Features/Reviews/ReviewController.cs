@@ -1,10 +1,10 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Movies;
 using backend.Features.Reviews.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.Reviews
 {
@@ -13,12 +13,12 @@ namespace backend.Features.Reviews
     public class ReviewController : ControllerBase
     {
         private readonly ReelrContext _context;
-        private readonly TmdbService _tmdbService;
+        private readonly MovieCatalog _movieCatalog;
 
-        public ReviewController(ReelrContext context, TmdbService tmdbService)
+        public ReviewController(ReelrContext context, MovieCatalog movieCatalog)
         {
             _context = context;
-            _tmdbService = tmdbService;
+            _movieCatalog = movieCatalog;
         }
 
         [HttpGet]
@@ -62,32 +62,13 @@ namespace backend.Features.Reviews
         [EndpointSummary("Add a review to a movie")]
         public async Task<ActionResult<ReviewDto>> CreateReview(int tmdbId, CreateReviewDto dto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
-            var movie = await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
+            var movie = await _movieCatalog.GetOrCreateAsync(tmdbId);
 
             if (movie == null)
             {
-                var tmdbMovie = await _tmdbService.GetMovie(tmdbId);
-
-                if (tmdbMovie == null)
-                {
-                    return NotFound();
-                }
-
-                movie = new Movie
-                {
-                    TmdbId = tmdbId,
-                    Title = tmdbMovie.Title ?? string.Empty,
-                    Description = tmdbMovie.Overview,
-                    ReleaseDate = DateOnly.TryParse(tmdbMovie.ReleaseDate, out var releaseDate) ? releaseDate : null,
-                    Runtime = tmdbMovie.Runtime,
-                    PosterUrl = tmdbMovie.PosterPath,
-                    BackdropUrl = tmdbMovie.BackdropPath
-                };
-
-                _context.Movies.Add(movie);
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
 
             var alreadyReviewed = await _context.Reviews
@@ -118,7 +99,7 @@ namespace backend.Features.Reviews
         [EndpointSummary("Update a review")]
         public async Task<ActionResult<ReviewDto>> UpdateReview(int id, UpdateReviewDto dto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var review = await _context.Reviews
                 .FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
@@ -159,7 +140,7 @@ namespace backend.Features.Reviews
         [EndpointSummary("Delete a review")]
         public async Task<IActionResult> DeleteReview(int id)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var review = await _context.Reviews
                 .FirstOrDefaultAsync(r => r.Id == id && r.UserId == userId);
@@ -180,7 +161,7 @@ namespace backend.Features.Reviews
         // The endpoints are public; a valid token only adds whether the caller likes each review.
         private IQueryable<ReviewDto> ToDtos(IQueryable<Review> reviews)
         {
-            int? viewerId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var currentUserId) ? currentUserId : null;
+            var viewerId = User.FindUserId();
 
             return
                 from r in reviews

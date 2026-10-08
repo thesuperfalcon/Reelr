@@ -1,6 +1,7 @@
 using backend.Data;
 using backend.Features.Activity;
 using backend.Features.Auth;
+using backend.Features.Diary;
 using backend.Features.Movies;
 using backend.Features.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -34,6 +35,8 @@ builder.Services
     .AddDefaultTokenProviders();
 
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<MovieCatalog>();
+builder.Services.AddScoped<JournalService>();
 
 // Activity feed. "Activity:Implementation" picks how the feed is computed; only "Derived" exists so far.
 builder.Services.AddMemoryCache();

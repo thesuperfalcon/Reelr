@@ -1,9 +1,9 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Reviews.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.Reviews
 {
@@ -39,7 +39,7 @@ namespace backend.Features.Reviews
         [EndpointSummary("Comment on a review")]
         public async Task<ActionResult<ReviewCommentDto>> CreateComment(int reviewId, CreateReviewCommentDto dto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             if (!await _context.Reviews.AnyAsync(r => r.Id == reviewId))
             {
@@ -65,7 +65,7 @@ namespace backend.Features.Reviews
         [EndpointSummary("Edit a comment the current user wrote")]
         public async Task<ActionResult<ReviewCommentDto>> UpdateComment(int id, UpdateReviewCommentDto dto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var comment = await _context.ReviewComments.FirstOrDefaultAsync(c => c.Id == id);
 
@@ -97,7 +97,7 @@ namespace backend.Features.Reviews
         [EndpointSummary("Delete a comment the current user wrote or one on their review")]
         public async Task<IActionResult> DeleteComment(int id)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var comment = await _context.ReviewComments
                 .Where(c => c.Id == id)
