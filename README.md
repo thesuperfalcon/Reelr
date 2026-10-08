@@ -1,0 +1,154 @@
+# Reelr
+
+[![CI](https://github.com/thesuperfalcon/Reelr/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/thesuperfalcon/Reelr/actions/workflows/ci.yml)
+
+Reelr is a social film diary, in the spirit of Letterboxd. You log the films you watch, rate and review them, keep a watchlist, build lists, and follow other people to see what they are watching. Film data comes from [TMDB](https://www.themoviedb.org/).
+
+## Features
+
+**Films and people**
+- Trending and popular films on the start page.
+- One search for films, cast, crew, studios and Reelr members.
+- Film pages with synopsis, cast and crew, trailer, similar films and member reviews.
+- Person pages with full filmography.
+
+**Your film diary**
+- Mark films as watched and rate them from 0 to 5 stars in half steps.
+- Diary entries with watch date, rating, like and rewatch flag. Entries can be edited and deleted.
+- Markdown reviews with a spoiler flag, linked to a diary entry or standalone.
+- Watchlist. A film leaves the watchlist automatically when you rate it or mark it as watched.
+- Public or private lists of films.
+
+**Social**
+- Follow members and see their diary, reviews, lists and watchlist.
+- Activity feed with a Following tab and a Community tab.
+- Likes and comments on reviews.
+- Watchlist visibility: public, followers only or private.
+- Profile settings with avatar upload and password change.
+
+## Tech stack
+
+| Area | Technology |
+|---|---|
+| Backend | .NET 10, ASP.NET Core Web API, Entity Framework Core 10, SQL Server |
+| Auth | ASP.NET Core Identity, JWT bearer tokens, account lockout, per-IP rate limiting |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, React Router, TanStack Query |
+| Tests | xUnit integration tests with `WebApplicationFactory` against a real SQL Server and a fake TMDB |
+| Infrastructure | Docker Compose (SQL Server, API, nginx), GitHub Actions CI |
+| External API | TMDB |
+
+## Architecture
+
+```
+React SPA ──► nginx ──► ASP.NET Core API ──► SQL Server
+                              │
+                              └──► TMDB API
+```
+
+The backend is organised as **feature slices**. Each folder in `backend/Features/` (Movies, Diary, Reviews, MovieLists, Users, Activity and so on) holds its controller, entities and DTOs together, so a feature can be read and changed in one place.
+
+A few design decisions:
+
+- **TMDB is the source of film data.** The database stores a film only when a member interacts with it (rating, diary entry, review, list or watchlist). `MovieCatalog` fetches and stores films on demand and handles two requests creating the same film at once.
+- **Journal rules live in one service.** Watching, rating, reviewing and the watchlist depend on each other. `JournalService` keeps those rules in one place so every endpoint follows them the same way.
+- **The activity feed sits behind an interface.** `IActivityFeed` is built from existing tables today, with cursor pagination. It can be replaced with a stored event table without changing the controller.
+- **One place decides visibility.** `UserVisibility` decides who can see a member's watchlist.
+- **Errors use ProblemDetails.** Unhandled exceptions and empty error responses return `application/problem+json`. `GET /health` checks the database.
+
+```
+backend/          ASP.NET Core API (Features/, Data/, Migrations/)
+frontend/         React app (pages/, components/, lib/)
+tests/            Backend integration tests
+.github/workflows CI pipeline
+```
+
+## Getting started
+
+### Option 1: Docker (recommended)
+
+Requires Docker Desktop.
+
+1. Create a `.env` file in the repository root:
+
+   ```
+   MSSQL_SA_PASSWORD=<strong password: 8+ chars, upper, lower, digit, symbol>
+   ConnectionStrings__ReelrContext=Server=db;Database=Reelr;User Id=sa;Password=<same password>;TrustServerCertificate=True;
+   Jwt__Key=<random string, 32+ characters>
+   TMDB_READ_ACCESS_TOKEN=<your TMDB API Read Access Token>
+   ```
+
+   A TMDB token is free from [TMDB's API settings](https://www.themoviedb.org/settings/api).
+
+2. Start everything:
+
+   ```bash
+   docker compose up --build
+   ```
+
+3. Open http://localhost:8080. The API is on http://localhost:5084, with Swagger at `/swagger`.
+
+The database is migrated automatically on start-up. All ports are bound to `127.0.0.1`.
+
+### Option 2: Run locally
+
+Requires the .NET 10 SDK, Node.js 24 and SQL Server (for example SQL Server Express).
+
+1. Install the EF Core tool:
+
+   ```bash
+   dotnet tool install --global dotnet-ef
+   ```
+
+2. Set the secrets for the API:
+
+   ```bash
+   dotnet user-secrets set "Jwt:Key" "<random string, 32+ characters>" --project backend/backend.csproj
+   dotnet user-secrets set "TMDB_READ_ACCESS_TOKEN" "<your TMDB token>" --project backend/backend.csproj
+   ```
+
+   The default connection string in `backend/appsettings.Development.json` points to `.\SQLEXPRESS` with Windows authentication.
+
+3. Create the database:
+
+   ```bash
+   dotnet restore backend/backend.csproj
+   dotnet ef database update --project backend/backend.csproj
+   ```
+
+4. Start the API on http://localhost:5084:
+
+   ```bash
+   dotnet run --project backend/backend.csproj --launch-profile http
+   ```
+
+5. Start the frontend on http://localhost:5173. Vite proxies `/api` and `/auth` to the API.
+
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+## Tests
+
+The integration tests run the whole API in memory against a throwaway SQL Server database and a fake TMDB, so they test real HTTP behaviour and real SQL.
+
+```bash
+dotnet test backend/backend.slnx
+```
+
+By default the tests use `.\SQLEXPRESS`. To use another server, set `REELR_TEST_SQLSERVER` to a connection string without a database name:
+
+```powershell
+$env:REELR_TEST_SQLSERVER = "Server=(localdb)\MSSQLLocalDB;Trusted_Connection=True;TrustServerCertificate=True;"
+```
+
+CI runs the same tests on every push and pull request to `main` and `develop`, against SQL Server in a container. It also lints and builds the frontend.
+
+## API
+
+Swagger UI is available at `/swagger` in Development. A Postman collection and environment are in the repository root: `Reelr.postman_collection.json` and `Reelr.postman_environment.json`.
+
+## Attribution
+
+This product uses the TMDB API but is not endorsed or certified by TMDB.
