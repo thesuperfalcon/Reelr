@@ -1,11 +1,11 @@
 using backend.Data;
 using backend.Features.Activity.DTOs;
+using backend.Features.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
-using System.Security.Claims;
 
 namespace backend.Features.Activity
 {
@@ -43,7 +43,7 @@ namespace backend.Features.Activity
                 return BadRequest("Invalid cursor.");
             }
 
-            var viewerId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var viewerId = User.GetUserId();
 
             // The user's ShowOwnActivity setting decides, unless the caller asks for one or the other,
             // e.g. "Reviews from friends" on the start page never includes the user's own reviews.
@@ -60,7 +60,7 @@ namespace backend.Features.Activity
         [EndpointSummary("Get the films the people the current user follows logged most recently, one per film")]
         public async Task<ActionResult<List<FollowingFilmDto>>> GetFollowingFilms([FromQuery] int limit = DefaultFilmLimit)
         {
-            var viewerId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var viewerId = User.GetUserId();
 
             return Ok(await _feed.GetFollowingFilmsAsync(viewerId, Math.Clamp(limit, 1, MaxFilmLimit)));
         }
@@ -75,7 +75,7 @@ namespace backend.Features.Activity
                 return BadRequest("Invalid cursor.");
             }
 
-            int? viewerId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+            var viewerId = User.FindUserId();
             limit = Math.Clamp(limit, 1, MaxLimit);
             var kinds = ReadTypes(types);
 

@@ -1,14 +1,10 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Diary.DTOs;
 using backend.Features.Movies;
-using backend.Features.Ratings;
-using backend.Features.Reviews;
-using backend.Features.WatchedMovies;
-using backend.Features.WatchlistItems;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.Diary
 {
@@ -17,19 +13,21 @@ namespace backend.Features.Diary
     public class DiaryController : ControllerBase
     {
         private readonly ReelrContext _context;
-        private readonly TmdbService _tmdbService;
+        private readonly MovieCatalog _movieCatalog;
+        private readonly JournalService _journal;
 
-        public DiaryController(ReelrContext context, TmdbService tmdbService)
+        public DiaryController(ReelrContext context, MovieCatalog movieCatalog, JournalService journal)
         {
             _context = context;
-            _tmdbService = tmdbService;
+            _movieCatalog = movieCatalog;
+            _journal = journal;
         }
 
         [HttpGet("api/watched")]
         [EndpointSummary("Get the current user's diary, newest entry first")]
         public async Task<ActionResult<List<DiaryEntryDto>>> GetDiary()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             return Ok(await GetEntries(userId));
         }
@@ -70,118 +68,28 @@ namespace backend.Features.Diary
         [EndpointSummary("Save rating, status and review for a movie and log it as one diary entry")]
         public async Task<ActionResult<DiaryEntryDto>> LogEntry(int tmdbId, LogDiaryEntryDto dto)
         {
-            if (dto.Score is decimal score && decimal.Remainder(score * 2, 1) != 0)
+            if (dto.Score is decimal score && !JournalService.IsHalfStep(score))
             {
                 return BadRequest("Score must be in increments of 0.5.");
             }
 
-            if (dto.WatchedOn is DateOnly watchedOn && DiaryExtensions.ValidateWatchedOn(watchedOn) is string dateError)
+            if (dto.WatchedOn is DateOnly watchedOn && JournalService.ValidateWatchedOn(watchedOn) is string dateError)
             {
                 return BadRequest(dateError);
             }
 
-            var watchedAt = dto.WatchedOn is DateOnly day ? DiaryExtensions.ToWatchedAt(day) : DateTime.UtcNow;
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var watchedAt = dto.WatchedOn is DateOnly day ? JournalService.ToWatchedAt(day) : DateTime.UtcNow;
+            var userId = User.GetUserId();
 
-            var movie = await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
+            var movie = await _movieCatalog.GetOrCreateAsync(tmdbId);
 
             if (movie == null)
             {
-                var tmdbMovie = await _tmdbService.GetMovie(tmdbId);
-
-                if (tmdbMovie == null)
-                {
-                    return NotFound();
-                }
-
-                movie = new Movie
-                {
-                    TmdbId = tmdbId,
-                    Title = tmdbMovie.Title ?? string.Empty,
-                    Description = tmdbMovie.Overview,
-                    ReleaseDate = DateOnly.TryParse(tmdbMovie.ReleaseDate, out var releaseDate) ? releaseDate : null,
-                    Runtime = tmdbMovie.Runtime,
-                    PosterUrl = tmdbMovie.PosterPath,
-                    BackdropUrl = tmdbMovie.BackdropPath
-                };
-
-                _context.Movies.Add(movie);
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
 
-            var rating = await _context.Ratings
-                .FirstOrDefaultAsync(r => r.UserId == userId && r.MovieId == movie.Id);
-
-            if (dto.Score != null)
-            {
-                if (rating == null)
-                {
-                    rating = new Rating { UserId = userId, MovieId = movie.Id };
-                    _context.Ratings.Add(rating);
-                }
-
-                rating.Score = dto.Score.Value;
-            }
-
-            var status = await _context.WatchedMovies
-                .FirstOrDefaultAsync(w => w.UserId == userId && w.MovieId == movie.Id);
-
-            if (status == null)
-            {
-                status = new WatchedMovie
-                {
-                    UserId = userId,
-                    MovieId = movie.Id,
-                    WatchedAt = watchedAt
-                };
-
-                _context.WatchedMovies.Add(status);
-            }
-            else if (watchedAt > status.WatchedAt)
-            {
-                // A back-dated log does not move the last watch date backwards.
-                status.WatchedAt = watchedAt;
-            }
-
-            status.Liked = dto.Liked;
-            status.Rewatched = dto.Rewatched;
-
-            var review = await _context.Reviews
-                .FirstOrDefaultAsync(r => r.UserId == userId && r.MovieId == movie.Id);
-
-            if (!string.IsNullOrWhiteSpace(dto.Review))
-            {
-                if (review == null)
-                {
-                    review = new Review
-                    {
-                        UserId = userId,
-                        MovieId = movie.Id,
-                        CreatedAt = DateTime.UtcNow
-                    };
-
-                    _context.Reviews.Add(review);
-                }
-                else
-                {
-                    review.UpdatedAt = DateTime.UtcNow;
-                }
-
-                review.Text = dto.Review.Trim();
-                review.ContainsSpoilers = dto.ContainsSpoilers ?? review.ContainsSpoilers;
-            }
-
-            var entry = _context.LogDiaryEntry(status, rating?.Score, watchedAt);
-            var reviewWritten = !string.IsNullOrWhiteSpace(dto.Review);
-
-            // A written or rewritten review belongs to the entry that logged it.
-            if (reviewWritten)
-            {
-                review!.DiaryEntry = entry;
-            }
-
-            await _context.RemoveWatchedFromWatchlistAsync(userId, movie.Id);
-            await _context.SaveChangesAsync();
+            var (entry, reviewWritten) = await _journal.LogAsync(
+                userId, movie.Id, watchedAt, dto.Score, dto.Liked, dto.Rewatched, dto.Review, dto.ContainsSpoilers);
 
             return Ok(new DiaryEntryDto
             {
@@ -201,19 +109,19 @@ namespace backend.Features.Diary
         [EndpointSummary("Edit one of the current user's diary entries")]
         public async Task<ActionResult<DiaryEntryDto>> UpdateEntry(int entryId, UpdateDiaryEntryDto dto)
         {
-            if (dto.Rating is decimal score && decimal.Remainder(score * 2, 1) != 0)
+            if (dto.Rating is decimal score && !JournalService.IsHalfStep(score))
             {
                 return BadRequest("Rating must be in increments of 0.5.");
             }
 
             var watchedOn = dto.WatchedOn!.Value;
 
-            if (DiaryExtensions.ValidateWatchedOn(watchedOn) is string dateError)
+            if (JournalService.ValidateWatchedOn(watchedOn) is string dateError)
             {
                 return BadRequest(dateError);
             }
 
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var entry = await _context.DiaryEntries
                 .Include(d => d.Movie)
@@ -224,19 +132,7 @@ namespace backend.Features.Diary
                 return NotFound();
             }
 
-            // Keep the original time when the day did not change, so same-day entries keep their order.
-            if (DateOnly.FromDateTime(entry.WatchedAt) != watchedOn)
-            {
-                entry.WatchedAt = DiaryExtensions.ToWatchedAt(watchedOn);
-            }
-
-            entry.Rating = dto.Rating;
-            entry.Liked = dto.Liked;
-            entry.Rewatched = dto.Rewatched;
-
-            await _context.SaveChangesAsync();
-            await _context.SyncWatchedStatusAsync(userId, entry.MovieId);
-            await _context.SaveChangesAsync();
+            await _journal.EditEntryAsync(entry, watchedOn, dto.Rating, dto.Liked, dto.Rewatched);
 
             return Ok(new DiaryEntryDto
             {
@@ -256,7 +152,7 @@ namespace backend.Features.Diary
         [EndpointSummary("Delete one of the current user's diary entries. Its review goes too, and deleting the last one marks the film unwatched")]
         public async Task<IActionResult> DeleteEntry(int entryId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var entry = await _context.DiaryEntries
                 .FirstOrDefaultAsync(d => d.Id == entryId && d.UserId == userId);
@@ -266,10 +162,7 @@ namespace backend.Features.Diary
                 return NotFound();
             }
 
-            await _context.DeleteDiaryEntriesAsync([entry]);
-            await _context.SaveChangesAsync();
-            await _context.SyncWatchedStatusAsync(userId, entry.MovieId);
-            await _context.SaveChangesAsync();
+            await _journal.DeleteEntryAsync(entry);
 
             return NoContent();
         }

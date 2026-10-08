@@ -1,13 +1,11 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Diary;
 using backend.Features.Movies;
 using backend.Features.Ratings.DTOs;
-using backend.Features.WatchedMovies;
-using backend.Features.WatchlistItems;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.Ratings
 {
@@ -17,19 +15,21 @@ namespace backend.Features.Ratings
     public class RatingController : ControllerBase
     {
         private readonly ReelrContext _context;
-        private readonly TmdbService _tmdbService;
+        private readonly MovieCatalog _movieCatalog;
+        private readonly JournalService _journal;
 
-        public RatingController(ReelrContext context, TmdbService tmdbService)
+        public RatingController(ReelrContext context, MovieCatalog movieCatalog, JournalService journal)
         {
             _context = context;
-            _tmdbService = tmdbService;
+            _movieCatalog = movieCatalog;
+            _journal = journal;
         }
 
         [HttpGet]
         [EndpointSummary("Get the current user's rating for a movie")]
         public async Task<ActionResult<RatingDto>> GetRating(int tmdbId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var rating = await _context.Ratings
                 .FirstOrDefaultAsync(r => r.UserId == userId && r.Movie.TmdbId == tmdbId);
@@ -50,37 +50,18 @@ namespace backend.Features.Ratings
         [EndpointSummary("Rate a movie")]
         public async Task<ActionResult<RatingDto>> CreateRating(int tmdbId, CreateRatingDto dto)
         {
-            if (!IsHalfStep(dto.Score))
+            if (!JournalService.IsHalfStep(dto.Score))
             {
                 return BadRequest("Score must be in increments of 0.5.");
             }
 
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
-            var movie = await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
+            var movie = await _movieCatalog.GetOrCreateAsync(tmdbId);
 
             if (movie == null)
             {
-                var tmdbMovie = await _tmdbService.GetMovie(tmdbId);
-
-                if (tmdbMovie == null)
-                {
-                    return NotFound();
-                }
-
-                movie = new Movie
-                {
-                    TmdbId = tmdbId,
-                    Title = tmdbMovie.Title ?? string.Empty,
-                    Description = tmdbMovie.Overview,
-                    ReleaseDate = DateOnly.TryParse(tmdbMovie.ReleaseDate, out var releaseDate) ? releaseDate : null,
-                    Runtime = tmdbMovie.Runtime,
-                    PosterUrl = tmdbMovie.PosterPath,
-                    BackdropUrl = tmdbMovie.BackdropPath
-                };
-
-                _context.Movies.Add(movie);
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
 
             var alreadyRated = await _context.Ratings
@@ -91,16 +72,7 @@ namespace backend.Features.Ratings
                 return Conflict("User has already rated this movie.");
             }
 
-            var rating = new Rating
-            {
-                UserId = userId,
-                MovieId = movie.Id,
-                Score = dto.Score
-            };
-
-            _context.Ratings.Add(rating);
-            await LogRatingAsync(userId, movie.Id, rating.Score);
-            await _context.SaveChangesAsync();
+            var rating = await _journal.RateAsync(userId, movie.Id, dto.Score);
 
             return Ok(new RatingDto
             {
@@ -113,12 +85,12 @@ namespace backend.Features.Ratings
         [EndpointSummary("Update the current user's rating for a movie")]
         public async Task<ActionResult<RatingDto>> UpdateRating(int tmdbId, UpdateRatingDto dto)
         {
-            if (!IsHalfStep(dto.Score))
+            if (!JournalService.IsHalfStep(dto.Score))
             {
                 return BadRequest("Score must be in increments of 0.5.");
             }
 
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var rating = await _context.Ratings
                 .FirstOrDefaultAsync(r => r.UserId == userId && r.Movie.TmdbId == tmdbId);
@@ -128,10 +100,7 @@ namespace backend.Features.Ratings
                 return NotFound();
             }
 
-            rating.Score = dto.Score;
-
-            await LogRatingAsync(userId, rating.MovieId, rating.Score);
-            await _context.SaveChangesAsync();
+            await _journal.RateAsync(userId, rating.MovieId, dto.Score);
 
             return Ok(new RatingDto
             {
@@ -144,7 +113,7 @@ namespace backend.Features.Ratings
         [EndpointSummary("Remove the current user's rating for a movie")]
         public async Task<IActionResult> DeleteRating(int tmdbId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var rating = await _context.Ratings
                 .FirstOrDefaultAsync(r => r.UserId == userId && r.Movie.TmdbId == tmdbId);
@@ -158,34 +127,6 @@ namespace backend.Features.Ratings
             await _context.SaveChangesAsync();
 
             return NoContent();
-        }
-
-        // A rated film counts as watched, so each rating logs a new diary entry and the film leaves the watchlist.
-        private async Task LogRatingAsync(int userId, int movieId, decimal score)
-        {
-            await _context.RemoveWatchedFromWatchlistAsync(userId, movieId);
-
-            var status = await _context.WatchedMovies
-                .FirstOrDefaultAsync(w => w.UserId == userId && w.MovieId == movieId);
-
-            if (status == null)
-            {
-                status = new WatchedMovie
-                {
-                    UserId = userId,
-                    MovieId = movieId,
-                    WatchedAt = DateTime.UtcNow
-                };
-
-                _context.WatchedMovies.Add(status);
-            }
-
-            _context.LogDiaryEntry(status, score);
-        }
-
-        private static bool IsHalfStep(decimal score)
-        {
-            return decimal.Remainder(score * 2, 1) == 0;
         }
     }
 }

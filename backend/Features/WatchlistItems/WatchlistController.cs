@@ -1,11 +1,11 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Movies;
 using backend.Features.Users;
 using backend.Features.WatchlistItems.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.WatchlistItems
 {
@@ -15,44 +15,25 @@ namespace backend.Features.WatchlistItems
     public class WatchlistController : ControllerBase
     {
         private readonly ReelrContext _context;
-        private readonly TmdbService _tmdbService;
+        private readonly MovieCatalog _movieCatalog;
 
-        public WatchlistController(ReelrContext context, TmdbService tmdbService)
+        public WatchlistController(ReelrContext context, MovieCatalog movieCatalog)
         {
             _context = context;
-            _tmdbService = tmdbService;
+            _movieCatalog = movieCatalog;
         }
 
         [HttpPost("{tmdbId:int}")]
         [EndpointSummary("Add a movie to the current user's watchlist")]
         public async Task<IActionResult> AddToWatchlist(int tmdbId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
-            var movie = await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
+            var movie = await _movieCatalog.GetOrCreateAsync(tmdbId);
 
             if (movie == null)
             {
-                var tmdbMovie = await _tmdbService.GetMovie(tmdbId);
-
-                if (tmdbMovie == null)
-                {
-                    return NotFound();
-                }
-
-                movie = new Movie
-                {
-                    TmdbId = tmdbId,
-                    Title = tmdbMovie.Title ?? string.Empty,
-                    Description = tmdbMovie.Overview,
-                    ReleaseDate = DateOnly.TryParse(tmdbMovie.ReleaseDate, out var releaseDate) ? releaseDate : null,
-                    Runtime = tmdbMovie.Runtime,
-                    PosterUrl = tmdbMovie.PosterPath,
-                    BackdropUrl = tmdbMovie.BackdropPath
-                };
-
-                _context.Movies.Add(movie);
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
 
             var alreadyOnWatchlist = await _context.WatchlistItems
@@ -79,7 +60,7 @@ namespace backend.Features.WatchlistItems
         [EndpointSummary("Remove a movie from the current user's watchlist")]
         public async Task<IActionResult> RemoveFromWatchlist(int tmdbId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var item = await _context.WatchlistItems
                 .FirstOrDefaultAsync(w => w.UserId == userId && w.Movie.TmdbId == tmdbId);
@@ -99,7 +80,7 @@ namespace backend.Features.WatchlistItems
         [EndpointSummary("Get the current user's watchlist")]
         public async Task<ActionResult<List<WatchlistEntryDto>>> GetWatchlist()
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             return Ok(await GetEntries(userId));
         }
@@ -109,7 +90,7 @@ namespace backend.Features.WatchlistItems
         [EndpointSummary("Get a user's watchlist, if their watchlist visibility allows the caller to see it")]
         public async Task<ActionResult<List<WatchlistEntryDto>>> GetUserWatchlist(int userId)
         {
-            int? viewerId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+            var viewerId = User.FindUserId();
 
             // A hidden watchlist answers like a missing user, so it does not reveal that it exists.
             if (await _context.CanSeeWatchlistAsync(viewerId, userId) != true)

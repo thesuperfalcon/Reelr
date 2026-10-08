@@ -1,10 +1,10 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Reviews.DTOs;
 using backend.Features.Users.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.Reviews
 {
@@ -48,7 +48,7 @@ namespace backend.Features.Reviews
         [EndpointSummary("Like a review")]
         public async Task<ActionResult<ReviewLikeStateDto>> Like(int reviewId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var authorId = await _context.Reviews
                 .Where(r => r.Id == reviewId)
@@ -92,7 +92,7 @@ namespace backend.Features.Reviews
         [EndpointSummary("Remove a like from a review")]
         public async Task<ActionResult<ReviewLikeStateDto>> Unlike(int reviewId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             if (!await _context.Reviews.AnyAsync(r => r.Id == reviewId))
             {

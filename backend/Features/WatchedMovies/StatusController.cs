@@ -1,12 +1,11 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Diary;
 using backend.Features.Movies;
 using backend.Features.WatchedMovies.DTOs;
-using backend.Features.WatchlistItems;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.WatchedMovies
 {
@@ -16,19 +15,21 @@ namespace backend.Features.WatchedMovies
     public class StatusController : ControllerBase
     {
         private readonly ReelrContext _context;
-        private readonly TmdbService _tmdbService;
+        private readonly MovieCatalog _movieCatalog;
+        private readonly JournalService _journal;
 
-        public StatusController(ReelrContext context, TmdbService tmdbService)
+        public StatusController(ReelrContext context, MovieCatalog movieCatalog, JournalService journal)
         {
             _context = context;
-            _tmdbService = tmdbService;
+            _movieCatalog = movieCatalog;
+            _journal = journal;
         }
 
         [HttpGet]
         [EndpointSummary("Get the current user's watched status for a movie")]
         public async Task<ActionResult<StatusDto>> GetStatus(int tmdbId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var status = await _context.WatchedMovies
                 .FirstOrDefaultAsync(w => w.UserId == userId && w.Movie.TmdbId == tmdbId);
@@ -51,32 +52,13 @@ namespace backend.Features.WatchedMovies
         [EndpointSummary("Mark a movie as watched for the current user")]
         public async Task<ActionResult<StatusDto>> CreateStatus(int tmdbId, CreateStatusDto dto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
-            var movie = await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == tmdbId);
+            var movie = await _movieCatalog.GetOrCreateAsync(tmdbId);
 
             if (movie == null)
             {
-                var tmdbMovie = await _tmdbService.GetMovie(tmdbId);
-
-                if (tmdbMovie == null)
-                {
-                    return NotFound();
-                }
-
-                movie = new Movie
-                {
-                    TmdbId = tmdbId,
-                    Title = tmdbMovie.Title ?? string.Empty,
-                    Description = tmdbMovie.Overview,
-                    ReleaseDate = DateOnly.TryParse(tmdbMovie.ReleaseDate, out var releaseDate) ? releaseDate : null,
-                    Runtime = tmdbMovie.Runtime,
-                    PosterUrl = tmdbMovie.PosterPath,
-                    BackdropUrl = tmdbMovie.BackdropPath
-                };
-
-                _context.Movies.Add(movie);
-                await _context.SaveChangesAsync();
+                return NotFound();
             }
 
             var alreadyWatched = await _context.WatchedMovies
@@ -87,19 +69,7 @@ namespace backend.Features.WatchedMovies
                 return Conflict("Movie status already exists for this user.");
             }
 
-            var status = new WatchedMovie
-            {
-                UserId = userId,
-                MovieId = movie.Id,
-                WatchedAt = DateTime.UtcNow,
-                Liked = dto.Liked,
-                Rewatched = dto.Rewatched
-            };
-
-            _context.WatchedMovies.Add(status);
-            _context.LogDiaryEntry(status, await CurrentRatingAsync(userId, movie.Id));
-            await _context.RemoveWatchedFromWatchlistAsync(userId, movie.Id);
-            await _context.SaveChangesAsync();
+            var status = await _journal.MarkWatchedAsync(userId, movie.Id, dto.Liked, dto.Rewatched);
 
             return Ok(new StatusDto
             {
@@ -114,7 +84,7 @@ namespace backend.Features.WatchedMovies
         [EndpointSummary("Update the current user's watched status for a movie")]
         public async Task<ActionResult<StatusDto>> UpdateStatus(int tmdbId, UpdateStatusDto dto)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var status = await _context.WatchedMovies
                 .FirstOrDefaultAsync(w => w.UserId == userId && w.Movie.TmdbId == tmdbId);
@@ -124,12 +94,7 @@ namespace backend.Features.WatchedMovies
                 return NotFound();
             }
 
-            status.Liked = dto.Liked;
-            status.Rewatched = dto.Rewatched;
-
-            _context.LogDiaryEntry(status, await CurrentRatingAsync(userId, status.MovieId));
-            await _context.RemoveWatchedFromWatchlistAsync(userId, status.MovieId);
-            await _context.SaveChangesAsync();
+            await _journal.MarkWatchedAsync(userId, status.MovieId, dto.Liked, dto.Rewatched);
 
             return Ok(new StatusDto
             {
@@ -144,7 +109,7 @@ namespace backend.Features.WatchedMovies
         [EndpointSummary("Remove the current user's watched status for a movie")]
         public async Task<IActionResult> DeleteStatus(int tmdbId)
         {
-            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var userId = User.GetUserId();
 
             var status = await _context.WatchedMovies
                 .FirstOrDefaultAsync(w => w.UserId == userId && w.Movie.TmdbId == tmdbId);
@@ -154,23 +119,9 @@ namespace backend.Features.WatchedMovies
                 return NotFound();
             }
 
-            // An unwatched film has no viewings, so its diary entries and the reviews they logged go too.
-            await _context.DeleteDiaryEntriesAsync(await _context.DiaryEntries
-                .Where(d => d.UserId == userId && d.MovieId == status.MovieId)
-                .ToListAsync());
-
-            _context.WatchedMovies.Remove(status);
-            await _context.SaveChangesAsync();
+            await _journal.UnwatchAsync(status);
 
             return NoContent();
-        }
-
-        private Task<decimal?> CurrentRatingAsync(int userId, int movieId)
-        {
-            return _context.Ratings
-                .Where(r => r.UserId == userId && r.MovieId == movieId)
-                .Select(r => (decimal?)r.Score)
-                .FirstOrDefaultAsync();
         }
     }
 }

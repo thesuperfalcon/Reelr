@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 
 namespace backend.Features.Settings
 {
@@ -171,7 +170,7 @@ namespace backend.Features.Settings
         // Null when the token belongs to a user that has since been deleted.
         private async Task<User?> CurrentUserAsync()
         {
-            var id = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var id = User.GetUserId();
             return await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
         }
 
