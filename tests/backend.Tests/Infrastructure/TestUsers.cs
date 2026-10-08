@@ -39,6 +39,15 @@ public static class TestUsers
         return new TestUser(registered!.Id, username, client);
     }
 
+    /// <summary>
+    /// Sends DELETE /api/users/{userId} with the password confirmation the endpoint requires.
+    /// </summary>
+    public static Task<HttpResponseMessage> DeleteAccountAsync(this HttpClient client, int userId, string password = Password) =>
+        client.SendAsync(new HttpRequestMessage(HttpMethod.Delete, $"/api/users/{userId}")
+        {
+            Content = JsonContent.Create(new { Password = password })
+        });
+
     private record RegisterResponse(int Id, string UserName, string Email);
 
     private record LoginResponse(string Token);

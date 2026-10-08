@@ -130,6 +130,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // Tells browsers to use HTTPS only. Not in Development, where it would stick to localhost.
+    app.UseHsts();
+}
 
 app.UseHttpsRedirection();
 

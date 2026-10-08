@@ -587,6 +587,14 @@ export function useChangePassword() {
   });
 }
 
+// The API asks for the current password again before it deletes the account.
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: (input: { userId: number; password: string }) =>
+      api<void>(`/api/users/${input.userId}`, { method: "DELETE", body: JSON.stringify({ password: input.password }) }),
+  });
+}
+
 export function useUploadAvatar() {
   const saved = useSettingsSaved();
 

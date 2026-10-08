@@ -236,7 +236,7 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
         var user = await _factory.CreateAuthenticatedAsync();
         var uploaded = await UploadOkAsync(user, Png);
 
-        (await user.Client.DeleteAsync($"/api/users/{user.Id}")).EnsureSuccessStatusCode();
+        (await user.Client.DeleteAccountAsync(user.Id)).EnsureSuccessStatusCode();
 
         Assert.Equal(HttpStatusCode.NotFound, (await _factory.CreateClient().GetAsync(uploaded.ProfileImageUrl)).StatusCode);
     }
