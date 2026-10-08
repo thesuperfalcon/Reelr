@@ -121,6 +121,40 @@ public class AuthControllerTests : IClassFixture<ReelrApiFactory>
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Fact]
+    public async Task Login_AfterTenWrongPasswords_LocksAccount()
+    {
+        var username = UniqueName();
+        await RegisterAsync(username, $"{username}@test.local");
+
+        for (var i = 0; i < 10; i++)
+        {
+            await LoginAsync(username, "WrongPassw0rd!");
+        }
+
+        var response = await LoginAsync(username);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Login_SuccessResetsFailedAttempts()
+    {
+        var username = UniqueName();
+        await RegisterAsync(username, $"{username}@test.local");
+
+        for (var i = 0; i < 9; i++)
+        {
+            await LoginAsync(username, "WrongPassw0rd!");
+        }
+        await LoginAsync(username);
+        await LoginAsync(username, "WrongPassw0rd!");
+
+        var response = await LoginAsync(username);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     // ---- Token ----
 
     [Fact]

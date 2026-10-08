@@ -30,9 +30,17 @@ builder.Services
     .AddIdentity<User, IdentityRole<int>>(options =>
     {
         options.User.RequireUniqueEmail = true;
+
+        // Login locks an account for 5 minutes after 10 wrong passwords in a row. Usernames are public,
+        // so a stricter lockout would let anyone lock other users out; per-IP rate limiting does most of the work.
+        options.Lockout.MaxFailedAccessAttempts = 10;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+        options.Lockout.AllowedForNewUsers = true;
     })
     .AddEntityFrameworkStores<ReelrContext>()
     .AddDefaultTokenProviders();
+
+builder.Services.AddAuthRateLimiting(builder.Configuration);
 
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<MovieCatalog>();
@@ -117,6 +125,8 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.UseRateLimiter();
 
 app.MapControllers();
 

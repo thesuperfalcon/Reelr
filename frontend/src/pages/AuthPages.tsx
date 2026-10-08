@@ -16,6 +16,13 @@ function AuthShell({ title, children, footer }: { title: string; children: React
   );
 }
 
+// The API limits auth calls per client and answers 429 when the limit is hit.
+function rateLimitedOr(err: unknown): unknown {
+  return err instanceof ApiError && err.status === 429
+    ? new Error("Too many attempts. Try again later.")
+    : err;
+}
+
 const submitClass =
   "w-full rounded-sm bg-projector px-4 py-2.5 font-semibold text-salon transition hover:brightness-110 disabled:opacity-60";
 
@@ -43,7 +50,7 @@ export function LoginPage() {
       setError(
         err instanceof ApiError && err.status === 401
           ? new Error("Wrong username, email or password.")
-          : err,
+          : rateLimitedOr(err),
       );
     } finally {
       setPending(false);
@@ -98,7 +105,7 @@ export function RegisterPage() {
       });
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err);
+      setError(rateLimitedOr(err));
     } finally {
       setPending(false);
     }

@@ -26,6 +26,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       Database__MigrateOnStartup: "true"
+      # Requests arrive through nginx; read the client IP from X-Forwarded-For so auth rate limiting is per client.
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
     env_file: .env
     ports:
       - "5084:8080"
