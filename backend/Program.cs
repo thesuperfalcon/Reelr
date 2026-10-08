@@ -16,6 +16,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Services
 builder.Services.AddControllers();
 
+// Unhandled exceptions and empty error responses (e.g. 401, 404, 429) get an RFC 7807 problem body.
+builder.Services.AddProblemDetails();
+
 builder.Services.AddOpenApi();
 
 builder.Services.AddDbContext<ReelrContext>(options =>
@@ -79,6 +82,9 @@ builder.Services
         };
     });
 
+// GET /health checks that the database answers. Docker uses it to know when the backend is ready.
+builder.Services.AddHealthChecks().AddDbContextCheck<ReelrContext>();
+
 builder.Services.AddHttpClient<TmdbService>(client =>
 {
     client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
@@ -113,6 +119,10 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 }
 
 // HTTP pipeline
+// In Development the developer exception page runs first and still shows the stack trace.
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -129,5 +139,6 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();

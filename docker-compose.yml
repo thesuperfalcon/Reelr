@@ -1,3 +1,6 @@
+# Local development only: the backend runs in Development (Swagger, detailed error pages)
+# and every port is bound to 127.0.0.1, so nothing is reachable from other machines.
+#
 # Secrets come from a .env file next to this one (git-ignored). It must define:
 #   MSSQL_SA_PASSWORD               SQL Server sa password (8+ chars, upper, lower, digit, symbol)
 #   ConnectionStrings__ReelrContext SQL Server connection string to host "db", database "Reelr", user "sa"
@@ -11,7 +14,7 @@ services:
       ACCEPT_EULA: "Y"
     env_file: .env
     ports:
-      - "1433:1433"
+      - "127.0.0.1:1433:1433"
     volumes:
       - sqldata:/var/opt/mssql
     healthcheck:
@@ -30,17 +33,25 @@ services:
       ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
     env_file: .env
     ports:
-      - "5084:8080"
+      - "127.0.0.1:5084:8080"
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      # The aspnet image has no curl or wget, so bash sends the request to /health itself.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   frontend:
     build: ./frontend
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   sqldata:
