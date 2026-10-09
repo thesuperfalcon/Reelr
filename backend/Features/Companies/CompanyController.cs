@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using backend.Features.Movies;
 using backend.Features.Movies.DTOs;
 using Microsoft.AspNetCore.Mvc;
@@ -17,7 +18,8 @@ public class CompanyController : ControllerBase
 
     [HttpGet("search")]
     [EndpointSummary("Search companies")]
-    public async Task<ActionResult<TmdbCompanySearchResultDto>> SearchCompanies([FromQuery] string query)
+    public async Task<ActionResult<TmdbCompanySearchResultDto>> SearchCompanies(
+        [FromQuery, MaxLength(TmdbService.MaxQueryLength)] string query)
     {
         if (string.IsNullOrWhiteSpace(query))
         {

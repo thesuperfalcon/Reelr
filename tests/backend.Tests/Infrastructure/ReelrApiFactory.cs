@@ -24,6 +24,10 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
 
     protected virtual int AuthPermitLimit => 100_000;
 
+    // Most tests change the fake TMDB between calls and check what was sent, so the TMDB cache is off.
+    // TmdbCacheTests turns it on.
+    protected virtual int TmdbCacheMegabytes => 0;
+
     /// <summary>
     /// Runs code against the test database directly, for setup the API cannot do yet or for checking stored values.
     /// </summary>
@@ -46,6 +50,13 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
         // AuthRateLimitTests sets low limits to check the limiter itself.
         builder.UseSetting("RateLimiting:Login:PermitLimit", AuthPermitLimit.ToString());
         builder.UseSetting("RateLimiting:Register:PermitLimit", AuthPermitLimit.ToString());
+        builder.UseSetting("Tmdb:CacheSizeMegabytes", TmdbCacheMegabytes.ToString());
+        // Retries without waiting and short timeouts keep the TMDB failure tests fast. The circuit breaker
+        // would otherwise open once a test class has sent enough failing requests and affect later tests.
+        builder.UseSetting("Tmdb:Resilience:Retry:Delay", "00:00:00");
+        builder.UseSetting("Tmdb:Resilience:AttemptTimeout:Timeout", "00:00:00.5");
+        builder.UseSetting("Tmdb:Resilience:TotalRequestTimeout:Timeout", "00:00:02");
+        builder.UseSetting("Tmdb:Resilience:CircuitBreaker:MinimumThroughput", "100000");
 
         builder.ConfigureServices(services =>
         {

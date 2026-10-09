@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using backend.Features.Movies.DTOs;
 using Microsoft.AspNetCore.Mvc;
 
@@ -31,12 +32,12 @@ public class MovieController : ControllerBase
     [HttpGet("search")]
     [EndpointSummary("Search and filter movies")]
     public async Task<ActionResult<TmdbSearchResultDto>> SearchMovies(
-        [FromQuery] string? query,
+        [FromQuery, MaxLength(TmdbService.MaxQueryLength)] string? query,
         [FromQuery] int? castId,
         [FromQuery] int? crewId,
         [FromQuery] int? studioId,
         [FromQuery] int? genreId,
-        [FromQuery] int page = 1)
+        [FromQuery, Range(1, TmdbService.MaxPage)] int page = 1)
     {
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -62,7 +63,8 @@ public class MovieController : ControllerBase
 
     [HttpGet("search/all")]
     [EndpointSummary("Search movies, cast, crew and studios")]
-    public async Task<ActionResult<MovieSearchResultDto>> SearchAll([FromQuery] string query)
+    public async Task<ActionResult<MovieSearchResultDto>> SearchAll(
+        [FromQuery, MaxLength(TmdbService.MaxQueryLength)] string query)
     {
         if (string.IsNullOrWhiteSpace(query))
         {
@@ -162,19 +164,8 @@ public class MovieController : ControllerBase
             return BadRequest("tmdbId must be a positive integer.");
         }
 
-        MovieDetailsDto? details;
-
-        try
-        {
-            details = await _tmdbService.GetMovieDetails(tmdbId);
-        }
-        catch (HttpRequestException ex)
-        {
-            return StatusCode(
-                StatusCodes.Status502BadGateway,
-                $"Could not fetch data from TMDB: {ex.Message}"
-            );
-        }
+        // A TMDB failure becomes a 502 or 503 in TmdbExceptionHandler.
+        var details = await _tmdbService.GetMovieDetails(tmdbId);
 
         if (details == null)
         {
