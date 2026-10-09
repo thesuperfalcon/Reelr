@@ -29,8 +29,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       Database__MigrateOnStartup: "true"
-      # Requests arrive through nginx; read the client IP from X-Forwarded-For so auth rate limiting is per client.
-      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      # Requests arrive through nginx. X-Forwarded-For is trusted only from this compose network,
+      # so auth rate limiting is per client and a client cannot fake its IP by sending the header itself.
+      ForwardedHeaders__KnownNetworks__0: "172.30.0.0/24"
     env_file: .env
     ports:
       - "127.0.0.1:5084:8080"
@@ -52,6 +53,13 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+networks:
+  # A fixed subnet, so the backend knows which addresses belong to the nginx proxy.
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
 
 volumes:
   sqldata:

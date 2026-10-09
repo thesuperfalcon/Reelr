@@ -25,7 +25,7 @@ namespace backend.Features.Diary
             _context = context;
         }
 
-        // Scores go from 0 to 5 in half steps.
+        // Scores go from half a star (0.5) to 5 in half steps, the same range the star picker offers.
         public static bool IsHalfStep(decimal score) => decimal.Remainder(score * 2, 1) == 0;
 
         // A picked day is stored at noon UTC, so it shows as the same calendar day in every time zone from UTC-12 to UTC+12.

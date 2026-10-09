@@ -6,7 +6,8 @@ namespace backend.Features.Settings.DTOs
     // Only the fields that are set change, so one setting can be saved on its own.
     public class UpdateUserSettingsDto
     {
-        [MinLength(3)]
+        [MinLength(User.UserNameMinLength)]
+        [MaxLength(User.UserNameMaxLength)]
         public string? UserName { get; set; }
 
         public WatchlistVisibility? WatchlistVisibility { get; set; }

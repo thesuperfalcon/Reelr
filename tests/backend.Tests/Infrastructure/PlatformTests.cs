@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.AspNetCore.Hosting;
 
 namespace backend.Tests.Infrastructure;
 
@@ -30,6 +31,19 @@ public class PlatformTests : IClassFixture<ReelrApiFactory>
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Theory]
+    [InlineData("Jwt:Key", "too-short")]
+    [InlineData("Jwt:Key", "")]
+    [InlineData("TMDB_READ_ACCESS_TOKEN", "")]
+    public void Startup_MissingOrWeakSecret_Fails(string key, string value)
+    {
+        using var factory = new ReelrApiFactory().WithWebHostBuilder(builder => builder.UseSetting(key, value));
+
+        var error = Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
+
+        Assert.Contains(key, error.Message);
     }
 
     [Fact]

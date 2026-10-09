@@ -113,6 +113,16 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
+    public async Task UpdateUser_TooLongUsername_Returns400()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+
+        var response = await user.Client.PutAsJsonAsync($"/api/users/{user.Id}", new UpdateUserDto { Username = new string('a', 51) });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task UpdateUser_OtherUser_Returns403AndKeepsProfile()
     {
         var user = await _factory.CreateAuthenticatedAsync();

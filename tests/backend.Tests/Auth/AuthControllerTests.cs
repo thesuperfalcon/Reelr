@@ -69,6 +69,7 @@ public class AuthControllerTests : IClassFixture<ReelrApiFactory>
     [InlineData("validname", "valid@test.local", "Short1!")]            // password under 8 chars
     [InlineData("validname", "valid@test.local", "alllowercase1!")]     // Identity: no uppercase
     [InlineData("validname", "valid@test.local", "NoDigitsHere!")]      // Identity: no digit
+    [InlineData("someone@test.local", "valid@test.local", TestUsers.Password)] // "@" would let a name look like an email
     public async Task Register_InvalidInput_Returns400(string username, string email, string password)
     {
         var response = await RegisterAsync(username, email, password);

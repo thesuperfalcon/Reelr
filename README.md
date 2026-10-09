@@ -13,7 +13,7 @@ Reelr is a social film diary, in the spirit of Letterboxd. You log the films you
 - Person pages with full filmography.
 
 **Your film diary**
-- Mark films as watched and rate them from 0 to 5 stars in half steps.
+- Mark films as watched and rate them from half a star to 5 stars in half steps.
 - Diary entries with watch date, rating, like and rewatch flag. Entries can be edited and deleted.
 - Markdown reviews with a spoiler flag, linked to a diary entry or standalone.
 - Watchlist. A film leaves the watchlist automatically when you rate it or mark it as watched.

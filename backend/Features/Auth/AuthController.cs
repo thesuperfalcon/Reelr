@@ -71,6 +71,9 @@ public class AuthController : ControllerBase
 
         if (user == null)
         {
+            // Hash the password anyway, so an unknown user takes as long to answer as a wrong password.
+            // Otherwise the response time would tell which email addresses have an account.
+            _userManager.PasswordHasher.VerifyHashedPassword(new User(), GetDummyHash(), dto.Password);
             return Unauthorized();
         }
 
@@ -87,4 +90,10 @@ public class AuthController : ControllerBase
 
         return Ok(new { token });
     }
+
+    // A hash made with the same hasher settings as real passwords, created once per process.
+    private static string? _dummyHash;
+
+    private string GetDummyHash() =>
+        _dummyHash ??= _userManager.PasswordHasher.HashPassword(new User(), Guid.NewGuid().ToString());
 }

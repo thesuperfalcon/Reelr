@@ -120,6 +120,20 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
         Assert.Equal(user.Username, (await GetSettingsAsync(user)).UserName);
     }
 
+    [Theory]
+    [InlineData("ab")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")] // 51 characters
+    [InlineData("someone@test.local")]
+    public async Task UpdateSettings_InvalidName_Returns400(string userName)
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+
+        var response = await user.Client.PatchAsJsonAsync("/api/settings", new UpdateUserSettingsDto { UserName = userName });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(user.Username, (await GetSettingsAsync(user)).UserName);
+    }
+
     [Fact]
     public async Task UpdateSettings_UnknownVisibility_Returns400()
     {
@@ -152,6 +166,29 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
         var newLogin = await client.PostAsJsonAsync("/auth/login", new { UserInput = user.Username, Password = newPassword });
         Assert.False(oldLogin.IsSuccessStatusCode);
         Assert.True(newLogin.IsSuccessStatusCode);
+    }
+
+    [Fact]
+    public async Task ChangePassword_TenWrongCurrentPasswords_LocksTheAccount()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var newPassword = TestUsers.Password + "-new";
+
+        // Same lockout as login, so a stolen token cannot be used to guess the password here.
+        for (var i = 0; i < 10; i++)
+        {
+            var wrong = await user.Client.PostAsJsonAsync("/api/settings/password",
+                new ChangePasswordDto { CurrentPassword = TestUsers.Password + "-wrong", NewPassword = newPassword });
+            Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+        }
+
+        var right = await user.Client.PostAsJsonAsync("/api/settings/password",
+            new ChangePasswordDto { CurrentPassword = TestUsers.Password, NewPassword = newPassword });
+        var login = await _factory.CreateClient().PostAsJsonAsync("/auth/login",
+            new { UserInput = user.Username, Password = TestUsers.Password });
+
+        Assert.Equal(HttpStatusCode.BadRequest, right.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
     }
 
     // ---- Profile picture ----

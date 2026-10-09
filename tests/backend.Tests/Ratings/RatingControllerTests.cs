@@ -47,7 +47,6 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Theory]
-    [InlineData(0)]
     [InlineData(0.5)]
     [InlineData(5)]
     public async Task CreateRating_BoundaryScores_AreAccepted(decimal score)
@@ -62,6 +61,7 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
 
     [Theory]
     [InlineData(-0.5)]
+    [InlineData(0)] // the star picker starts at half a star
     [InlineData(5.5)]
     [InlineData(2.3)]
     [InlineData(3.25)]
