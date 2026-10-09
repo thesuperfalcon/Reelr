@@ -54,16 +54,18 @@ builder.Services
         // Login looks up the email first, so such a name would hide the account behind another user's address.
         options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._+";
 
-        // Login locks an account for 5 minutes after 10 wrong passwords in a row. Usernames are public,
-        // so a stricter lockout would let anyone lock other users out; per-IP rate limiting does most of the work.
-        options.Lockout.MaxFailedAccessAttempts = 10;
-        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+        // The account lockout stops password guessing spread over many addresses: 20 wrong passwords in a row
+        // lock the account for 15 minutes. LoginThrottle stops one address after 5, so locking someone else's
+        // account (usernames are public) takes at least 4 addresses, and the owner is rarely the one locked out.
+        options.Lockout.MaxFailedAccessAttempts = 20;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
         options.Lockout.AllowedForNewUsers = true;
     })
     .AddEntityFrameworkStores<ReelrContext>()
     .AddDefaultTokenProviders();
 
-builder.Services.AddAuthRateLimiting(builder.Configuration);
+builder.Services.AddRateLimits(builder.Configuration);
+builder.Services.AddSingleton<LoginThrottle>();
 
 // The client IP from X-Forwarded-For is used only when the request comes from a trusted proxy:
 // loopback, or a network listed in "ForwardedHeaders:KnownNetworks" (CIDR, e.g. the Docker network nginx runs on).
@@ -121,6 +123,7 @@ builder.Services.AddHealthChecks().AddDbContextCheck<ReelrContext>();
 // so a slow or failing TMDB does not hold requests open. "Tmdb:Resilience" can override the defaults below.
 builder.Services.AddSingleton<TmdbCache>();
 builder.Services.AddExceptionHandler<TmdbExceptionHandler>();
+builder.Services.AddExceptionHandler<UniqueConflictExceptionHandler>();
 
 builder.Services
     .AddHttpClient<TmdbService>(client =>

@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
+using backend.Features.Auth;
 using backend.Features.Movies.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace backend.Features.Movies;
 
@@ -30,6 +32,7 @@ public class MovieController : ControllerBase
     }
 
     [HttpGet("search")]
+    [EnableRateLimiting(RateLimitPolicies.Search)]
     [EndpointSummary("Search and filter movies")]
     public async Task<ActionResult<TmdbSearchResultDto>> SearchMovies(
         [FromQuery, MaxLength(TmdbService.MaxQueryLength)] string? query,
@@ -62,6 +65,7 @@ public class MovieController : ControllerBase
     }
 
     [HttpGet("search/all")]
+    [EnableRateLimiting(RateLimitPolicies.Search)]
     [EndpointSummary("Search movies, cast, crew and studios")]
     public async Task<ActionResult<MovieSearchResultDto>> SearchAll(
         [FromQuery, MaxLength(TmdbService.MaxQueryLength)] string query)

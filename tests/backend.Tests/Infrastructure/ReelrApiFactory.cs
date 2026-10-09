@@ -24,6 +24,15 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
 
     protected virtual int AuthPermitLimit => 100_000;
 
+    protected virtual int ReadPermitLimit => 100_000;
+
+    protected virtual int WritePermitLimit => 100_000;
+
+    protected virtual int SearchPermitLimit => 100_000;
+
+    // Lifted so the lockout tests can send more wrong passwords than one address normally may.
+    protected virtual int LoginPerAccountLimit => 100_000;
+
     // Most tests change the fake TMDB between calls and check what was sent, so the TMDB cache is off.
     // TmdbCacheTests turns it on.
     protected virtual int TmdbCacheMegabytes => 0;
@@ -50,6 +59,12 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
         // AuthRateLimitTests sets low limits to check the limiter itself.
         builder.UseSetting("RateLimiting:Login:PermitLimit", AuthPermitLimit.ToString());
         builder.UseSetting("RateLimiting:Register:PermitLimit", AuthPermitLimit.ToString());
+        builder.UseSetting("RateLimiting:LoginPerAccount:PermitLimit", LoginPerAccountLimit.ToString());
+        // Anonymous test requests all share one partition, so the general limits are lifted too.
+        // RateLimitTests sets low limits to check them.
+        builder.UseSetting("RateLimiting:Read:PermitLimit", ReadPermitLimit.ToString());
+        builder.UseSetting("RateLimiting:Write:PermitLimit", WritePermitLimit.ToString());
+        builder.UseSetting("RateLimiting:Search:PermitLimit", SearchPermitLimit.ToString());
         builder.UseSetting("Tmdb:CacheSizeMegabytes", TmdbCacheMegabytes.ToString());
         // Retries without waiting and short timeouts keep the TMDB failure tests fast. The circuit breaker
         // would otherwise open once a test class has sent enough failing requests and affect later tests.

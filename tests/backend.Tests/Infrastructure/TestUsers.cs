@@ -9,6 +9,9 @@ public static class TestUsers
 {
     public const string Password = "Passw0rd!";
 
+    // Wrong passwords in a row that lock an account (Lockout.MaxFailedAccessAttempts in Program.cs).
+    public const int LockoutAttempts = 20;
+
     /// <summary>
     /// Registers a new user with a unique name, logs in and returns a client that sends the JWT.
     /// </summary>

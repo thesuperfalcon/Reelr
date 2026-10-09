@@ -1,9 +1,11 @@
+using System.ComponentModel.DataAnnotations;
 using backend.Data;
 using backend.Features.Auth;
 using backend.Features.Users.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Features.Users
@@ -74,8 +76,9 @@ namespace backend.Features.Users
         }
 
         [HttpGet("search")]
+        [EnableRateLimiting(RateLimitPolicies.Search)]
         [EndpointSummary("Search users by username")]
-        public async Task<ActionResult<List<UserSummaryDto>>> SearchUsers([FromQuery] string query)
+        public async Task<ActionResult<List<UserSummaryDto>>> SearchUsers([FromQuery, MaxLength(Users.User.UserNameMaxLength)] string query)
         {
             if (string.IsNullOrWhiteSpace(query))
             {

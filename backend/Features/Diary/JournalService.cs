@@ -224,18 +224,29 @@ namespace backend.Features.Diary
             entry.Liked = liked;
             entry.Rewatched = rewatched;
 
+            // The status is computed from the saved diary, so it takes two saves. One transaction keeps the
+            // diary and the status in step if the second save fails.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
             await _context.SaveChangesAsync();
             await SyncWatchedStatusAsync(entry.UserId, entry.MovieId);
             await _context.SaveChangesAsync();
+
+            await transaction.CommitAsync();
         }
 
         // Deletes one entry and its review. Deleting the last entry marks the film unwatched.
         public async Task DeleteEntryAsync(DiaryEntry entry)
         {
+            // Two saves in one transaction, as in EditEntryAsync.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
             await DeleteEntriesAsync([entry]);
             await _context.SaveChangesAsync();
             await SyncWatchedStatusAsync(entry.UserId, entry.MovieId);
             await _context.SaveChangesAsync();
+
+            await transaction.CommitAsync();
         }
 
         // Adds a diary entry that snapshots the current status and rating. A null watchedAt means now.

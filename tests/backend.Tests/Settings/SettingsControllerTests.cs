@@ -169,13 +169,13 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
-    public async Task ChangePassword_TenWrongCurrentPasswords_LocksTheAccount()
+    public async Task ChangePassword_LockoutAttemptsWrongCurrentPasswords_LocksTheAccount()
     {
         var user = await _factory.CreateAuthenticatedAsync();
         var newPassword = TestUsers.Password + "-new";
 
         // Same lockout as login, so a stolen token cannot be used to guess the password here.
-        for (var i = 0; i < 10; i++)
+        for (var i = 0; i < TestUsers.LockoutAttempts; i++)
         {
             var wrong = await user.Client.PostAsJsonAsync("/api/settings/password",
                 new ChangePasswordDto { CurrentPassword = TestUsers.Password + "-wrong", NewPassword = newPassword });
