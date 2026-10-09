@@ -33,6 +33,17 @@ public class PlatformTests : IClassFixture<ReelrApiFactory>
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
+    [Fact]
+    public async Task Startup_WithoutOptionalSettings_Works()
+    {
+        // Production sets only the required secrets; optional sections such as Tmdb:Resilience are absent.
+        await using var factory = new ProductionDefaultsApiFactory();
+
+        var response = await factory.CreateClient().GetAsync("/health");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     [Theory]
     [InlineData("Jwt:Key", "too-short")]
     [InlineData("Jwt:Key", "")]
@@ -54,4 +65,9 @@ public class PlatformTests : IClassFixture<ReelrApiFactory>
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
+}
+
+public class ProductionDefaultsApiFactory : ReelrApiFactory
+{
+    protected override bool OverrideTmdbResilience => false;
 }

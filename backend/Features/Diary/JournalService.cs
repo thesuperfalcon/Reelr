@@ -130,11 +130,17 @@ namespace backend.Features.Diary
         }
 
         // Marks the film watched now, or updates the existing status, and logs it with the current rating.
-        // An existing status keeps its watch date.
-        public async Task<WatchedMovie> MarkWatchedAsync(int userId, int movieId, bool? liked, bool rewatched)
+        // An existing status keeps its watch date. With onlyIfNew, an existing status is left alone and null is
+        // returned, so two "mark as watched" requests at once cannot both succeed and log the film twice.
+        public async Task<WatchedMovie?> MarkWatchedAsync(int userId, int movieId, bool? liked, bool rewatched, bool onlyIfNew = false)
         {
             var status = await _context.WatchedMovies
                 .FirstOrDefaultAsync(w => w.UserId == userId && w.MovieId == movieId);
+
+            if (status != null && onlyIfNew)
+            {
+                return null;
+            }
 
             if (status == null)
             {
@@ -164,10 +170,16 @@ namespace backend.Features.Diary
         }
 
         // Sets the rating, creating it when needed. A rated film counts as watched, so each rating logs a new diary entry.
-        public async Task<Rating> RateAsync(int userId, int movieId, decimal score)
+        // With onlyIfNew, an existing rating is left alone and null is returned, as in MarkWatchedAsync.
+        public async Task<Rating?> RateAsync(int userId, int movieId, decimal score, bool onlyIfNew = false)
         {
             var rating = await _context.Ratings
                 .FirstOrDefaultAsync(r => r.UserId == userId && r.MovieId == movieId);
+
+            if (rating != null && onlyIfNew)
+            {
+                return null;
+            }
 
             if (rating == null)
             {

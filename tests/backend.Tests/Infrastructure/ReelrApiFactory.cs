@@ -37,6 +37,9 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
     // TmdbCacheTests turns it on.
     protected virtual int TmdbCacheMegabytes => 0;
 
+    // False runs the TMDB client with the defaults in Program.cs, as in production.
+    protected virtual bool OverrideTmdbResilience => true;
+
     /// <summary>
     /// Runs code against the test database directly, for setup the API cannot do yet or for checking stored values.
     /// </summary>
@@ -68,10 +71,13 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Tmdb:CacheSizeMegabytes", TmdbCacheMegabytes.ToString());
         // Retries without waiting and short timeouts keep the TMDB failure tests fast. The circuit breaker
         // would otherwise open once a test class has sent enough failing requests and affect later tests.
-        builder.UseSetting("Tmdb:Resilience:Retry:Delay", "00:00:00");
-        builder.UseSetting("Tmdb:Resilience:AttemptTimeout:Timeout", "00:00:00.5");
-        builder.UseSetting("Tmdb:Resilience:TotalRequestTimeout:Timeout", "00:00:02");
-        builder.UseSetting("Tmdb:Resilience:CircuitBreaker:MinimumThroughput", "100000");
+        if (OverrideTmdbResilience)
+        {
+            builder.UseSetting("Tmdb:Resilience:Retry:Delay", "00:00:00");
+            builder.UseSetting("Tmdb:Resilience:AttemptTimeout:Timeout", "00:00:00.5");
+            builder.UseSetting("Tmdb:Resilience:TotalRequestTimeout:Timeout", "00:00:02");
+            builder.UseSetting("Tmdb:Resilience:CircuitBreaker:MinimumThroughput", "100000");
+        }
 
         builder.ConfigureServices(services =>
         {

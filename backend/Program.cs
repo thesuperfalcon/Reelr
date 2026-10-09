@@ -125,7 +125,7 @@ builder.Services.AddSingleton<TmdbCache>();
 builder.Services.AddExceptionHandler<TmdbExceptionHandler>();
 builder.Services.AddExceptionHandler<UniqueConflictExceptionHandler>();
 
-builder.Services
+var tmdbResilience = builder.Services
     .AddHttpClient<TmdbService>(client =>
     {
         client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
@@ -136,8 +136,15 @@ builder.Services
         options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(4);
         options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(10);
         options.Retry.MaxRetryAttempts = 2;
-    })
-    .Configure(builder.Configuration.GetSection("Tmdb:Resilience"));
+    });
+
+// Configure throws on a section that does not exist, so overrides are bound only when some are set.
+var tmdbResilienceOverrides = builder.Configuration.GetSection("Tmdb:Resilience");
+
+if (tmdbResilienceOverrides.Exists())
+{
+    tmdbResilience.Configure(tmdbResilienceOverrides);
+}
 
 // Swagger
 builder.Services.AddSwaggerGen(options =>
