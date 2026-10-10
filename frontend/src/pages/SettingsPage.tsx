@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { Link, useBeforeUnload, useBlocker } from "react-router";
+import { useAuth } from "../auth/auth-context";
 import { Field, FormError } from "../components/Form";
 import { ErrorMessage, Loading } from "../components/Status";
 import { UserAvatar } from "../components/UserAvatar";
 import { prepareAvatar } from "../lib/avatar";
 import {
   useChangePassword,
+  useDeleteAccount,
   useRemoveAvatar,
   useSettings,
   useUpdateSettings,
@@ -373,6 +375,81 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
   );
 }
 
+// Its own form outside SettingsForm, so Save never touches it and deleting needs a separate, explicit step.
+function DeleteAccountSection({ userName }: { userName: string }) {
+  const { user, logout } = useAuth();
+  const deleteAccount = useDeleteAccount();
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+
+  function cancel() {
+    setOpen(false);
+    setPassword("");
+    deleteAccount.reset();
+  }
+
+  async function confirm(event: FormEvent) {
+    event.preventDefault();
+    if (!user) return;
+
+    try {
+      await deleteAccount.mutateAsync({ userId: user.id, password });
+      logout();
+      // A full load of the start page. A router navigation races with RequireAuth, which sees no user
+      // on /settings and sends the visitor to /login instead.
+      window.location.replace("/");
+    } catch {
+      // The error is shown from deleteAccount.error.
+    }
+  }
+
+  return (
+    <Section
+      id="settings-delete"
+      title="Delete account"
+      description="Removes your profile, diary, ratings, reviews, lists, watchlist, follows, likes and comments. This cannot be undone."
+    >
+      {open ? (
+        <form onSubmit={confirm} className="space-y-5">
+          <p className="text-sm">
+            Enter your password to delete <span className="font-semibold">{userName}</span> for good.
+          </p>
+          <Field
+            id="delete-password"
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            hint="Wrong passwords count towards the login lockout."
+          />
+          <FormError error={deleteAccount.error} />
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={!password || deleteAccount.isPending}
+              className="rounded-sm bg-alarm px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-60"
+            >
+              {deleteAccount.isPending ? "Deleting…" : "Delete my account"}
+            </button>
+            <button type="button" onClick={cancel} disabled={deleteAccount.isPending} className={quietButtonClass}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="rounded-sm px-4 py-2 text-sm font-medium text-alarm ring-1 ring-alarm/40 transition hover:bg-alarm/10"
+        >
+          Delete account…
+        </button>
+      )}
+    </Section>
+  );
+}
+
 export function SettingsPage() {
   const settings = useSettings();
 
@@ -391,7 +468,10 @@ export function SettingsPage() {
         ) : settings.isError ? (
           <ErrorMessage error={settings.error} retry={() => settings.refetch()} />
         ) : (
-          <SettingsForm settings={settings.data} />
+          <>
+            <SettingsForm settings={settings.data} />
+            <DeleteAccountSection userName={settings.data.userName} />
+          </>
         )}
       </div>
     </div>

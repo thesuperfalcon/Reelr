@@ -69,6 +69,7 @@ public class AuthControllerTests : IClassFixture<ReelrApiFactory>
     [InlineData("validname", "valid@test.local", "Short1!")]            // password under 8 chars
     [InlineData("validname", "valid@test.local", "alllowercase1!")]     // Identity: no uppercase
     [InlineData("validname", "valid@test.local", "NoDigitsHere!")]      // Identity: no digit
+    [InlineData("someone@test.local", "valid@test.local", TestUsers.Password)] // "@" would let a name look like an email
     public async Task Register_InvalidInput_Returns400(string username, string email, string password)
     {
         var response = await RegisterAsync(username, email, password);
@@ -119,6 +120,40 @@ public class AuthControllerTests : IClassFixture<ReelrApiFactory>
         var response = await LoginAsync(UniqueName());
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Login_AfterTenWrongPasswords_LocksAccount()
+    {
+        var username = UniqueName();
+        await RegisterAsync(username, $"{username}@test.local");
+
+        for (var i = 0; i < 10; i++)
+        {
+            await LoginAsync(username, "WrongPassw0rd!");
+        }
+
+        var response = await LoginAsync(username);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Login_SuccessResetsFailedAttempts()
+    {
+        var username = UniqueName();
+        await RegisterAsync(username, $"{username}@test.local");
+
+        for (var i = 0; i < 9; i++)
+        {
+            await LoginAsync(username, "WrongPassw0rd!");
+        }
+        await LoginAsync(username);
+        await LoginAsync(username, "WrongPassw0rd!");
+
+        var response = await LoginAsync(username);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     // ---- Token ----

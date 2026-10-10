@@ -37,11 +37,13 @@ public class TmdbService
 
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<TmdbService> _logger;
 
-    public TmdbService(HttpClient httpClient, IConfiguration configuration)
+    public TmdbService(HttpClient httpClient, IConfiguration configuration, ILogger<TmdbService> logger)
     {
         _httpClient = httpClient;
         _configuration = configuration;
+        _logger = logger;
     }
 
     public Task<TmdbMovieDto?> GetMovie(int tmdbId) =>
@@ -317,10 +319,12 @@ public class TmdbService
 
         if (!response.IsSuccessStatusCode)
         {
+            // The response body only goes to the log, since the exception message reaches API clients.
             var error = await response.Content.ReadAsStringAsync();
+            _logger.LogWarning("TMDB request {Path} failed with {StatusCode}: {Body}", path, (int)response.StatusCode, error);
 
             throw new HttpRequestException(
-                $"TMDB error: {(int)response.StatusCode} {response.StatusCode}. Response: {error}"
+                $"TMDB returned {(int)response.StatusCode}.", null, response.StatusCode
             );
         }
 

@@ -22,6 +22,8 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
 
     public FakeTmdbHandler Tmdb { get; } = new();
 
+    protected virtual int AuthPermitLimit => 100_000;
+
     /// <summary>
     /// Runs code against the test database directly, for setup the API cannot do yet or for checking stored values.
     /// </summary>
@@ -40,6 +42,10 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("TMDB_READ_ACCESS_TOKEN", "test-token");
         // Tests read the community feed right after changing data, so its short cache is off.
         builder.UseSetting("Activity:CommunityCacheSeconds", "0");
+        // Every test registers and logs in from the same address, so the auth limits are lifted.
+        // AuthRateLimitTests sets low limits to check the limiter itself.
+        builder.UseSetting("RateLimiting:Login:PermitLimit", AuthPermitLimit.ToString());
+        builder.UseSetting("RateLimiting:Register:PermitLimit", AuthPermitLimit.ToString());
 
         builder.ConfigureServices(services =>
         {

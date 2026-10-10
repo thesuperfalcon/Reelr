@@ -1,12 +1,13 @@
 using System.ComponentModel.DataAnnotations;
+using backend.Features.Users;
 
 namespace backend.Features.Auth.DTOs;
 
 public class RegisterDto
 {
     [Required]
-    [MinLength(3)]
-    [MaxLength(50)]
+    [MinLength(User.UserNameMinLength)]
+    [MaxLength(User.UserNameMaxLength)]
     public string Username { get; set; } = string.Empty;
 
     [Required]

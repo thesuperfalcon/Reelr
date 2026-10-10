@@ -2,6 +2,7 @@ using backend.Features.Auth.DTOs;
 using backend.Features.Users;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace backend.Features.Auth;
 
@@ -10,15 +11,18 @@ namespace backend.Features.Auth;
 public class AuthController : ControllerBase
 {
     private readonly UserManager<User> _userManager;
+    private readonly SignInManager<User> _signInManager;
     private readonly TokenService _tokenService;
 
-    public AuthController(UserManager<User> userManager, TokenService tokenService)
+    public AuthController(UserManager<User> userManager, SignInManager<User> signInManager, TokenService tokenService)
     {
         _userManager = userManager;
+        _signInManager = signInManager;
         _tokenService = tokenService;
     }
 
     [HttpPost("register")]
+    [EnableRateLimiting(RateLimitPolicies.Register)]
     [EndpointSummary("Register a new user")]
     public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
@@ -49,6 +53,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting(RateLimitPolicies.Login)]
     [EndpointSummary("Log in and receive a JWT")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
@@ -66,12 +71,17 @@ public class AuthController : ControllerBase
 
         if (user == null)
         {
+            // Hash the password anyway, so an unknown user takes as long to answer as a wrong password.
+            // Otherwise the response time would tell which email addresses have an account.
+            _userManager.PasswordHasher.VerifyHashedPassword(new User(), GetDummyHash(), dto.Password);
             return Unauthorized();
         }
 
-        var passwordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
+        // Counts failed attempts and locks the account after too many (see AddIdentity lockout options).
+        // A locked account gets the same 401 as a wrong password, so the response does not reveal it.
+        var result = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
 
-        if (!passwordValid)
+        if (!result.Succeeded)
         {
             return Unauthorized();
         }
@@ -80,4 +90,10 @@ public class AuthController : ControllerBase
 
         return Ok(new { token });
     }
+
+    // A hash made with the same hasher settings as real passwords, created once per process.
+    private static string? _dummyHash;
+
+    private string GetDummyHash() =>
+        _dummyHash ??= _userManager.PasswordHasher.HashPassword(new User(), Guid.NewGuid().ToString());
 }

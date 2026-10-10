@@ -17,12 +17,15 @@ namespace backend.Features.Settings
     {
         private readonly ReelrContext _context;
         private readonly UserManager<User> _userManager;
+        private readonly SignInManager<User> _signInManager;
         private readonly TokenService _tokenService;
 
-        public SettingsController(ReelrContext context, UserManager<User> userManager, TokenService tokenService)
+        public SettingsController(
+            ReelrContext context, UserManager<User> userManager, SignInManager<User> signInManager, TokenService tokenService)
         {
             _context = context;
             _userManager = userManager;
+            _signInManager = signInManager;
             _tokenService = tokenService;
         }
 
@@ -96,6 +99,16 @@ namespace backend.Features.Settings
             if (user == null)
             {
                 return Unauthorized();
+            }
+
+            // Wrong current passwords count towards the same lockout as login. Without this, a stolen token
+            // could be used to guess the password here without limit and then take over the account.
+            var passwordCheck = await _signInManager.CheckPasswordSignInAsync(user, dto.CurrentPassword, lockoutOnFailure: true);
+
+            if (!passwordCheck.Succeeded)
+            {
+                ModelState.AddModelError(nameof(dto.CurrentPassword), "The current password is incorrect.");
+                return ValidationProblem(ModelState);
             }
 
             var changed = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);

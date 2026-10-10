@@ -317,7 +317,7 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
         var tmdbId = _factory.Tmdb.AddMovie(6026, "Account gone");
         await LogAsync(user, tmdbId, new LogDiaryEntryDto { Score = 3, Review = "Last words" });
 
-        var response = await user.Client.DeleteAsync($"/api/users/{user.Id}");
+        var response = await user.Client.DeleteAccountAsync(user.Id);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Empty(await GetReviewsAsync(tmdbId));

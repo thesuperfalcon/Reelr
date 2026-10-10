@@ -4,6 +4,10 @@ namespace backend.Features.Users
 {
     public class User : IdentityUser<int>
     {
+        // Username length, the same when registering and when renaming.
+        public const int UserNameMinLength = 3;
+        public const int UserNameMaxLength = 50;
+
         public string? ProfileImageUrl { get; set; }
 
         public WatchlistVisibility WatchlistVisibility { get; set; } = WatchlistVisibility.Followers;

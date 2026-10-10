@@ -5,6 +5,7 @@ using backend.Features.Diary;
 using backend.Features.Movies;
 using backend.Features.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -13,8 +14,25 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Required secrets are checked at start-up, so a missing or weak one stops the app
+// instead of failing the first login or the first TMDB request.
+var jwtKey = builder.Configuration["Jwt:Key"];
+
+if (string.IsNullOrEmpty(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
+{
+    throw new InvalidOperationException("Jwt:Key must be set and at least 32 bytes long (HMAC-SHA256).");
+}
+
+if (string.IsNullOrEmpty(builder.Configuration["TMDB_READ_ACCESS_TOKEN"]))
+{
+    throw new InvalidOperationException("TMDB_READ_ACCESS_TOKEN is not configured.");
+}
+
 // Services
 builder.Services.AddControllers();
+
+// Unhandled exceptions and empty error responses (e.g. 401, 404, 429) get an RFC 7807 problem body.
+builder.Services.AddProblemDetails();
 
 builder.Services.AddOpenApi();
 
@@ -30,9 +48,34 @@ builder.Services
     .AddIdentity<User, IdentityRole<int>>(options =>
     {
         options.User.RequireUniqueEmail = true;
+
+        // Identity's default set without "@", so a username can never look like someone's email address.
+        // Login looks up the email first, so such a name would hide the account behind another user's address.
+        options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._+";
+
+        // Login locks an account for 5 minutes after 10 wrong passwords in a row. Usernames are public,
+        // so a stricter lockout would let anyone lock other users out; per-IP rate limiting does most of the work.
+        options.Lockout.MaxFailedAccessAttempts = 10;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+        options.Lockout.AllowedForNewUsers = true;
     })
     .AddEntityFrameworkStores<ReelrContext>()
     .AddDefaultTokenProviders();
+
+builder.Services.AddAuthRateLimiting(builder.Configuration);
+
+// The client IP from X-Forwarded-For is used only when the request comes from a trusted proxy:
+// loopback, or a network listed in "ForwardedHeaders:KnownNetworks" (CIDR, e.g. the Docker network nginx runs on).
+// Anyone else could send the header themselves and pick a new IP for every request to get past the rate limits.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    foreach (var network in builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [])
+    {
+        options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
+    }
+});
 
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<MovieCatalog>();
@@ -64,12 +107,14 @@ builder.Services
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(
-                    builder.Configuration["Jwt:Key"]
-                        ?? throw new InvalidOperationException("Jwt:Key not configured.")))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            // The default is 5 minutes, which would keep an expired token working that long.
+            ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
+
+// GET /health checks that the database answers. Docker uses it to know when the backend is ready.
+builder.Services.AddHealthChecks().AddDbContextCheck<ReelrContext>();
 
 builder.Services.AddHttpClient<TmdbService>(client =>
 {
@@ -105,6 +150,13 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 }
 
 // HTTP pipeline
+// First, so the rate limiter, HTTPS redirection and logging see the real client IP and scheme.
+app.UseForwardedHeaders();
+
+// In Development the developer exception page runs first and still shows the stack trace.
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -112,12 +164,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // Tells browsers to use HTTPS only. Not in Development, where it would stick to localhost.
+    app.UseHsts();
+}
 
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.UseRateLimiter();
+
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();

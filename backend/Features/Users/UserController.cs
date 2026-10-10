@@ -14,11 +14,13 @@ namespace backend.Features.Users
     {
         private readonly ReelrContext _context;
         private readonly UserManager<User> _userManager;
+        private readonly SignInManager<User> _signInManager;
 
-        public UserController(ReelrContext context, UserManager<User> userManager)
+        public UserController(ReelrContext context, UserManager<User> userManager, SignInManager<User> signInManager)
         {
             _context = context;
             _userManager = userManager;
+            _signInManager = signInManager;
         }
 
         [HttpGet("{id:int}")]
@@ -197,8 +199,8 @@ namespace backend.Features.Users
 
         [Authorize]
         [HttpDelete("{id:int}")]
-        [EndpointSummary("Delete the current user's account")]
-        public async Task<IActionResult> DeleteUser(int id)
+        [EndpointSummary("Delete the current user's account (requires the current password)")]
+        public async Task<IActionResult> DeleteUser(int id, DeleteUserDto dto)
         {
             var userId = User.GetUserId();
 
@@ -212,6 +214,15 @@ namespace backend.Features.Users
             if (user == null)
             {
                 return NotFound();
+            }
+
+            // Wrong passwords count towards the same lockout as login, so this endpoint cannot be used to guess it.
+            var passwordCheck = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
+
+            if (!passwordCheck.Succeeded)
+            {
+                ModelState.AddModelError(nameof(dto.Password), "The password is incorrect.");
+                return ValidationProblem(ModelState);
             }
 
             // Follows, review likes and review comments use DeleteBehavior.Restrict (SQL Server disallows
