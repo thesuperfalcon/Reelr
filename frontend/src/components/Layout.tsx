@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, NavLink, Outlet, ScrollRestoration, useNavigate, useSearchParams } from "react-router";
+import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate, useNavigation, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { useSettings } from "../lib/queries";
 
@@ -42,6 +42,62 @@ function UserIcon() {
   );
 }
 
+// Pages are loaded the first time they are opened. A thin bar shows while that takes a moment.
+function PageLoadingBar() {
+  const loading = useNavigation().state === "loading";
+
+  return (
+    <div
+      aria-hidden="true"
+      className={`fixed inset-x-0 top-0 z-50 h-0.5 bg-projector transition-opacity duration-300 ${
+        loading ? "opacity-100 delay-150" : "opacity-0"
+      }`}
+    />
+  );
+}
+
+// Tells the user before and after their login runs out, so unsaved work is not lost without warning.
+// Review text in the rating dialog is kept as a draft, so it is still there after logging in again.
+function SessionBanner() {
+  const { sessionNotice, dismissSessionNotice, logout } = useAuth();
+  const location = useLocation();
+
+  const onLoginPage = location.pathname === "/login";
+
+  // On the login page only the "has run out" message is useful; it explains why the user landed there.
+  if (!sessionNotice || (onLoginPage && sessionNotice === "expiring")) {
+    return null;
+  }
+
+  return (
+    <div role="status" className="border-b border-projector/30 bg-row">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 text-sm sm:px-6">
+        <p className="text-screen">
+          {sessionNotice === "expiring"
+            ? "Your login runs out in a few minutes. Save what you are working on, then log in again."
+            : "Your login has run out. Log in again to keep going; unsaved review text is kept."}
+        </p>
+        <div className="flex items-center gap-4 sm:ml-auto">
+          {!onLoginPage && (
+            <Link
+              to="/login"
+              state={{ from: location.pathname + location.search }}
+              // A login that is about to run out is ended first, so the login page shows its form.
+              onClick={sessionNotice === "expiring" ? logout : dismissSessionNotice}
+              className="font-medium text-projector underline underline-offset-4"
+            >
+              Log in again
+            </Link>
+          )}
+          <button type="button" onClick={dismissSessionNotice} className="text-haze hover:text-screen">
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const navLinkClass =({ isActive }: { isActive: boolean }) =>
   `text-sm font-medium transition-colors hover:text-screen ${isActive ? "text-screen" : "text-haze"}`;
 
@@ -54,6 +110,7 @@ export function Layout() {
   return (
     <div className="flex min-h-dvh flex-col">
       <ScrollRestoration />
+      <PageLoadingBar />
       <header className="border-b border-white/5">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-3 px-4 py-4 sm:px-6">
           <Link to="/" className="marquee text-3xl text-projector">
@@ -134,6 +191,7 @@ export function Layout() {
           </div>
         </div>
       </header>
+      <SessionBanner />
 
       <main className="flex-1">
         <Outlet />

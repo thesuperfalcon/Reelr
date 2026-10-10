@@ -25,6 +25,13 @@ public class ConcurrencyTests : IClassFixture<ReelrApiFactory>
     private static async Task<HttpStatusCode[]> SendAtOnceAsync(Func<Task<HttpResponseMessage>> send)
     {
         var responses = await Task.WhenAll(Enumerable.Range(0, Parallel).Select(_ => send()));
+
+        // An unexpected status fails the test with the response body, which says what went wrong on the server.
+        foreach (var response in responses.Where(r => !r.IsSuccessStatusCode && r.StatusCode != HttpStatusCode.Conflict))
+        {
+            Assert.Fail($"Got {response.StatusCode}: {await response.Content.ReadAsStringAsync()}");
+        }
+
         return responses.Select(r => r.StatusCode).ToArray();
     }
 
@@ -56,6 +63,21 @@ public class ConcurrencyTests : IClassFixture<ReelrApiFactory>
             user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/rating", new CreateRatingDto { Score = 4 }));
 
         AssertOneSucceeded(statuses, HttpStatusCode.OK);
+        // Each rating logs the film, so a second success would have left a second diary entry.
+        Assert.Equal(1, await _factory.WithContextAsync(c => c.DiaryEntries.CountAsync(d => d.UserId == user.Id)));
+    }
+
+    [Fact]
+    public async Task MarkWatched_SentAtOnce_LogsOnce()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(8106, "Watched at once");
+
+        var statuses = await SendAtOnceAsync(() =>
+            user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/status", new { Liked = true }));
+
+        AssertOneSucceeded(statuses, HttpStatusCode.OK);
+        Assert.Equal(1, await _factory.WithContextAsync(c => c.DiaryEntries.CountAsync(d => d.UserId == user.Id)));
     }
 
     [Fact]

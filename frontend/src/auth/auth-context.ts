@@ -7,6 +7,9 @@ export interface RegisterInput {
   password: string;
 }
 
+/** "expiring": the session ends in a few minutes. "expired": it ended, or the API refused the token. */
+export type SessionNotice = "expiring" | "expired" | null;
+
 export interface AuthContextValue {
   user: CurrentUser | null;
   login: (userInput: string, password: string) => Promise<void>;
@@ -14,6 +17,8 @@ export interface AuthContextValue {
   logout: () => void;
   /** Swaps in a new token for the same user, e.g. after a rename, so the shown name stays right. */
   replaceToken: (token: string) => void;
+  sessionNotice: SessionNotice;
+  dismissSessionNotice: () => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

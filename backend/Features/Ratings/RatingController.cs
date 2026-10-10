@@ -64,15 +64,13 @@ namespace backend.Features.Ratings
                 return NotFound();
             }
 
-            var alreadyRated = await _context.Ratings
-                .AnyAsync(r => r.UserId == userId && r.MovieId == movie.Id);
+            // The check and the insert happen together, so a second request at the same moment gets 409 too.
+            var rating = await _journal.RateAsync(userId, movie.Id, dto.Score, onlyIfNew: true);
 
-            if (alreadyRated)
+            if (rating == null)
             {
                 return Conflict("User has already rated this movie.");
             }
-
-            var rating = await _journal.RateAsync(userId, movie.Id, dto.Score);
 
             return Ok(new RatingDto
             {
