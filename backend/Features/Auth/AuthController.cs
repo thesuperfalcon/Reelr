@@ -13,12 +13,15 @@ public class AuthController : ControllerBase
     private readonly UserManager<User> _userManager;
     private readonly SignInManager<User> _signInManager;
     private readonly TokenService _tokenService;
+    private readonly LoginThrottle _loginThrottle;
 
-    public AuthController(UserManager<User> userManager, SignInManager<User> signInManager, TokenService tokenService)
+    public AuthController(
+        UserManager<User> userManager, SignInManager<User> signInManager, TokenService tokenService, LoginThrottle loginThrottle)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _tokenService = tokenService;
+        _loginThrottle = loginThrottle;
     }
 
     [HttpPost("register")]
@@ -69,11 +72,24 @@ public class AuthController : ControllerBase
             user = await _userManager.FindByNameAsync(dto.UserInput);
         }
 
+        // Unknown names are throttled too, so a 429 does not tell whether an account exists.
+        var account = user != null ? $"id:{user.Id}" : $"name:{dto.UserInput.Trim().ToUpperInvariant()}";
+        var address = HttpContext.Connection.RemoteIpAddress;
+
+        if (_loginThrottle.IsBlocked(account, address))
+        {
+            Response.Headers.RetryAfter = ((int)_loginThrottle.Window.TotalSeconds).ToString();
+            return Problem(
+                statusCode: StatusCodes.Status429TooManyRequests,
+                title: "Too many failed logins for this account from this address. Try again later.");
+        }
+
         if (user == null)
         {
             // Hash the password anyway, so an unknown user takes as long to answer as a wrong password.
             // Otherwise the response time would tell which email addresses have an account.
             _userManager.PasswordHasher.VerifyHashedPassword(new User(), GetDummyHash(), dto.Password);
+            _loginThrottle.RecordFailure(account, address);
             return Unauthorized();
         }
 
@@ -83,8 +99,11 @@ public class AuthController : ControllerBase
 
         if (!result.Succeeded)
         {
+            _loginThrottle.RecordFailure(account, address);
             return Unauthorized();
         }
+
+        _loginThrottle.Reset(account, address);
 
         var token = _tokenService.CreateToken(user);
 

@@ -123,12 +123,12 @@ public class AuthControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
-    public async Task Login_AfterTenWrongPasswords_LocksAccount()
+    public async Task Login_AfterLockoutAttemptsWrongPasswords_LocksAccount()
     {
         var username = UniqueName();
         await RegisterAsync(username, $"{username}@test.local");
 
-        for (var i = 0; i < 10; i++)
+        for (var i = 0; i < TestUsers.LockoutAttempts; i++)
         {
             await LoginAsync(username, "WrongPassw0rd!");
         }
@@ -144,7 +144,7 @@ public class AuthControllerTests : IClassFixture<ReelrApiFactory>
         var username = UniqueName();
         await RegisterAsync(username, $"{username}@test.local");
 
-        for (var i = 0; i < 9; i++)
+        for (var i = 0; i < TestUsers.LockoutAttempts - 1; i++)
         {
             await LoginAsync(username, "WrongPassw0rd!");
         }
