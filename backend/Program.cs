@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Text;
@@ -116,10 +117,24 @@ builder.Services
 // GET /health checks that the database answers. Docker uses it to know when the backend is ready.
 builder.Services.AddHealthChecks().AddDbContextCheck<ReelrContext>();
 
-builder.Services.AddHttpClient<TmdbService>(client =>
-{
-    client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
-});
+// TMDB: a cache, a handler that turns TMDB failures into 502/503, and timeouts, retries and a circuit breaker
+// so a slow or failing TMDB does not hold requests open. "Tmdb:Resilience" can override the defaults below.
+builder.Services.AddSingleton<TmdbCache>();
+builder.Services.AddExceptionHandler<TmdbExceptionHandler>();
+
+builder.Services
+    .AddHttpClient<TmdbService>(client =>
+    {
+        client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
+    })
+    .AddStandardResilienceHandler(options =>
+    {
+        // TMDB usually answers well within a second; the library defaults (10 s per attempt, 30 s in total) are too long.
+        options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(4);
+        options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(10);
+        options.Retry.MaxRetryAttempts = 2;
+    })
+    .Configure(builder.Configuration.GetSection("Tmdb:Resilience"));
 
 // Swagger
 builder.Services.AddSwaggerGen(options =>
