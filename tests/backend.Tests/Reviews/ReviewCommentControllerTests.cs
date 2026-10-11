@@ -31,7 +31,7 @@ public class ReviewCommentControllerTests : IClassFixture<ReelrApiFactory>
         return (await response.Content.ReadFromJsonAsync<ReviewCommentDto>())!;
     }
 
-    private Task<List<ReviewCommentDto>?> GetCommentsAsync(int reviewId) =>
+    private Task<List<ReviewCommentDto>> GetCommentsAsync(int reviewId) =>
         _factory.CreateClient().GetItemsAsync<ReviewCommentDto>($"/api/reviews/{reviewId}/comments");
 
     [Fact]

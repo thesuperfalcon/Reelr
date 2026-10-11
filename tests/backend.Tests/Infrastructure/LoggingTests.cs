@@ -33,6 +33,7 @@ public class LoggingTests : IClassFixture<ReelrApiFactory>
         await _factory.CreateClient().GetAsync("/api/movie/trending");
         await _factory.Logs.WaitForAsync(RequestTo("/api/movie/trending"));
 
-        Assert.Empty(_factory.Logs.Entries.Where(RequestTo("/health")));
+        var isHealthCheck = RequestTo("/health");
+        Assert.DoesNotContain(_factory.Logs.Entries, e => isHealthCheck(e));
     }
 }
