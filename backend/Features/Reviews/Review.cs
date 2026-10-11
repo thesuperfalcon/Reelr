@@ -21,6 +21,10 @@ namespace backend.Features.Reviews
 
         public DateTime? UpdatedAt { get; set; }
 
+        // When the review shows up in the activity feed: when the diary entry that wrote it was logged,
+        // or CreatedAt for a review written on its own. A rewritten review moves to its new entry's time.
+        public DateTime ActivityAt { get; set; }
+
         // The diary entry that logged this review. Deleting that entry deletes the review.
         public int? DiaryEntryId { get; set; }
 

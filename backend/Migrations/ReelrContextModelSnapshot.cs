@@ -182,6 +182,11 @@ namespace backend.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("IsBackdated")
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("bit")
+                        .HasComputedColumnSql("CAST(CASE WHEN [LoggedAt] > DATEADD(day, 14, [WatchedAt]) THEN 1 ELSE 0 END AS bit)", true);
+
                     b.Property<bool?>("Liked")
                         .HasColumnType("bit");
 
@@ -206,15 +211,18 @@ namespace backend.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("LoggedAt");
-
                     b.HasIndex("MovieId");
+
+                    b.HasIndex("IsBackdated", "LoggedAt");
 
                     b.HasIndex("UserId", "LoggedAt");
 
                     b.HasIndex("UserId", "WatchedAt");
 
-                    b.ToTable("DiaryEntries");
+                    b.ToTable("DiaryEntries", t =>
+                        {
+                            t.HasCheckConstraint("CK_DiaryEntries_Rating", "[Rating] IS NULL OR ([Rating] >= 0.5 AND [Rating] <= 5 AND [Rating] * 2 = FLOOR([Rating] * 2))");
+                        });
                 });
 
             modelBuilder.Entity("backend.Features.Moderation.Report", b =>
@@ -276,14 +284,16 @@ namespace backend.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<bool>("IsPublic")
                         .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -317,6 +327,8 @@ namespace backend.Migrations
 
                     b.HasIndex("MovieId");
 
+                    b.HasIndex("MovieListId", "AddedAt");
+
                     b.ToTable("MovieListItems");
                 });
 
@@ -329,13 +341,16 @@ namespace backend.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("BackdropUrl")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
 
                     b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
 
                     b.Property<string>("PosterUrl")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
 
                     b.Property<DateOnly?>("ReleaseDate")
                         .HasColumnType("date");
@@ -345,7 +360,8 @@ namespace backend.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("TmdbId")
                         .HasColumnType("int");
@@ -374,7 +390,10 @@ namespace backend.Migrations
 
                     b.HasIndex("MovieId");
 
-                    b.ToTable("Ratings");
+                    b.ToTable("Ratings", t =>
+                        {
+                            t.HasCheckConstraint("CK_Ratings_Score", "[Score] >= 0.5 AND [Score] <= 5 AND [Score] * 2 = FLOOR([Score] * 2)");
+                        });
                 });
 
             modelBuilder.Entity("backend.Features.Reviews.Review", b =>
@@ -384,6 +403,9 @@ namespace backend.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("ActivityAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<bool>("ContainsSpoilers")
                         .HasColumnType("bit");
@@ -409,20 +431,25 @@ namespace backend.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CreatedAt");
+                    b.HasIndex("ActivityAt");
 
                     b.HasIndex("DiaryEntryId")
                         .IsUnique()
                         .HasFilter("[DiaryEntryId] IS NOT NULL");
 
-                    b.HasIndex("MovieId");
+                    b.HasIndex("MovieId", "CreatedAt");
+
+                    b.HasIndex("UserId", "ActivityAt");
 
                     b.HasIndex("UserId", "CreatedAt");
 
                     b.HasIndex("UserId", "MovieId")
                         .IsUnique();
 
-                    b.ToTable("Reviews");
+                    b.ToTable("Reviews", t =>
+                        {
+                            t.HasCheckConstraint("CK_Reviews_Text", "LEN([Text]) <= 5000");
+                        });
                 });
 
             modelBuilder.Entity("backend.Features.Reviews.ReviewComment", b =>
@@ -474,6 +501,8 @@ namespace backend.Migrations
 
                     b.HasIndex("UserId");
 
+                    b.HasIndex("ReviewId", "CreatedAt");
+
                     b.ToTable("ReviewLikes");
                 });
 
@@ -514,7 +543,10 @@ namespace backend.Migrations
 
                     b.HasIndex("BlockedId");
 
-                    b.ToTable("Blocks");
+                    b.ToTable("Blocks", t =>
+                        {
+                            t.HasCheckConstraint("CK_Blocks_NotSelf", "[BlockerId] <> [BlockedId]");
+                        });
                 });
 
             modelBuilder.Entity("backend.Features.Users.Follow", b =>
@@ -529,7 +561,10 @@ namespace backend.Migrations
 
                     b.HasIndex("FollowedId");
 
-                    b.ToTable("Follows");
+                    b.ToTable("Follows", t =>
+                        {
+                            t.HasCheckConstraint("CK_Follows_NotSelf", "[FollowerId] <> [FollowedId]");
+                        });
                 });
 
             modelBuilder.Entity("backend.Features.Users.User", b =>
@@ -581,7 +616,8 @@ namespace backend.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("ProfileImageUrl")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");

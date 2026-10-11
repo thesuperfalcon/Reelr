@@ -12,10 +12,6 @@ namespace backend.Features.Activity
         // How far back the following feed looks.
         public int FollowingDays { get; set; } = 365;
 
-        // A diary entry logged more than this many days after the watch date counts as back-dated
-        // and stays out of the community feed, so back-filling an old diary does not flood it.
-        public int BackdatedDays { get; set; } = 14;
-
         // Items of the same kind by the same person within this window are shown as one group.
         public int GroupWindowMinutes { get; set; } = 60;
 

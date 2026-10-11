@@ -11,6 +11,8 @@ namespace backend.Features.MovieLists.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public int MovieCount { get; set; }
+        // How many of the films the caller has watched. Null for visitors who are not logged in.
+        public int? WatchedCount { get; set; }
         public List<MovieListItemDto> TopMovies { get; set; } = [];
     }
 }

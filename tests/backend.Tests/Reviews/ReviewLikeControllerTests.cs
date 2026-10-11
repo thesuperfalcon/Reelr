@@ -125,7 +125,7 @@ public class ReviewLikeControllerTests : IClassFixture<ReelrApiFactory>
         var review = await CreateReviewAsync(author, _factory.Tmdb.AddMovie(6106, "Who liked"));
         await LikeAsync(fan, review.Id);
 
-        var likers = await _factory.CreateClient().GetFromJsonAsync<List<UserSummaryDto>>($"/api/reviews/{review.Id}/likes");
+        var likers = await _factory.CreateClient().GetItemsAsync<UserSummaryDto>($"/api/reviews/{review.Id}/likes");
 
         Assert.Equal(fan.Username, Assert.Single(likers!).UserName);
     }

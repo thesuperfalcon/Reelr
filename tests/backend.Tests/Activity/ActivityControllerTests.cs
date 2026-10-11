@@ -65,6 +65,11 @@ public class ActivityControllerTests : IClassFixture<ReelrApiFactory>
         {
             var entry = await context.DiaryEntries.SingleAsync(d => d.Id == entryId);
             entry.LoggedAt = loggedAt;
+
+            // A review written by the entry shows up at the entry's time, as JournalService keeps it.
+            await context.Reviews.Where(r => r.DiaryEntryId == entryId)
+                .ExecuteUpdateAsync(r => r.SetProperty(x => x.ActivityAt, loggedAt));
+
             return await context.SaveChangesAsync();
         });
 

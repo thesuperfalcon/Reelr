@@ -1,5 +1,6 @@
 using backend.Data;
 using backend.Features.Auth;
+using backend.Features.Paging;
 using backend.Features.Reviews.DTOs;
 using backend.Features.Users;
 using Microsoft.AspNetCore.Authorization;
@@ -19,8 +20,8 @@ namespace backend.Features.Reviews
         }
 
         [HttpGet("api/reviews/{reviewId:int}/comments")]
-        [EndpointSummary("Get the comments on a review, oldest first")]
-        public async Task<ActionResult<List<ReviewCommentDto>>> GetComments(int reviewId)
+        [EndpointSummary("Get the comments on a review, oldest first, one page at a time")]
+        public async Task<ActionResult<PageDto<ReviewCommentDto>>> GetComments(int reviewId, [FromQuery] PageQuery page)
         {
             if (!await _context.Reviews.AnyAsync(r => r.Id == reviewId))
             {
@@ -29,12 +30,22 @@ namespace backend.Features.Reviews
 
             // Comments by people the viewer blocked are left out.
             var blocked = _context.BlockedBy(User.FindUserId());
-            var comments = await ToDtos(_context.ReviewComments.Where(c => c.ReviewId == reviewId && !blocked.Contains(c.UserId)))
+            var comments = _context.ReviewComments.Where(c => c.ReviewId == reviewId && !blocked.Contains(c.UserId));
+
+            if (page.After is PageCursor after)
+            {
+                var at = after.At;
+                var id = after.Id;
+                comments = comments.Where(c => c.CreatedAt > at || (c.CreatedAt == at && c.Id > id));
+            }
+
+            var rows = await ToDtos(comments)
                 .OrderBy(c => c.CreatedAt)
                 .ThenBy(c => c.Id)
+                .Take(page.Limit + 1)
                 .ToListAsync();
 
-            return Ok(comments);
+            return Ok(PageDto.From(rows, page.Limit, c => new PageCursor(c.CreatedAt, c.Id)));
         }
 
         [HttpPost("api/reviews/{reviewId:int}/comments")]

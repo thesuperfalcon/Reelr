@@ -20,6 +20,13 @@ namespace backend.Features.Diary
         // When the entry was saved. Never changes; the activity feed orders by it.
         public DateTime LoggedAt { get; set; }
 
+        // A log saved more than this many days after the watch date counts as back-dated
+        // and stays out of the community feed, so back-filling an old diary does not flood it.
+        public const int BackdatedDays = 14;
+
+        // Computed by the database from LoggedAt and WatchedAt, so the feed can filter on it through an index.
+        public bool IsBackdated { get; private set; }
+
         public decimal? Rating { get; set; }
 
         public bool? Liked { get; set; }

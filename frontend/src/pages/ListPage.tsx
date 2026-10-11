@@ -4,11 +4,12 @@ import { useAuth } from "../auth/auth-context";
 import { ReportButton } from "../components/ReportButton";
 import { LockIcon } from "../components/ListCard";
 import { ListFormDialog } from "../components/ListFormDialog";
+import { LoadMore } from "../components/LoadMore";
 import { Poster } from "../components/Poster";
 import { ErrorMessage, Loading } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
-import { useDeleteMovieList, useDiary, useMovieList, useMovieListMovies, useToggleListMovie } from "../lib/queries";
+import { pageItems, useDeleteMovieList, useMovieList, useMovieListMovies, useToggleListMovie, useWatchedFilms } from "../lib/queries";
 import type { MovieList, MovieListItem, SearchMovie } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
 
@@ -97,17 +98,17 @@ function MovieGrid({
   );
 }
 
-// Only mounted for logged-in visitors, since the diary needs a token.
+// Only mounted for logged-in visitors, since the watched films need a token.
 function WatchedMovieGrid(props: { list: MovieList; movies: MovieListItem[]; owner: boolean }) {
-  const diary = useDiary();
-  const watched = new Set((diary.data ?? []).map((entry) => entry.tmdbId));
-  const seen = props.movies.filter((movie) => watched.has(movie.tmdbId)).length;
+  const watchedFilms = useWatchedFilms();
+  const watched = watchedFilms.data ?? new Set<number>();
+  const { list } = props;
 
   return (
     <>
-      {diary.isSuccess && props.movies.length > 0 && (
+      {list.watchedCount !== null && list.movieCount > 0 && (
         <p className="mt-6 text-sm text-haze">
-          You have watched <span className="font-semibold text-screen">{seen}</span> of {props.movies.length}.
+          You have watched <span className="font-semibold text-screen">{list.watchedCount}</span> of {list.movieCount}.
         </p>
       )}
       <MovieGrid {...props} watched={watched} />
@@ -243,10 +244,15 @@ export function ListPage() {
         <Loading label="Loading films" />
       ) : movies.isError ? (
         <ErrorMessage error={movies.error} retry={() => movies.refetch()} />
-      ) : user ? (
-        <WatchedMovieGrid list={list} movies={movies.data} owner={owner} />
       ) : (
-        <MovieGrid list={list} movies={movies.data} owner={false} watched={new Set()} />
+        <>
+          {user ? (
+            <WatchedMovieGrid list={list} movies={pageItems(movies.data)} owner={owner} />
+          ) : (
+            <MovieGrid list={list} movies={pageItems(movies.data)} owner={false} watched={new Set()} />
+          )}
+          <LoadMore query={movies} what="films" />
+        </>
       )}
     </article>
   );

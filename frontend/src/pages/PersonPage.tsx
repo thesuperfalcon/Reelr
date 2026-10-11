@@ -4,7 +4,7 @@ import { useAuth } from "../auth/auth-context";
 import { Poster } from "../components/Poster";
 import { ErrorMessage, Loading } from "../components/Status";
 import { ApiError } from "../lib/api";
-import { useDiary, usePersonDetails } from "../lib/queries";
+import { usePersonDetails, useWatchedFilms } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { PersonCredit, PersonDetails, SearchMovie } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
@@ -326,8 +326,8 @@ export function PersonPage() {
   const personId = Number(useParams().personId);
   const { user } = useAuth();
   const details = usePersonDetails(personId);
-  // The diary marks films the logged-in user has seen.
-  const diary = useDiary(user !== null);
+  // Marks films the logged-in user has seen.
+  const watchedFilms = useWatchedFilms(user !== null);
 
   if (!Number.isInteger(personId) || personId <= 0 || (details.error instanceof ApiError && details.error.status === 404)) {
     return <NotFoundPage />;
@@ -351,7 +351,7 @@ export function PersonPage() {
 
   const person = details.data;
   const photo = tmdbImage(person.profilePath, "w500");
-  const watched = new Set(user ? (diary.data ?? []).map((entry) => entry.tmdbId) : []);
+  const watched = (user && watchedFilms.data) || new Set<number>();
   const films = new Set(person.credits.filter((c) => c.department !== "Appearances").map((c) => c.tmdbId));
   const watchedCount = [...films].filter((id) => watched.has(id)).length;
 
@@ -370,7 +370,7 @@ export function PersonPage() {
           {person.knownForDepartment && <p className="text-sm text-projector">{person.knownForDepartment}</p>}
           <h1 className="marquee mt-3 text-6xl sm:text-8xl">{person.name}</h1>
 
-          {user && films.size > 0 && diary.isSuccess && (
+          {user && films.size > 0 && watchedFilms.isSuccess && (
             <p className="mt-4 text-sm text-haze">
               You have watched <span className="font-semibold text-screen">{watchedCount}</span> of {films.size}{" "}
               {films.size === 1 ? "film" : "films"}.

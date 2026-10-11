@@ -127,7 +127,7 @@ public class StatusControllerTests : IClassFixture<ReelrApiFactory>
         await MarkWatchedAsync(alice.Client, secondId, liked: true);
         await MarkWatchedAsync(bob.Client, bobsId);
 
-        var watched = await alice.Client.GetFromJsonAsync<List<WatchedMovieResponse>>("/api/watched");
+        var watched = await alice.Client.GetItemsAsync<WatchedMovieResponse>("/api/watched");
 
         Assert.NotNull(watched);
         Assert.Equal([secondId, firstId], watched.Select(w => w.TmdbId));
@@ -141,7 +141,7 @@ public class StatusControllerTests : IClassFixture<ReelrApiFactory>
     {
         var user = await _factory.CreateAuthenticatedAsync();
 
-        var watched = await user.Client.GetFromJsonAsync<List<WatchedMovieResponse>>("/api/watched");
+        var watched = await user.Client.GetItemsAsync<WatchedMovieResponse>("/api/watched");
 
         Assert.Empty(watched!);
     }

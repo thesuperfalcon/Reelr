@@ -36,12 +36,12 @@ namespace backend.Features.Movies
             movie = new Movie
             {
                 TmdbId = tmdbId,
-                Title = tmdbMovie.Title ?? string.Empty,
-                Description = tmdbMovie.Overview,
+                Title = Cut(tmdbMovie.Title ?? string.Empty, Movie.TitleMaxLength),
+                Description = tmdbMovie.Overview == null ? null : Cut(tmdbMovie.Overview, Movie.DescriptionMaxLength),
                 ReleaseDate = DateOnly.TryParse(tmdbMovie.ReleaseDate, out var releaseDate) ? releaseDate : null,
                 Runtime = tmdbMovie.Runtime,
-                PosterUrl = tmdbMovie.PosterPath,
-                BackdropUrl = tmdbMovie.BackdropPath
+                PosterUrl = ImagePath(tmdbMovie.PosterPath),
+                BackdropUrl = ImagePath(tmdbMovie.BackdropPath)
             };
 
             _context.Movies.Add(movie);
@@ -60,5 +60,12 @@ namespace backend.Features.Movies
                     ?? throw new InvalidOperationException($"Could not store movie {tmdbId}.");
             }
         }
+
+        private static string Cut(string text, int maxLength) =>
+            text.Length <= maxLength ? text : text[..maxLength];
+
+        // A shortened path would point at the wrong image, so one that does not fit is left out.
+        private static string? ImagePath(string? path) =>
+            path != null && path.Length <= Movie.ImagePathMaxLength ? path : null;
     }
 }

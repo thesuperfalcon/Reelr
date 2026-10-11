@@ -6,11 +6,11 @@ namespace backend.Features.MovieLists.DTOs
     public class UpdateMovieListDto
     {
         [DefaultValue(null)]
-        [MinLength(1), MaxLength(100)]
+        [MinLength(1), MaxLength(MovieList.NameMaxLength)]
         public string? Name { get; set; }
 
         [DefaultValue(null)]
-        [MaxLength(1000)]
+        [MaxLength(MovieList.DescriptionMaxLength)]
         public string? Description { get; set; }
 
         [DefaultValue(null)]
