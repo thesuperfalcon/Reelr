@@ -35,7 +35,7 @@ public class TmdbResilienceTests : IClassFixture<ReelrApiFactory>
 
         await _client.GetAsync("/api/person/search?query=secret-search-text");
 
-        Assert.Contains(_factory.Logs.Entries, e => e.Message.Contains("TMDB request search/person failed"));
+        Assert.Contains(_factory.Logs.Entries, e => Equals(e.State.GetValueOrDefault("Path"), "search/person"));
         Assert.DoesNotContain(_factory.Logs.Entries, e => e.Message.Contains("secret-search-text"));
     }
 

@@ -14,6 +14,27 @@ public sealed class TestLogs : ILoggerProvider
 
     public ILogger CreateLogger(string categoryName) => new Logger(categoryName, _entries);
 
+    /// <summary>
+    /// Waits briefly for matching entries. Some lines, such as the request log, are written just after
+    /// the response has gone back to the test.
+    /// </summary>
+    public async Task<List<LogEntry>> WaitForAsync(Func<LogEntry, bool> match, int atLeast = 1)
+    {
+        for (var attempt = 0; attempt < 50; attempt++)
+        {
+            var found = Entries.Where(match).ToList();
+
+            if (found.Count >= atLeast)
+            {
+                return found;
+            }
+
+            await Task.Delay(20);
+        }
+
+        return Entries.Where(match).ToList();
+    }
+
     public void Dispose()
     {
     }

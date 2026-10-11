@@ -5,6 +5,7 @@ using backend.Features.Diary;
 using backend.Features.Email;
 using backend.Features.Moderation;
 using backend.Features.Movies;
+using backend.Features.Observability;
 using backend.Features.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
@@ -18,6 +19,8 @@ using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddAppLogging();
 
 // Required secrets are checked at start-up, so a missing or weak one stops the app
 // instead of failing the first login or the first TMDB request.
@@ -231,6 +234,9 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 // HTTP pipeline
 // First, so the rate limiter, HTTPS redirection and logging see the real client IP and scheme.
 app.UseForwardedHeaders();
+
+// Logs each request once it is done, with the status the later steps set.
+app.UseRequestLogging();
 
 // In Development the developer exception page runs first and still shows the stack trace.
 app.UseExceptionHandler();
