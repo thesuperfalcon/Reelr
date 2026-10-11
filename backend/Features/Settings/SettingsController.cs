@@ -24,6 +24,7 @@ namespace backend.Features.Settings
         private readonly TokenService _tokenService;
         private readonly SecurityStamps _securityStamps;
         private readonly AdminAccess _adminAccess;
+        private readonly SecurityLog _securityLog;
 
         public SettingsController(
             ReelrContext context,
@@ -31,7 +32,8 @@ namespace backend.Features.Settings
             SignInManager<User> signInManager,
             TokenService tokenService,
             SecurityStamps securityStamps,
-            AdminAccess adminAccess)
+            AdminAccess adminAccess,
+            SecurityLog securityLog)
         {
             _context = context;
             _userManager = userManager;
@@ -39,6 +41,7 @@ namespace backend.Features.Settings
             _tokenService = tokenService;
             _securityStamps = securityStamps;
             _adminAccess = adminAccess;
+            _securityLog = securityLog;
         }
 
         [HttpGet]
@@ -76,6 +79,7 @@ namespace backend.Features.Settings
                 // A rename changes the security stamp, which revokes the old token; the new one carries the new stamp.
                 _securityStamps.Forget(user.Id);
                 result.Token = _tokenService.CreateToken(user);
+                _securityLog.UsernameChanged(user.Id);
             }
 
             if (dto.WatchlistVisibility is WatchlistVisibility visibility)
@@ -132,6 +136,7 @@ namespace backend.Features.Settings
 
             if (!passwordCheck.Succeeded)
             {
+                _securityLog.PasswordChangeRefused(user.Id);
                 ModelState.AddModelError(nameof(dto.CurrentPassword), "The current password is incorrect.");
                 return ValidationProblem(ModelState);
             }
@@ -145,6 +150,7 @@ namespace backend.Features.Settings
 
             // The change revoked every token, including the one used here, so this device gets a new one.
             _securityStamps.Forget(user.Id);
+            _securityLog.PasswordChanged(user.Id);
             return Ok(new TokenDto { Token = _tokenService.CreateToken(user) });
         }
 
@@ -198,6 +204,7 @@ namespace backend.Features.Settings
 
             await _userManager.UpdateSecurityStampAsync(user);
             _securityStamps.Forget(user.Id);
+            _securityLog.SignedOutEverywhere(user.Id);
 
             return NoContent();
         }

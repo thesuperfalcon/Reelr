@@ -19,6 +19,7 @@ public class AuthController : ControllerBase
     private readonly LoginThrottle _loginThrottle;
     private readonly AccountEmails _accountEmails;
     private readonly SecurityStamps _securityStamps;
+    private readonly SecurityLog _securityLog;
 
     public AuthController(
         UserManager<User> userManager,
@@ -26,7 +27,8 @@ public class AuthController : ControllerBase
         TokenService tokenService,
         LoginThrottle loginThrottle,
         AccountEmails accountEmails,
-        SecurityStamps securityStamps)
+        SecurityStamps securityStamps,
+        SecurityLog securityLog)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -34,6 +36,7 @@ public class AuthController : ControllerBase
         _loginThrottle = loginThrottle;
         _accountEmails = accountEmails;
         _securityStamps = securityStamps;
+        _securityLog = securityLog;
     }
 
     [HttpPost("register")]
@@ -80,11 +83,13 @@ public class AuthController : ControllerBase
             // A new account hashes the password; doing the same here keeps the response time alike.
             _userManager.PasswordHasher.HashPassword(user, dto.Password);
             _accountEmails.SendAlreadyRegistered(dto.Email);
+            _securityLog.RegisteredWithTakenEmail();
 
             return Accepted(new { message = CheckYourEmail });
         }
 
         await _accountEmails.SendConfirmationAsync(user);
+        _securityLog.Registered(user.Id);
 
         return Accepted(new { message = CheckYourEmail });
     }
@@ -108,7 +113,13 @@ public class AuthController : ControllerBase
 
         var result = await _userManager.ConfirmEmailAsync(user, dto.Token);
 
-        return result.Succeeded ? NoContent() : InvalidLink();
+        if (!result.Succeeded)
+        {
+            return InvalidLink();
+        }
+
+        _securityLog.EmailConfirmed(user.Id);
+        return NoContent();
     }
 
     [HttpPost("resend-confirmation")]
@@ -136,6 +147,7 @@ public class AuthController : ControllerBase
         if (user != null)
         {
             await _accountEmails.SendPasswordResetAsync(user);
+            _securityLog.PasswordResetRequested(user.Id);
         }
 
         return Accepted(new { message = CheckYourEmail });
@@ -169,6 +181,7 @@ public class AuthController : ControllerBase
         user.LockoutEnd = null;
         user.AccessFailedCount = 0;
         await _userManager.UpdateAsync(user);
+        _securityLog.PasswordReset(user.Id);
 
         return NoContent();
     }
@@ -191,6 +204,7 @@ public class AuthController : ControllerBase
 
         if (_loginThrottle.IsBlocked(account, address))
         {
+            _securityLog.LoginFailed(user?.Id, LoginFailure.Throttled);
             Response.Headers.RetryAfter = ((int)_loginThrottle.Window.TotalSeconds).ToString();
             return Problem(
                 statusCode: StatusCodes.Status429TooManyRequests,
@@ -203,6 +217,7 @@ public class AuthController : ControllerBase
             // Otherwise the response time would tell which email addresses have an account.
             _userManager.PasswordHasher.VerifyHashedPassword(new User(), GetDummyHash(), dto.Password);
             _loginThrottle.RecordFailure(account, address);
+            _securityLog.LoginFailed(null, LoginFailure.UnknownAccount);
             return Unauthorized();
         }
 
@@ -213,6 +228,7 @@ public class AuthController : ControllerBase
         if (!result.Succeeded)
         {
             _loginThrottle.RecordFailure(account, address);
+            _securityLog.LoginFailed(user.Id, result.IsLockedOut ? LoginFailure.LockedOut : LoginFailure.WrongPassword);
             return Unauthorized();
         }
 
@@ -221,6 +237,7 @@ public class AuthController : ControllerBase
         // Checked only after the right password, so it does not reveal unconfirmed accounts to anyone else.
         if (!user.EmailConfirmed)
         {
+            _securityLog.LoginFailed(user.Id, LoginFailure.EmailNotConfirmed);
             return Problem(
                 statusCode: StatusCodes.Status403Forbidden,
                 title: "Confirm your email address first. The link is in the email we sent when you signed up.",
@@ -228,6 +245,7 @@ public class AuthController : ControllerBase
         }
 
         var token = _tokenService.CreateToken(user);
+        _securityLog.LoginSucceeded(user.Id);
 
         return Ok(new { token });
     }

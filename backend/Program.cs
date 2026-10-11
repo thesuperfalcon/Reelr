@@ -95,6 +95,7 @@ builder.Services.AddSingleton<EmailQueue>();
 builder.Services.AddHostedService<EmailDispatcher>();
 builder.Services.AddScoped<AccountEmails>();
 builder.Services.AddSingleton<SecurityStamps>();
+builder.Services.AddSingleton<SecurityLog>();
 
 // Admins are configured by user id under "Admin:UserIds" (see AdminAccess).
 var adminAccess = new AdminAccess(builder.Configuration);
