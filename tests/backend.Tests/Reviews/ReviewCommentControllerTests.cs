@@ -32,7 +32,7 @@ public class ReviewCommentControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     private Task<List<ReviewCommentDto>?> GetCommentsAsync(int reviewId) =>
-        _factory.CreateClient().GetFromJsonAsync<List<ReviewCommentDto>>($"/api/reviews/{reviewId}/comments");
+        _factory.CreateClient().GetItemsAsync<ReviewCommentDto>($"/api/reviews/{reviewId}/comments");
 
     [Fact]
     public async Task CreateComment_WithoutToken_Returns401()

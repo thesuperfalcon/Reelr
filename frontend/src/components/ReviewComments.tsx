@@ -5,6 +5,7 @@ import { ReportButton } from "./ReportButton";
 import { fullFormat, timeAgo } from "../lib/activity";
 import {
   COMMENT_MAX_LENGTH,
+  pageItems,
   useAddComment,
   useDeleteComment,
   useReviewComments,
@@ -12,6 +13,7 @@ import {
 } from "../lib/queries";
 import type { Review, ReviewComment } from "../lib/types";
 import { FormError } from "./Form";
+import { LoadMore } from "./LoadMore";
 import { ErrorMessage, Loading } from "./Status";
 import { UserLink } from "./UserAvatar";
 
@@ -184,6 +186,7 @@ export function ReviewComments({ review }: { review: Review }) {
   const sectionRef = useRef<HTMLElement>(null);
   const { hash } = useLocation();
   const loaded = comments.isSuccess;
+  const items = pageItems(comments.data);
 
   // Links to "#comments" land here once the thread has loaded and the page has its full height.
   useEffect(() => {
@@ -196,23 +199,24 @@ export function ReviewComments({ review }: { review: Review }) {
     <section ref={sectionRef} id="comments" aria-labelledby="comments-title" className="mt-12 scroll-mt-24">
       <h2 id="comments-title" className="marquee text-3xl">
         Comments
-        {comments.data && comments.data.length > 0 && (
-          <span className="ml-2 text-xl text-haze">{comments.data.length}</span>
-        )}
+        {review.commentCount > 0 && <span className="ml-2 text-xl text-haze">{review.commentCount}</span>}
       </h2>
 
       {comments.isPending ? (
         <Loading label="Loading comments" />
       ) : comments.isError ? (
         <ErrorMessage error={comments.error} retry={() => comments.refetch()} />
-      ) : comments.data.length === 0 ? (
+      ) : items.length === 0 ? (
         <p className="py-4 text-haze">No comments yet.</p>
       ) : (
-        <ol className="mt-2 divide-y divide-white/5">
-          {comments.data.map((comment) => (
-            <CommentItem key={comment.id} comment={comment} reviewAuthorId={review.userId} />
-          ))}
-        </ol>
+        <>
+          <ol className="mt-2 divide-y divide-white/5">
+            {items.map((comment) => (
+              <CommentItem key={comment.id} comment={comment} reviewAuthorId={review.userId} />
+            ))}
+          </ol>
+          <LoadMore query={comments} what="comments" />
+        </>
       )}
 
       <div className="mt-4 border-t border-white/5 pt-6">

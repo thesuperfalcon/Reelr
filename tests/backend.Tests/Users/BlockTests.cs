@@ -78,8 +78,8 @@ public class BlockTests : IClassFixture<ReelrApiFactory>
 
         async Task<bool> SeesBob()
         {
-            var reviews = (await alice.Client.GetFromJsonAsync<List<ReviewDto>>($"/api/movies/{tmdbId}/reviews"))!;
-            var comments = (await alice.Client.GetFromJsonAsync<List<ReviewCommentDto>>($"/api/reviews/{carolsReview.Id}/comments"))!;
+            var reviews = (await alice.Client.GetItemsAsync<ReviewDto>($"/api/movies/{tmdbId}/reviews"))!;
+            var comments = (await alice.Client.GetItemsAsync<ReviewCommentDto>($"/api/reviews/{carolsReview.Id}/comments"))!;
             var feed = (await alice.Client.GetFromJsonAsync<ActivityPageDto>("/api/feed/community"))!;
             var seen = new[]
             {
@@ -93,7 +93,7 @@ public class BlockTests : IClassFixture<ReelrApiFactory>
 
         Assert.False(await SeesBob());
         // Others still see Bob.
-        Assert.Contains((await carol.Client.GetFromJsonAsync<List<ReviewDto>>($"/api/movies/{tmdbId}/reviews"))!, r => r.UserId == bob.Id);
+        Assert.Contains((await carol.Client.GetItemsAsync<ReviewDto>($"/api/movies/{tmdbId}/reviews"))!, r => r.UserId == bob.Id);
 
         Assert.Single((await alice.Client.GetFromJsonAsync<List<UserSummaryDto>>("/api/settings/blocked"))!, u => u.Id == bob.Id);
         Assert.Equal(HttpStatusCode.NoContent, (await alice.Client.DeleteAsync($"/api/users/{bob.Id}/block")).StatusCode);

@@ -8,6 +8,9 @@ namespace backend.Features.Users
         public const int UserNameMinLength = 3;
         public const int UserNameMaxLength = 50;
 
+        public const int ProfileImageUrlMaxLength = 200;
+
+        // A link to the user's avatar endpoint, set when they upload a picture.
         public string? ProfileImageUrl { get; set; }
 
         public WatchlistVisibility WatchlistVisibility { get; set; } = WatchlistVisibility.Followers;

@@ -2,6 +2,9 @@ namespace backend.Features.MovieLists
 {
     public class MovieList
     {
+        public const int NameMaxLength = 100;
+        public const int DescriptionMaxLength = 1000;
+
         public int Id { get; set; }
 
         public int UserId { get; set; }

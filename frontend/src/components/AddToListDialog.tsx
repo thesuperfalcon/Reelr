@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { useListsContaining, useMyLists, useSaveMovieList, useToggleListMovie } from "../lib/queries";
+import { pageItems, useListsContaining, useMyLists, useSaveMovieList, useToggleListMovie } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { MovieDetails } from "../lib/types";
 import { LockIcon } from "./ListCard";
+import { LoadMore } from "./LoadMore";
 import { ErrorMessage, Loading } from "./Status";
 
 interface AddToListDialogProps {
@@ -103,47 +104,50 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
           <ErrorMessage error={lists.error} retry={() => lists.refetch()} />
         ) : containing.isError ? (
           <ErrorMessage error={containing.error} retry={() => containing.refetch()} />
-        ) : lists.data.length === 0 ? (
+        ) : pageItems(lists.data).length === 0 ? (
           <p className="py-6 text-sm text-haze">You have no lists yet. Name one above to start.</p>
         ) : (
-          <ul className="mt-4 max-h-80 divide-y divide-white/5 overflow-y-auto">
-            {lists.data.map((list) => {
-              const inList = inLists.has(list.id);
-              const busy = toggle.isPending && toggle.variables?.listId === list.id;
-              return (
-                <li key={list.id}>
-                  <button
-                    type="button"
-                    aria-pressed={inList}
-                    disabled={busy}
-                    onClick={() => toggle.mutate({ listId: list.id, tmdbId: movie.id, inList })}
-                    className="flex w-full items-center gap-3 px-1 py-3 text-left transition hover:bg-row-raised disabled:opacity-50"
-                  >
-                    <span
-                      className={`flex size-5 shrink-0 items-center justify-center rounded-sm ring-1 ${
-                        inList ? "bg-projector text-salon ring-projector" : "ring-white/30"
-                      }`}
-                      aria-hidden="true"
+          <div className="mt-4 max-h-80 overflow-y-auto">
+            <ul className="divide-y divide-white/5">
+              {pageItems(lists.data).map((list) => {
+                const inList = inLists.has(list.id);
+                const busy = toggle.isPending && toggle.variables?.listId === list.id;
+                return (
+                  <li key={list.id}>
+                    <button
+                      type="button"
+                      aria-pressed={inList}
+                      disabled={busy}
+                      onClick={() => toggle.mutate({ listId: list.id, tmdbId: movie.id, inList })}
+                      className="flex w-full items-center gap-3 px-1 py-3 text-left transition hover:bg-row-raised disabled:opacity-50"
                     >
-                      {inList && (
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
-                          <path d="M5 12l5 5 9-10" />
-                        </svg>
-                      )}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate font-medium">{list.name}</span>
-                    {!list.isPublic && (
-                      <span className="text-haze" title="Private list">
-                        <LockIcon />
-                        <span className="sr-only">(private)</span>
+                      <span
+                        className={`flex size-5 shrink-0 items-center justify-center rounded-sm ring-1 ${
+                          inList ? "bg-projector text-salon ring-projector" : "ring-white/30"
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {inList && (
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
+                            <path d="M5 12l5 5 9-10" />
+                          </svg>
+                        )}
                       </span>
-                    )}
-                    <span className="shrink-0 text-sm text-haze tabular-nums">{list.movieCount}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                      <span className="min-w-0 flex-1 truncate font-medium">{list.name}</span>
+                      {!list.isPublic && (
+                        <span className="text-haze" title="Private list">
+                          <LockIcon />
+                          <span className="sr-only">(private)</span>
+                        </span>
+                      )}
+                      <span className="shrink-0 text-sm text-haze tabular-nums">{list.movieCount}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <LoadMore query={lists} what="lists" />
+          </div>
         )}
 
         {error && (

@@ -61,7 +61,7 @@ public class DiaryVisibilityTests : IClassFixture<ReelrApiFactory>
             }
 
             response.EnsureSuccessStatusCode();
-            Assert.Single((await response.Content.ReadFromJsonAsync<List<DiaryEntryDto>>())!);
+            Assert.Single((await response.Content.ReadItemsAsync<DiaryEntryDto>())!);
             return true;
         }
 

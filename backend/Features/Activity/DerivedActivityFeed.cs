@@ -64,7 +64,6 @@ namespace backend.Features.Activity
         public Task<ActivityPageDto> GetCommunityAsync(int? viewerId, ActivityCursor? before, int limit, IReadOnlySet<string>? types = null)
         {
             var since = DateTime.UtcNow.AddDays(-_options.CommunityDays);
-            var backdatedDays = _options.BackdatedDays;
             var blocked = _context.BlockedBy(viewerId);
 
             // Only what is meant for everyone: fresh logs, reviews and public lists that hold films.
@@ -75,7 +74,7 @@ namespace backend.Features.Activity
                     d.UserId != viewerId
                     && !blocked.Contains(d.UserId)
                     && d.User.DiaryVisibility == DiaryVisibility.Public
-                    && d.LoggedAt <= d.WatchedAt.AddDays(backdatedDays)))),
+                    && !d.IsBackdated))),
                 (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r => r.UserId != viewerId && !blocked.Contains(r.UserId)))),
                 (ActivityTypes.ListCreated, ListCreatedRank, ListsCreated(_context.MovieLists.Where(l =>
                     l.IsPublic && l.UserId != viewerId && !blocked.Contains(l.UserId) && l.Items.Any())))
@@ -180,7 +179,7 @@ namespace backend.Features.Activity
                 Type = ActivityTypes.Reviewed,
                 Rank = ReviewedRank,
                 Key = r.Id,
-                OccurredAt = r.DiaryEntry != null ? r.DiaryEntry.LoggedAt : r.CreatedAt,
+                OccurredAt = r.ActivityAt,
                 ActorId = r.UserId,
                 ActorName = r.User.UserName,
                 ActorAvatar = r.User.ProfileImageUrl,

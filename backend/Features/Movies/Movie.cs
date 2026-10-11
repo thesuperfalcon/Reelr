@@ -2,6 +2,11 @@ namespace backend.Features.Movies
 {
     public class Movie
     {
+        // Column sizes. Film data comes from TMDB, so MovieCatalog cuts longer values to fit.
+        public const int TitleMaxLength = 500;
+        public const int DescriptionMaxLength = 4000;
+        public const int ImagePathMaxLength = 300;
+
         public int Id { get; set; }
 
         public int TmdbId { get; set; }

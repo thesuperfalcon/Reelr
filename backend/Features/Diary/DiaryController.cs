@@ -2,6 +2,7 @@ using backend.Data;
 using backend.Features.Auth;
 using backend.Features.Diary.DTOs;
 using backend.Features.Movies;
+using backend.Features.Paging;
 using backend.Features.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,18 +26,31 @@ namespace backend.Features.Diary
         }
 
         [HttpGet("api/watched")]
-        [EndpointSummary("Get the current user's diary, newest entry first")]
-        public async Task<ActionResult<List<DiaryEntryDto>>> GetDiary()
+        [EndpointSummary("Get the current user's diary, newest entry first, one page at a time")]
+        public async Task<ActionResult<PageDto<DiaryEntryDto>>> GetDiary([FromQuery] PageQuery page)
         {
             var userId = User.GetUserId();
 
-            return Ok(await GetEntries(userId));
+            return Ok(await GetEntries(userId, page));
+        }
+
+        [HttpGet("api/watched/films")]
+        [EndpointSummary("Get the TMDB ids of every film the current user has watched")]
+        public async Task<ActionResult<List<int>>> GetWatchedFilms()
+        {
+            var userId = User.GetUserId();
+
+            // One number per film, so pages can mark watched films without reading the whole diary.
+            return Ok(await _context.WatchedMovies
+                .Where(w => w.UserId == userId)
+                .Select(w => w.Movie.TmdbId)
+                .ToListAsync());
         }
 
         [AllowAnonymous]
         [HttpGet("api/users/{userId:int}/diary")]
         [EndpointSummary("Get a user's diary, newest entry first, if their diary visibility allows the caller to see it")]
-        public async Task<ActionResult<List<DiaryEntryDto>>> GetUserDiary(int userId)
+        public async Task<ActionResult<PageDto<DiaryEntryDto>>> GetUserDiary(int userId, [FromQuery] PageQuery page)
         {
             // A hidden diary answers like a missing user, so it does not reveal that it exists.
             if (await _context.CanSeeDiaryAsync(User.FindUserId(), userId) != true)
@@ -44,14 +58,24 @@ namespace backend.Features.Diary
                 return NotFound();
             }
 
-            return Ok(await GetEntries(userId));
+            return Ok(await GetEntries(userId, page));
         }
 
-        private Task<List<DiaryEntryDto>> GetEntries(int userId) =>
-            _context.DiaryEntries
-                .Where(d => d.UserId == userId)
+        private async Task<PageDto<DiaryEntryDto>> GetEntries(int userId, PageQuery page)
+        {
+            var entries = _context.DiaryEntries.Where(d => d.UserId == userId);
+
+            if (page.After is PageCursor after)
+            {
+                var at = after.At;
+                var id = after.Id;
+                entries = entries.Where(d => d.WatchedAt < at || (d.WatchedAt == at && d.Id < id));
+            }
+
+            var rows = await entries
                 .OrderByDescending(d => d.WatchedAt)
                 .ThenByDescending(d => d.Id)
+                .Take(page.Limit + 1)
                 .Select(d => new DiaryEntryDto
                 {
                     Id = d.Id,
@@ -65,6 +89,9 @@ namespace backend.Features.Diary
                     WatchedAt = d.WatchedAt
                 })
                 .ToListAsync();
+
+            return PageDto.From(rows, page.Limit, e => new PageCursor(e.WatchedAt, e.Id));
+        }
 
         [HttpPost("api/movies/{tmdbId:int}/diary")]
         [EndpointSummary("Save rating, status and review for a movie and log it as one diary entry")]

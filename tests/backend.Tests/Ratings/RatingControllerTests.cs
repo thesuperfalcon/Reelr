@@ -187,7 +187,7 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
 
         await RateAsync(user.Client, tmdbId, 3.5m);
 
-        var diary = await user.Client.GetFromJsonAsync<List<DiaryEntryResponse>>("/api/watched");
+        var diary = await user.Client.GetItemsAsync<DiaryEntryResponse>("/api/watched");
         var entry = Assert.Single(diary!);
         Assert.Equal(tmdbId, entry.TmdbId);
         Assert.Equal(3.5m, entry.Rating);
@@ -203,7 +203,7 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
         var response = await user.Client.PutAsJsonAsync(RatingUrl(tmdbId), new UpdateRatingDto { Score = 4.5m });
         response.EnsureSuccessStatusCode();
 
-        var diary = await user.Client.GetFromJsonAsync<List<DiaryEntryResponse>>("/api/watched");
+        var diary = await user.Client.GetItemsAsync<DiaryEntryResponse>("/api/watched");
         Assert.Equal([4.5m, 2m], diary!.Select(d => d.Rating));
     }
 
@@ -217,7 +217,7 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
 
         await RateAsync(user.Client, tmdbId, 5);
 
-        var diary = await user.Client.GetFromJsonAsync<List<DiaryEntryResponse>>("/api/watched");
+        var diary = await user.Client.GetItemsAsync<DiaryEntryResponse>("/api/watched");
         Assert.Equal([5m, null], diary!.Select(d => d.Rating));
     }
 
@@ -230,7 +230,7 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
 
         (await user.Client.DeleteAsync(RatingUrl(tmdbId))).EnsureSuccessStatusCode();
 
-        var diary = await user.Client.GetFromJsonAsync<List<DiaryEntryResponse>>("/api/watched");
+        var diary = await user.Client.GetItemsAsync<DiaryEntryResponse>("/api/watched");
         Assert.Equal(3m, Assert.Single(diary!).Rating);
     }
 

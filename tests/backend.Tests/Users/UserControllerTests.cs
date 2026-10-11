@@ -164,7 +164,7 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
         var response = await user.Client.DeleteAccountAsync(user.Id);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        var reviews = await _factory.CreateClient().GetFromJsonAsync<List<ReviewDto>>($"/api/movies/{tmdbId}/reviews");
+        var reviews = await _factory.CreateClient().GetItemsAsync<ReviewDto>($"/api/movies/{tmdbId}/reviews");
         Assert.DoesNotContain(reviews!, r => r.UserId == user.Id);
     }
 
@@ -306,7 +306,7 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
         await FollowAsync(bob, target);
 
         var followers = await _factory.CreateClient()
-            .GetFromJsonAsync<List<UserSummaryDto>>($"/api/users/{target.Id}/followers");
+            .GetItemsAsync<UserSummaryDto>($"/api/users/{target.Id}/followers");
 
         Assert.NotNull(followers);
         Assert.Equal(
@@ -325,7 +325,7 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
         await FollowAsync(follower, user);
 
         var following = await _factory.CreateClient()
-            .GetFromJsonAsync<List<UserSummaryDto>>($"/api/users/{user.Id}/following");
+            .GetItemsAsync<UserSummaryDto>($"/api/users/{user.Id}/following");
 
         var only = Assert.Single(following!);
         Assert.Equal(followed.Id, only.Id);
@@ -338,7 +338,7 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
         var user = await _factory.CreateAuthenticatedAsync();
 
         var followers = await _factory.CreateClient()
-            .GetFromJsonAsync<List<UserSummaryDto>>($"/api/users/{user.Id}/followers");
+            .GetItemsAsync<UserSummaryDto>($"/api/users/{user.Id}/followers");
 
         Assert.Empty(followers!);
     }

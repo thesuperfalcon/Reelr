@@ -58,6 +58,10 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<User>()
+            .Property(u => u.ProfileImageUrl)
+            .HasMaxLength(User.ProfileImageUrlMaxLength);
+
         // UserAvatar: one per user, removed with the user.
         modelBuilder.Entity<UserAvatar>(avatar =>
         {
@@ -70,9 +74,14 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
         });
 
         // Movie
-        modelBuilder.Entity<Movie>()
-            .HasIndex(m => m.TmdbId)
-            .IsUnique();
+        modelBuilder.Entity<Movie>(movie =>
+        {
+            movie.HasIndex(m => m.TmdbId).IsUnique();
+            movie.Property(m => m.Title).HasMaxLength(Movie.TitleMaxLength);
+            movie.Property(m => m.Description).HasMaxLength(Movie.DescriptionMaxLength);
+            movie.Property(m => m.PosterUrl).HasMaxLength(Movie.ImagePathMaxLength);
+            movie.Property(m => m.BackdropUrl).HasMaxLength(Movie.ImagePathMaxLength);
+        });
 
         // WatchedMovie
         modelBuilder.Entity<WatchedMovie>()
@@ -94,9 +103,18 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
         modelBuilder.Entity<DiaryEntry>()
             .HasIndex(d => new { d.UserId, d.WatchedAt });
 
-        // Activity feed: newest logs overall, and newest logs per user.
+        // The community feed reads the newest logs that are not back-dated; the column is computed and stored,
+        // so the filter and the order both come from this index.
         modelBuilder.Entity<DiaryEntry>()
-            .HasIndex(d => d.LoggedAt);
+            .Property(d => d.IsBackdated)
+            .HasComputedColumnSql(
+                $"CAST(CASE WHEN [LoggedAt] > DATEADD(day, {DiaryEntry.BackdatedDays}, [WatchedAt]) THEN 1 ELSE 0 END AS bit)",
+                stored: true);
+
+        modelBuilder.Entity<DiaryEntry>()
+            .HasIndex(d => new { d.IsBackdated, d.LoggedAt });
+
+        // The following feed: newest logs per user.
 
         modelBuilder.Entity<DiaryEntry>()
             .HasIndex(d => new { d.UserId, d.LoggedAt });
@@ -105,6 +123,9 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
             .Property(d => d.Rating)
             .HasPrecision(2, 1);
 
+        modelBuilder.Entity<DiaryEntry>()
+            .ToTable(t => t.HasCheckConstraint("CK_DiaryEntries_Rating", $"[Rating] IS NULL OR ({HalfStars("[Rating]")})"));
+
         // Rating
         modelBuilder.Entity<Rating>()
             .HasKey(r => new { r.UserId, r.MovieId });
@@ -112,6 +133,9 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
         modelBuilder.Entity<Rating>()
             .Property(r => r.Score)
             .HasPrecision(2, 1);
+
+        modelBuilder.Entity<Rating>()
+            .ToTable(t => t.HasCheckConstraint("CK_Ratings_Score", HalfStars("[Score]")));
 
         // WatchlistItem
         modelBuilder.Entity<WatchlistItem>()
@@ -125,11 +149,23 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
             .HasIndex(r => new { r.UserId, r.MovieId })
             .IsUnique();
 
+        // Longer than 4000 characters is stored as nvarchar(max), so a check holds the limit.
         modelBuilder.Entity<Review>()
-            .HasIndex(r => r.CreatedAt);
+            .ToTable(t => t.HasCheckConstraint("CK_Reviews_Text", $"LEN([Text]) <= {Review.MaxLength}"));
+
+        // Reviews of a film and reviews by a user, newest first.
+        modelBuilder.Entity<Review>()
+            .HasIndex(r => new { r.MovieId, r.CreatedAt });
 
         modelBuilder.Entity<Review>()
             .HasIndex(r => new { r.UserId, r.CreatedAt });
+
+        // The activity feed: newest reviews overall, and newest reviews per user.
+        modelBuilder.Entity<Review>()
+            .HasIndex(r => r.ActivityAt);
+
+        modelBuilder.Entity<Review>()
+            .HasIndex(r => new { r.UserId, r.ActivityAt });
 
         // No database cascade: SQL Server rejects a second cascade path from users to reviews.
         // DiaryExtensions.DeleteDiaryEntriesAsync removes the linked review in code instead.
@@ -153,6 +189,7 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
                 .HasForeignKey(l => l.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
             like.HasIndex(l => l.UserId);
+            like.HasIndex(l => new { l.ReviewId, l.CreatedAt });
         });
 
         modelBuilder.Entity<ReviewComment>(comment =>
@@ -170,9 +207,12 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
             comment.HasIndex(c => c.UserId);
         });
 
-        // Follow
+        // Follow: nobody follows themselves.
         modelBuilder.Entity<Follow>()
             .HasKey(f => new { f.FollowerId, f.FollowedId });
+
+        modelBuilder.Entity<Follow>()
+            .ToTable(t => t.HasCheckConstraint("CK_Follows_NotSelf", "[FollowerId] <> [FollowedId]"));
 
         modelBuilder.Entity<Follow>()
             .HasOne(f => f.Follower)
@@ -193,6 +233,7 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
             block.HasOne(b => b.Blocker).WithMany().HasForeignKey(b => b.BlockerId).OnDelete(DeleteBehavior.Restrict);
             block.HasOne(b => b.Blocked).WithMany().HasForeignKey(b => b.BlockedId).OnDelete(DeleteBehavior.Restrict);
             block.HasIndex(b => b.BlockedId);
+            block.ToTable(t => t.HasCheckConstraint("CK_Blocks_NotSelf", "[BlockerId] <> [BlockedId]"));
         });
 
         // Report: goes with the reporter. One open report per reporter and item.
@@ -207,6 +248,12 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
         });
 
         // MovieList
+        modelBuilder.Entity<MovieList>(list =>
+        {
+            list.Property(l => l.Name).HasMaxLength(MovieList.NameMaxLength);
+            list.Property(l => l.Description).HasMaxLength(MovieList.DescriptionMaxLength);
+        });
+
         modelBuilder.Entity<MovieList>()
             .HasOne(l => l.User)
             .WithMany()
@@ -237,5 +284,13 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
 
         modelBuilder.Entity<MovieListItem>()
             .HasIndex(i => i.AddedAt);
+
+        // The films of a list, newest addition first.
+        modelBuilder.Entity<MovieListItem>()
+            .HasIndex(i => new { i.MovieListId, i.AddedAt });
     }
+
+    // A score from half a star to five stars in half steps, the same rule as JournalService.IsHalfStep.
+    private static string HalfStars(string column) =>
+        $"{column} >= 0.5 AND {column} <= 5 AND {column} * 2 = FLOOR({column} * 2)";
 }

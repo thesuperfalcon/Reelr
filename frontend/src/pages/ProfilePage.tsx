@@ -1,4 +1,4 @@
-import type { UseQueryResult } from "@tanstack/react-query";
+import type { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query";
 import { useState } from "react";
 import {
     Link,
@@ -13,6 +13,7 @@ import { DeleteReviewButton } from "../components/DeleteReviewButton";
 import { DiaryEntryDialog } from "../components/DiaryEntryDialog";
 import { ListCard } from "../components/ListCard";
 import { ListFormDialog } from "../components/ListFormDialog";
+import { LoadMore } from "../components/LoadMore";
 import { Poster } from "../components/Poster";
 import { ReviewReactions } from "../components/ReviewReactions";
 import { ReviewText } from "../components/ReviewText";
@@ -22,6 +23,7 @@ import { ErrorMessage, Loading } from "../components/Status";
 import { UserAvatar, UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
 import {
+    pageItems,
     useDiary,
     useFollowList,
     useToggleFollow,
@@ -35,6 +37,7 @@ import {
 import { tmdbImage } from "../lib/tmdb";
 import type {
     DiaryEntry,
+    Page,
     SearchMovie,
     UserProfile,
     WatchlistEntry,
@@ -170,7 +173,7 @@ function Diary({
     diary,
 }: {
     owner: Owner;
-    diary: UseQueryResult<DiaryEntry[]>;
+    diary: UseInfiniteQueryResult<InfiniteData<Page<DiaryEntry>>>;
 }) {
     if (diary.isPending) {
         return <Loading label="Loading diary" />;
@@ -182,7 +185,9 @@ function Diary({
         );
     }
 
-    if (diary.data.length === 0) {
+    const entries = pageItems(diary.data);
+
+    if (entries.length === 0) {
         return (
             <EmptyState owner={owner}>
                 {owner.own
@@ -194,7 +199,7 @@ function Diary({
 
     return (
         <div className="mt-8 space-y-10">
-            {groupByMonth(diary.data).map((group) => (
+            {groupByMonth(entries).map((group) => (
                 <section key={group.month} aria-label={group.month}>
                     <h3 className="marquee text-2xl text-projector">
                         {group.month}
@@ -298,6 +303,7 @@ function Diary({
                     </ol>
                 </section>
             ))}
+            <LoadMore query={diary} what="diary entries" />
         </div>
     );
 }
@@ -324,7 +330,9 @@ function Reviews({ owner }: { owner: Owner }) {
         );
     }
 
-    if (reviews.data.length === 0) {
+    const items = pageItems(reviews.data);
+
+    if (items.length === 0) {
         return (
             <EmptyState owner={owner}>
                 {owner.own
@@ -335,84 +343,87 @@ function Reviews({ owner }: { owner: Owner }) {
     }
 
     return (
-        <ol className="mt-4 divide-y divide-white/5">
-            {reviews.data.map((review) => {
-                const poster = tmdbImage(review.posterUrl, "w185");
-                return (
-                    <li key={review.id} className="flex gap-4 py-6">
-                        <Link
-                            to={`/movie/${review.tmdbId}`}
-                            className="shrink-0 self-start rounded-sm"
-                            tabIndex={-1}
-                        >
-                            {poster ? (
-                                <img
-                                    src={poster}
-                                    alt=""
-                                    loading="lazy"
-                                    className="aspect-[2/3] w-16 rounded-sm object-cover"
-                                />
-                            ) : (
-                                <div
-                                    className="aspect-[2/3] w-16 rounded-sm bg-row"
-                                    aria-hidden="true"
-                                />
-                            )}
-                        </Link>
-
-                        <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                <Link
-                                    to={`/movie/${review.tmdbId}`}
-                                    className="font-medium hover:text-projector"
-                                >
-                                    {review.title}
-                                </Link>
-                                {review.score !== null && (
-                                    <Stars
-                                        score={review.score}
-                                        className="h-3.5"
-                                    />
-                                )}
-                                <Link
-                                    to={`/review/${review.id}`}
-                                    className="text-sm text-haze hover:text-screen hover:underline"
-                                    title="Open review"
-                                >
-                                    <time dateTime={review.createdAt}>
-                                        {reviewDateFormat.format(
-                                            new Date(review.createdAt),
-                                        )}
-                                    </time>
-                                </Link>
-                                {review.updatedAt && (
-                                    <span className="text-sm text-haze">
-                                        (edited)
-                                    </span>
-                                )}
-                                {review.containsSpoilers && <SpoilerTag />}
-                                {owner.own && (
-                                    <DeleteReviewButton
-                                        reviewId={review.id}
-                                        className="ml-auto"
-                                    />
-                                )}
-                            </div>
-                            <SpoilerGate
-                                active={review.containsSpoilers && !owner.own}
-                                className="mt-2"
+        <>
+            <ol className="mt-4 divide-y divide-white/5">
+                {items.map((review) => {
+                    const poster = tmdbImage(review.posterUrl, "w185");
+                    return (
+                        <li key={review.id} className="flex gap-4 py-6">
+                            <Link
+                                to={`/movie/${review.tmdbId}`}
+                                className="shrink-0 self-start rounded-sm"
+                                tabIndex={-1}
                             >
-                                <ReviewText
-                                    text={review.text}
+                                {poster ? (
+                                    <img
+                                        src={poster}
+                                        alt=""
+                                        loading="lazy"
+                                        className="aspect-[2/3] w-16 rounded-sm object-cover"
+                                    />
+                                ) : (
+                                    <div
+                                        className="aspect-[2/3] w-16 rounded-sm bg-row"
+                                        aria-hidden="true"
+                                    />
+                                )}
+                            </Link>
+
+                            <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    <Link
+                                        to={`/movie/${review.tmdbId}`}
+                                        className="font-medium hover:text-projector"
+                                    >
+                                        {review.title}
+                                    </Link>
+                                    {review.score !== null && (
+                                        <Stars
+                                            score={review.score}
+                                            className="h-3.5"
+                                        />
+                                    )}
+                                    <Link
+                                        to={`/review/${review.id}`}
+                                        className="text-sm text-haze hover:text-screen hover:underline"
+                                        title="Open review"
+                                    >
+                                        <time dateTime={review.createdAt}>
+                                            {reviewDateFormat.format(
+                                                new Date(review.createdAt),
+                                            )}
+                                        </time>
+                                    </Link>
+                                    {review.updatedAt && (
+                                        <span className="text-sm text-haze">
+                                            (edited)
+                                        </span>
+                                    )}
+                                    {review.containsSpoilers && <SpoilerTag />}
+                                    {owner.own && (
+                                        <DeleteReviewButton
+                                            reviewId={review.id}
+                                            className="ml-auto"
+                                        />
+                                    )}
+                                </div>
+                                <SpoilerGate
+                                    active={review.containsSpoilers && !owner.own}
                                     className="mt-2"
-                                />
-                            </SpoilerGate>
-                            <ReviewReactions review={review} className="mt-3" />
-                        </div>
-                    </li>
-                );
-            })}
-        </ol>
+                                >
+                                    <ReviewText
+                                        text={review.text}
+                                        className="mt-2"
+                                    />
+                                </SpoilerGate>
+                                <ReviewReactions review={review} className="mt-3" />
+                            </div>
+                        </li>
+                    );
+                })}
+            </ol>
+            <LoadMore query={reviews} what="reviews" />
+        </>
     );
 }
 
@@ -428,7 +439,7 @@ function Lists({ owner }: { owner: Owner }) {
         content = (
             <ErrorMessage error={lists.error} retry={() => lists.refetch()} />
         );
-    } else if (lists.data.length === 0) {
+    } else if (pageItems(lists.data).length === 0) {
         content = (
             <p className="py-10 text-haze">
                 {owner.own
@@ -438,13 +449,16 @@ function Lists({ owner }: { owner: Owner }) {
         );
     } else {
         content = (
-            <ul className="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
-                {lists.data.map((list) => (
-                    <li key={list.id}>
-                        <ListCard list={list} />
-                    </li>
-                ))}
-            </ul>
+            <>
+                <ul className="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
+                    {pageItems(lists.data).map((list) => (
+                        <li key={list.id}>
+                            <ListCard list={list} />
+                        </li>
+                    ))}
+                </ul>
+                <LoadMore query={lists} what="lists" />
+            </>
         );
     }
 
@@ -489,7 +503,7 @@ function Watchlist({
     watchlist,
 }: {
     owner: Owner;
-    watchlist: UseQueryResult<WatchlistEntry[]>;
+    watchlist: UseInfiniteQueryResult<InfiniteData<Page<WatchlistEntry>>>;
 }) {
     if (watchlist.isPending) {
         return <Loading label="Loading watchlist" />;
@@ -504,7 +518,9 @@ function Watchlist({
         );
     }
 
-    if (watchlist.data.length === 0) {
+    const entries = pageItems(watchlist.data);
+
+    if (entries.length === 0) {
         return (
             <EmptyState owner={owner}>
                 {owner.own
@@ -515,14 +531,17 @@ function Watchlist({
     }
 
     return (
-        <ul className="mt-8 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:gap-4">
-            {watchlist.data.map((entry) => (
-                <li key={entry.tmdbId}>
-                    <Poster movie={asSearchMovie(entry)} size="w342" />
-                    <p className="mt-2 truncate text-sm">{entry.title}</p>
-                </li>
-            ))}
-        </ul>
+        <>
+            <ul className="mt-8 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:gap-4">
+                {entries.map((entry) => (
+                    <li key={entry.tmdbId}>
+                        <Poster movie={asSearchMovie(entry)} size="w342" />
+                        <p className="mt-2 truncate text-sm">{entry.title}</p>
+                    </li>
+                ))}
+            </ul>
+            <LoadMore query={watchlist} what="films" />
+        </>
     );
 }
 
@@ -556,7 +575,9 @@ function FollowList({
         );
     }
 
-    if (follows.data.length === 0) {
+    const people = pageItems(follows.data);
+
+    if (people.length === 0) {
         const subject = owner.own ? "you" : owner.name;
         return (
             <p className="py-10 text-haze">
@@ -570,13 +591,16 @@ function FollowList({
     }
 
     return (
-        <ul className="mt-8 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-            {follows.data.map((person) => (
-                <li key={person.id}>
-                    <UserLink user={person} />
-                </li>
-            ))}
-        </ul>
+        <>
+            <ul className="mt-8 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+                {people.map((person) => (
+                    <li key={person.id}>
+                        <UserLink user={person} />
+                    </li>
+                ))}
+            </ul>
+            <LoadMore query={follows} what="people" />
+        </>
     );
 }
 

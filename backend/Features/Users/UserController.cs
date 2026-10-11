@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using backend.Data;
 using backend.Features.Auth;
+using backend.Features.Paging;
 using backend.Features.Users.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -112,49 +113,56 @@ namespace backend.Features.Users
         }
 
         [HttpGet("{id:int}/followers")]
-        [EndpointSummary("Get the users who follow a user")]
-        public async Task<ActionResult<List<UserSummaryDto>>> GetFollowers(int id)
+        [EndpointSummary("Get the users who follow a user, by name, one page at a time")]
+        public async Task<ActionResult<PageDto<UserSummaryDto>>> GetFollowers(int id, [FromQuery] PageQuery page)
         {
             if (!await _context.Users.AnyAsync(u => u.Id == id))
             {
                 return NotFound();
             }
 
-            var followers = await _context.Set<Follow>()
-                .Where(f => f.FollowedId == id)
-                .Select(f => new UserSummaryDto
-                {
-                    Id = f.Follower.Id,
-                    UserName = f.Follower.UserName ?? string.Empty,
-                    ProfileImageUrl = f.Follower.ProfileImageUrl
-                })
-                .OrderBy(u => u.UserName)
-                .ToListAsync();
+            var followers = _context.Set<Follow>().Where(f => f.FollowedId == id).Select(f => f.Follower);
 
-            return Ok(followers);
+            return Ok(await GetUserPage(followers, page));
         }
 
         [HttpGet("{id:int}/following")]
-        [EndpointSummary("Get the users a user follows")]
-        public async Task<ActionResult<List<UserSummaryDto>>> GetFollowing(int id)
+        [EndpointSummary("Get the users a user follows, by name, one page at a time")]
+        public async Task<ActionResult<PageDto<UserSummaryDto>>> GetFollowing(int id, [FromQuery] PageQuery page)
         {
             if (!await _context.Users.AnyAsync(u => u.Id == id))
             {
                 return NotFound();
             }
 
-            var following = await _context.Set<Follow>()
-                .Where(f => f.FollowerId == id)
-                .Select(f => new UserSummaryDto
-                {
-                    Id = f.Followed.Id,
-                    UserName = f.Followed.UserName ?? string.Empty,
-                    ProfileImageUrl = f.Followed.ProfileImageUrl
-                })
+            var following = _context.Set<Follow>().Where(f => f.FollowerId == id).Select(f => f.Followed);
+
+            return Ok(await GetUserPage(following, page));
+        }
+
+        // Users in name order. The id breaks ties, though names are unique apart from letter case.
+        private static async Task<PageDto<UserSummaryDto>> GetUserPage(IQueryable<User> users, PageQuery page)
+        {
+            if (page.After is PageCursor after)
+            {
+                var name = after.Text;
+                var id = after.Id;
+                users = users.Where(u => string.Compare(u.UserName, name) > 0 || (u.UserName == name && u.Id > id));
+            }
+
+            var rows = await users
                 .OrderBy(u => u.UserName)
+                .ThenBy(u => u.Id)
+                .Take(page.Limit + 1)
+                .Select(u => new UserSummaryDto
+                {
+                    Id = u.Id,
+                    UserName = u.UserName ?? string.Empty,
+                    ProfileImageUrl = u.ProfileImageUrl
+                })
                 .ToListAsync();
 
-            return Ok(following);
+            return PageDto.From(rows, page.Limit, u => new PageCursor(u.UserName, u.Id));
         }
 
         [Authorize]

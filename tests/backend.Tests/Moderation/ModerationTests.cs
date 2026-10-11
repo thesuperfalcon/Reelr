@@ -147,7 +147,7 @@ public class ModerationTests : IClassFixture<ModerationApiFactory>, IAsyncLifeti
             new ResolveReportsDto { TargetType = ReportTargetType.Comment, TargetId = comment.Id, Outcome = ReportOutcome.Dismissed });
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        var comments = await _factory.CreateClient().GetFromJsonAsync<List<ReviewCommentDto>>($"/api/reviews/{review.Id}/comments");
+        var comments = await _factory.CreateClient().GetItemsAsync<ReviewCommentDto>($"/api/reviews/{review.Id}/comments");
         Assert.Single(comments!);
         Assert.DoesNotContain(await OpenReportsAsync(), i => i.TargetId == comment.Id && i.TargetType == ReportTargetType.Comment);
     }

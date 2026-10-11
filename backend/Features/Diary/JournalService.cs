@@ -121,6 +121,7 @@ namespace backend.Features.Diary
 
                 // A written or rewritten review belongs to the entry that logged it.
                 review.DiaryEntry = entry;
+                review.ActivityAt = entry.LoggedAt;
             }
 
             await RemoveFromWatchlistAsync(userId, movieId);

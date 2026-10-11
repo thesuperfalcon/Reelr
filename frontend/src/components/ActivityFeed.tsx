@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { isKnownActivity } from "../lib/activity";
 import { useActivityFeed, type FeedKind } from "../lib/queries";
 import { ActivityItem } from "./ActivityItem";
+import { LoadMore } from "./LoadMore";
 import { ErrorMessage, Loading } from "./Status";
 
 interface ActivityFeedProps {
@@ -35,22 +36,7 @@ export function ActivityFeed({ kind, empty }: ActivityFeedProps) {
         ))}
       </ul>
 
-      {feed.isFetchNextPageError && (
-        <p role="alert" className="mt-2 text-sm text-alarm">
-          Could not load more activity. Try again.
-        </p>
-      )}
-
-      {feed.hasNextPage && (
-        <button
-          type="button"
-          onClick={() => feed.fetchNextPage()}
-          disabled={feed.isFetchingNextPage}
-          className="mt-4 rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-white/15 transition hover:bg-row disabled:opacity-50"
-        >
-          {feed.isFetchingNextPage ? "Loading…" : "Load more"}
-        </button>
-      )}
+      <LoadMore query={feed} what="activity" />
     </div>
   );
 }

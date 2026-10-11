@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { AddToListDialog } from "../components/AddToListDialog";
 import { DeleteReviewButton } from "../components/DeleteReviewButton";
+import { LoadMore } from "../components/LoadMore";
 import { PersonLink } from "../components/PersonLink";
 import { Poster } from "../components/Poster";
 import { RatingDialog } from "../components/RatingDialog";
@@ -14,13 +15,15 @@ import { ErrorMessage, Loading } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
 import {
+  pageItems,
   useMovieDetails,
   useMovieReviews,
   useMyRating,
+  useMyReview,
   useMyStatus,
   useSimilarMovies,
   useToggleWatchlist,
-  useWatchlist,
+  useWatchlistState,
 } from "../lib/queries";
 import { formatRuntime, releaseYear, tmdbImage } from "../lib/tmdb";
 import type { CastMember, CrewMember, MovieDetails, Review } from "../lib/types";
@@ -41,9 +44,9 @@ function Backdrop({ path }: { path: string | null }) {
 }
 
 function WatchlistButton({ tmdbId, title }: { tmdbId: number; title: string | null }) {
-  const watchlist = useWatchlist();
+  const watchlist = useWatchlistState(tmdbId);
   const toggle = useToggleWatchlist(tmdbId);
-  const onWatchlist = watchlist.data?.some((entry) => entry.tmdbId === tmdbId) ?? false;
+  const onWatchlist = watchlist.data?.onWatchlist ?? false;
   const label = `${onWatchlist ? "Remove" : "Add"} ${title ?? "film"} ${onWatchlist ? "from" : "to"} watchlist`;
 
   return (
@@ -86,11 +89,11 @@ function AddToListButton({ movie }: { movie: MovieDetails }) {
   );
 }
 
-function RateButton({ movie, userId }: { movie: MovieDetails; userId: number }) {
+function RateButton({ movie }: { movie: MovieDetails }) {
   const rating = useMyRating(movie.id);
   const status = useMyStatus(movie.id);
-  const reviews = useMovieReviews(movie.id);
-  const review = reviews.data?.find((r) => r.userId === userId) ?? null;
+  const myReview = useMyReview(movie.id);
+  const review = myReview.data ?? null;
   const [open, setOpen] = useState(false);
   const score = rating.data?.score ?? null;
   const liked = status.data?.liked === true;
@@ -105,7 +108,7 @@ function RateButton({ movie, userId }: { movie: MovieDetails; userId: number }) 
       <button
         type="button"
         onClick={() => setOpen(true)}
-        disabled={rating.isPending || status.isPending || reviews.isPending}
+        disabled={rating.isPending || status.isPending || myReview.isPending}
         aria-label={label}
         title={label}
         aria-haspopup="dialog"
@@ -235,19 +238,22 @@ function ReviewItem({ review, own }: { review: Review; own: boolean }) {
 function Reviews({ tmdbId }: { tmdbId: number }) {
   const { user } = useAuth();
   const reviews = useMovieReviews(tmdbId);
-  const own = user ? (reviews.data?.find((r) => r.userId === user.id) ?? null) : null;
+  const myReview = useMyReview(tmdbId, user !== null);
+  const own = user ? (myReview.data ?? null) : null;
+  const total = reviews.data?.pages[0].totalCount ?? 0;
   // The user's own review comes first; the rest stay newest first.
-  const ordered = own ? [own, ...(reviews.data ?? []).filter((r) => r !== own)] : (reviews.data ?? []);
+  const others = pageItems(reviews.data).filter((r) => r.id !== own?.id);
+  const ordered = own ? [own, ...others] : others;
 
   return (
     <section aria-labelledby="reviews-title" className="mt-16">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <h2 id="reviews-title" className="marquee text-3xl">
           Reviews
-          {reviews.data && reviews.data.length > 0 && <span className="ml-2 text-xl text-haze">{reviews.data.length}</span>}
+          {total > 0 && <span className="ml-2 text-xl text-haze">{total}</span>}
         </h2>
         {user ? (
-          reviews.isSuccess && (
+          reviews.isSuccess && !myReview.isPending && (
             <p className="text-sm text-haze">{own ? "Edit your review with Rate." : "Write a review with Rate."}</p>
           )
         ) : (
@@ -264,11 +270,14 @@ function Reviews({ tmdbId }: { tmdbId: number }) {
       ) : ordered.length === 0 ? (
         <p className="py-6 text-haze">No reviews yet.</p>
       ) : (
-        <ul className="mt-2 divide-y divide-white/5">
-          {ordered.map((review) => (
-            <ReviewItem key={review.id} review={review} own={review === own} />
-          ))}
-        </ul>
+        <>
+          <ul className="mt-2 divide-y divide-white/5">
+            {ordered.map((review) => (
+              <ReviewItem key={review.id} review={review} own={review === own} />
+            ))}
+          </ul>
+          <LoadMore query={reviews} what="reviews" />
+        </>
       )}
     </section>
   );
@@ -367,7 +376,7 @@ export function MoviePage() {
                     Watch trailer on YouTube
                   </a>
                 )}
-                {user && <RateButton movie={movie} userId={user.id} />}
+                {user && <RateButton movie={movie} />}
                 {user && <WatchlistButton tmdbId={tmdbId} title={movie.title} />}
                 {user && <AddToListButton movie={movie} />}
               </div>
