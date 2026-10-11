@@ -49,7 +49,7 @@ foreach (var key in new[] { "Email:Host", "Email:FromAddress", "App:BaseUrl" })
 builder.Services.AddControllers();
 
 // Unhandled exceptions and empty error responses (e.g. 401, 404, 429) get an RFC 7807 problem body.
-builder.Services.AddProblemDetails();
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = CorrelationId.AddToProblem);
 
 builder.Services.AddOpenApi();
 
@@ -234,6 +234,9 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 // HTTP pipeline
 // First, so the rate limiter, HTTPS redirection and logging see the real client IP and scheme.
 app.UseForwardedHeaders();
+
+// Before the request log, so its line and every other line of the request carry the id.
+app.UseCorrelationId();
 
 // Logs each request once it is done, with the status the later steps set.
 app.UseRequestLogging();

@@ -1,3 +1,7 @@
+using System.Net;
+using System.Text.Json;
+using backend.Features.Observability;
+
 namespace backend.Tests.Infrastructure;
 
 public class LoggingTests : IClassFixture<ReelrApiFactory>
@@ -35,5 +39,53 @@ public class LoggingTests : IClassFixture<ReelrApiFactory>
 
         var isHealthCheck = RequestTo("/health");
         Assert.DoesNotContain(_factory.Logs.Entries, e => isHealthCheck(e));
+    }
+
+    [Fact]
+    public async Task CorrelationId_IsMadeWhenMissingAndSentBack()
+    {
+        var response = await _factory.CreateClient().GetAsync("/api/movie/trending");
+
+        var id = Assert.Single(response.Headers.GetValues(CorrelationId.Header));
+        Assert.Matches("^[0-9a-f]{32}$", id);
+    }
+
+    [Fact]
+    public async Task CorrelationId_FromTheProxyIsKeptAndOnTheRequestLog()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Add(CorrelationId.Header, "nginx-request-42");
+
+        var response = await client.GetAsync("/api/movie/popular");
+
+        Assert.Equal("nginx-request-42", Assert.Single(response.Headers.GetValues(CorrelationId.Header)));
+        var entry = Assert.Single(await _factory.Logs.WaitForAsync(RequestTo("/api/movie/popular")));
+        Assert.Equal("nginx-request-42", entry.State[CorrelationId.LogProperty]);
+    }
+
+    [Theory]
+    [InlineData("has spaces in it")]
+    [InlineData("semi;colon")]
+    [InlineData("0123456789012345678901234567890123456789012345678901234567890123456789")]
+    public async Task CorrelationId_ThatIsNotPlainIsReplaced(string sent)
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.TryAddWithoutValidation(CorrelationId.Header, sent);
+
+        var response = await client.GetAsync("/api/movie/trending");
+
+        Assert.NotEqual(sent, Assert.Single(response.Headers.GetValues(CorrelationId.Header)));
+    }
+
+    [Fact]
+    public async Task CorrelationId_IsInErrorResponses()
+    {
+        var response = await _factory.CreateClient().GetAsync("/api/movies/0/reviews?cursor=broken");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(
+            Assert.Single(response.Headers.GetValues(CorrelationId.Header)),
+            problem.RootElement.GetProperty("correlationId").GetString());
     }
 }
