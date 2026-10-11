@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Tests.Infrastructure;
 
@@ -13,7 +14,7 @@ public static class TestUsers
     public const int LockoutAttempts = 20;
 
     /// <summary>
-    /// Registers a new user with a unique name, logs in and returns a client that sends the JWT.
+    /// Registers a new user with a unique name, confirms the email, logs in and returns a client that sends the JWT.
     /// </summary>
     public static async Task<TestUser> CreateAuthenticatedAsync(this ReelrApiFactory factory)
     {
@@ -24,10 +25,12 @@ public static class TestUsers
         {
             Username = username,
             Email = $"{username}@test.local",
-            Password
+            Password,
+            AcceptTerms = true
         });
         registerResponse.EnsureSuccessStatusCode();
-        var registered = await registerResponse.Content.ReadFromJsonAsync<RegisterResponse>();
+
+        var id = await factory.ConfirmEmailAsync(username);
 
         var loginResponse = await client.PostAsJsonAsync("/auth/login", new
         {
@@ -39,8 +42,21 @@ public static class TestUsers
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login!.Token);
 
-        return new TestUser(registered!.Id, username, client);
+        return new TestUser(id, username, client);
     }
+
+    /// <summary>
+    /// Marks a registered user's email as confirmed, as the link in the confirmation email would, and returns the user's id.
+    /// AuthControllerTests covers the real confirmation flow.
+    /// </summary>
+    public static Task<int> ConfirmEmailAsync(this ReelrApiFactory factory, string username) =>
+        factory.WithContextAsync(async context =>
+        {
+            var user = await context.Users.SingleAsync(u => u.UserName == username);
+            user.EmailConfirmed = true;
+            await context.SaveChangesAsync();
+            return user.Id;
+        });
 
     /// <summary>
     /// Sends DELETE /api/users/{userId} with the password confirmation the endpoint requires.
@@ -50,8 +66,6 @@ public static class TestUsers
         {
             Content = JsonContent.Create(new { Password = password })
         });
-
-    private record RegisterResponse(int Id, string UserName, string Email);
 
     private record LoginResponse(string Token);
 }

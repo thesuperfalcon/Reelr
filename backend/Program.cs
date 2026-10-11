@@ -2,15 +2,19 @@ using backend.Data;
 using backend.Features.Activity;
 using backend.Features.Auth;
 using backend.Features.Diary;
+using backend.Features.Email;
+using backend.Features.Moderation;
 using backend.Features.Movies;
 using backend.Features.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -27,6 +31,15 @@ if (string.IsNullOrEmpty(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
 if (string.IsNullOrEmpty(builder.Configuration["TMDB_READ_ACCESS_TOKEN"]))
 {
     throw new InvalidOperationException("TMDB_READ_ACCESS_TOKEN is not configured.");
+}
+
+// Account emails need a mail server, a sender address and the site's address for the links in them.
+foreach (var key in new[] { "Email:Host", "Email:FromAddress", "App:BaseUrl" })
+{
+    if (string.IsNullOrEmpty(builder.Configuration[key]))
+    {
+        throw new InvalidOperationException($"{key} is not configured.");
+    }
 }
 
 // Services
@@ -63,6 +76,30 @@ builder.Services
     })
     .AddEntityFrameworkStores<ReelrContext>()
     .AddDefaultTokenProviders();
+
+// Email confirmation and password reset links stop working after 3 hours.
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(3));
+
+// The keys behind those links live in the database, so a restart or a new container does not break sent links.
+builder.Services.AddDataProtection()
+    .SetApplicationName("Reelr")
+    .PersistKeysToDbContext<ReelrContext>();
+
+// Account emails are queued and sent in the background (see EmailQueue).
+builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
+builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+builder.Services.AddSingleton<EmailQueue>();
+builder.Services.AddHostedService<EmailDispatcher>();
+builder.Services.AddScoped<AccountEmails>();
+builder.Services.AddSingleton<SecurityStamps>();
+
+// Admins are configured by user id under "Admin:UserIds" (see AdminAccess).
+var adminAccess = new AdminAccess(builder.Configuration);
+builder.Services.AddSingleton(adminAccess);
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(AdminAccess.Policy, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireAssertion(context => adminAccess.IsAdmin(context.User)));
 
 builder.Services.AddRateLimits(builder.Configuration);
 builder.Services.AddSingleton<LoginThrottle>();
@@ -113,6 +150,23 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             // The default is 5 minutes, which would keep an expired token working that long.
             ClockSkew = TimeSpan.FromSeconds(30)
+        };
+
+        // A token is refused once its security stamp is out of date, so a password change, a reset,
+        // "log out everywhere" or deleting the account revokes it before it expires.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var stamps = context.HttpContext.RequestServices.GetRequiredService<SecurityStamps>();
+                var userId = context.Principal?.FindUserId();
+                var stamp = context.Principal?.FindFirstValue(SecurityStamps.ClaimType);
+
+                if (userId is not int id || !await stamps.IsCurrentAsync(id, stamp))
+                {
+                    context.Fail("The token has been revoked.");
+                }
+            }
         };
     });
 

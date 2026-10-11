@@ -1,4 +1,5 @@
 using backend.Features.Diary;
+using backend.Features.Moderation;
 using backend.Features.MovieLists;
 using backend.Features.Movies;
 using backend.Features.Ratings;
@@ -7,13 +8,14 @@ using backend.Features.Settings;
 using backend.Features.Users;
 using backend.Features.WatchedMovies;
 using backend.Features.WatchlistItems;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Data;
 
-public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
+public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDataProtectionKeyContext
 {
     public ReelrContext(DbContextOptions<ReelrContext> options)
         : base(options)
@@ -38,11 +40,19 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
 
     public DbSet<Follow> Follows => Set<Follow>();
 
+    public DbSet<Block> Blocks => Set<Block>();
+
+    public DbSet<Report> Reports => Set<Report>();
+
     public DbSet<MovieList> MovieLists => Set<MovieList>();
 
     public DbSet<MovieListItem> MovieListItems => Set<MovieListItem>();
 
     public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
+
+    // The keys that sign email confirmation and password reset links. Kept in the database so links still
+    // work after a restart or a new container, and on every instance.
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -175,6 +185,26 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
             .WithMany()
             .HasForeignKey(f => f.FollowedId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Block: like Follow, both links are Restrict and UserController.DeleteUser removes blocks in code.
+        modelBuilder.Entity<Block>(block =>
+        {
+            block.HasKey(b => new { b.BlockerId, b.BlockedId });
+            block.HasOne(b => b.Blocker).WithMany().HasForeignKey(b => b.BlockerId).OnDelete(DeleteBehavior.Restrict);
+            block.HasOne(b => b.Blocked).WithMany().HasForeignKey(b => b.BlockedId).OnDelete(DeleteBehavior.Restrict);
+            block.HasIndex(b => b.BlockedId);
+        });
+
+        // Report: goes with the reporter. One open report per reporter and item.
+        modelBuilder.Entity<Report>(report =>
+        {
+            report.HasOne(r => r.Reporter).WithMany().HasForeignKey(r => r.ReporterId).OnDelete(DeleteBehavior.Cascade);
+            report.Property(r => r.Note).HasMaxLength(Report.NoteMaxLength);
+            report.HasIndex(r => new { r.ReporterId, r.TargetType, r.TargetId })
+                .IsUnique()
+                .HasFilter("[ResolvedAt] IS NULL");
+            report.HasIndex(r => new { r.ResolvedAt, r.TargetType, r.TargetId });
+        });
 
         // MovieList
         modelBuilder.Entity<MovieList>()

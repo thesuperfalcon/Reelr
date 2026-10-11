@@ -571,7 +571,10 @@ export function useUpdateSettings() {
       if (token) {
         replaceToken(token);
       }
-      saved(settings, update.userName !== undefined || update.watchlistVisibility !== undefined);
+      saved(
+        settings,
+        update.userName !== undefined || update.watchlistVisibility !== undefined || update.diaryVisibility !== undefined,
+      );
       // The Following feed reads this setting on the server.
       if (update.showOwnActivity !== undefined) {
         void queryClient.invalidateQueries({ queryKey: ["feed", "following"] });
@@ -580,10 +583,21 @@ export function useUpdateSettings() {
   });
 }
 
+// A password change signs out every other device. This one gets a new token and stays logged in.
 export function useChangePassword() {
+  const { replaceToken } = useAuth();
+
   return useMutation({
     mutationFn: (input: { currentPassword: string; newPassword: string }) =>
-      api<void>("/api/settings/password", { method: "POST", body: JSON.stringify(input) }),
+      api<{ token: string }>("/api/settings/password", { method: "POST", body: JSON.stringify(input) }),
+    onSuccess: ({ token }) => replaceToken(token),
+  });
+}
+
+// Revokes every token for the account, this device's included, so the caller logs out afterwards.
+export function useLogoutEverywhere() {
+  return useMutation({
+    mutationFn: () => api<void>("/api/settings/logout-everywhere", { method: "POST" }),
   });
 }
 

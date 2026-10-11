@@ -24,14 +24,21 @@ Reelr is a social film diary, in the spirit of Letterboxd. You log the films you
 - Activity feed with a Following tab and a Community tab.
 - Likes and comments on reviews.
 - Watchlist visibility: public, followers only or private.
-- Profile settings with avatar upload and password change.
+- Profile settings with avatar upload, password change and "log out everywhere".
+- Email confirmation on sign-up and password reset by email.
+- Diary visibility (everyone, followers or only you), data export and account deletion.
+
+**Safety**
+- Report reviews, comments and lists; admins remove or dismiss them on a moderation page.
+- Block members: they cannot follow you, comment on or like your reviews, and you stop seeing them.
 
 ## Tech stack
 
 | Area | Technology |
 |---|---|
 | Backend | .NET 10, ASP.NET Core Web API, Entity Framework Core 10, SQL Server |
-| Auth | ASP.NET Core Identity, JWT bearer tokens, account lockout, per-IP rate limiting |
+| Auth | ASP.NET Core Identity, JWT bearer tokens revoked through the security stamp, email confirmation, password reset, lockout and rate limiting |
+| Email | SMTP through MailKit; Mailpit catches mail in development |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, React Router, TanStack Query |
 | Tests | xUnit integration tests with `WebApplicationFactory` against a real SQL Server and a fake TMDB |
 | Infrastructure | Docker Compose (SQL Server, API, nginx), GitHub Actions CI |
@@ -86,8 +93,15 @@ Requires Docker Desktop.
    ```
 
 3. Open http://localhost:8080. The API is on http://localhost:5084, with Swagger at `/swagger`.
+   Emails (sign-up confirmation, password reset) are caught by Mailpit at http://localhost:8025; none reach a real inbox.
 
 The database is migrated automatically on start-up. All ports are bound to `127.0.0.1`.
+
+To make an account an admin (the moderation page), add its user id to `.env` and restart the backend:
+
+```
+Admin__UserIds__0=<user id>
+```
 
 ### Option 2: Run locally
 
@@ -121,7 +135,15 @@ Requires the .NET 10 SDK, Node.js 24 and SQL Server (for example SQL Server Expr
    dotnet run --project backend/backend.csproj --launch-profile http
    ```
 
-5. Start the frontend on http://localhost:5173. Vite proxies `/api` and `/auth` to the API.
+5. Emails go to an SMTP server on `localhost:1025` (see `backend/appsettings.Development.json`). To read them, run Mailpit and open http://localhost:8025:
+
+   ```bash
+   docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit:v1.31.2
+   ```
+
+   Without it the API still works, but sign-up confirmation and password reset emails are not delivered.
+
+6. Start the frontend on http://localhost:5173. Vite proxies `/api` and `/auth` to the API.
 
    ```bash
    cd frontend
@@ -152,3 +174,7 @@ Swagger UI is available at `/swagger` in Development. A Postman collection and e
 ## Attribution
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+## Before going live
+
+The privacy policy and terms (`frontend/src/pages/LegalPages.tsx`) are drafts that describe what the code does. Fill in the parts in [brackets] (who runs Reelr, contact address, email and hosting provider, how long logs and backups are kept) and have them reviewed before opening to the public.

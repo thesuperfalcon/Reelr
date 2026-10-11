@@ -4,16 +4,19 @@ import { useAuth } from "../auth/auth-context";
 import { Field, FormError } from "../components/Form";
 import { ErrorMessage, Loading } from "../components/Status";
 import { UserAvatar } from "../components/UserAvatar";
+import { downloadDataExport } from "../lib/account";
+import { useBlockedUsers, useToggleBlock } from "../lib/moderation";
 import { prepareAvatar } from "../lib/avatar";
 import {
   useChangePassword,
   useDeleteAccount,
+  useLogoutEverywhere,
   useRemoveAvatar,
   useSettings,
   useUpdateSettings,
   useUploadAvatar,
 } from "../lib/queries";
-import type { UserSettings, UserSettingsUpdate, WatchlistVisibility } from "../lib/types";
+import type { DiaryVisibility, UserSettings, UserSettingsUpdate, UserSummary, WatchlistVisibility } from "../lib/types";
 
 const buttonClass =
   "rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-60";
@@ -26,6 +29,7 @@ type PictureChange = { kind: "none" } | { kind: "upload"; image: Blob; preview: 
 interface Draft {
   userName: string;
   watchlistVisibility: WatchlistVisibility;
+  diaryVisibility: DiaryVisibility;
   showFriendReviews: boolean;
   showOwnActivity: boolean;
   currentPassword: string;
@@ -37,6 +41,7 @@ function draftFrom(settings: UserSettings): Draft {
   return {
     userName: settings.userName,
     watchlistVisibility: settings.watchlistVisibility,
+    diaryVisibility: settings.diaryVisibility,
     showFriendReviews: settings.showFriendReviews,
     showOwnActivity: settings.showOwnActivity,
     currentPassword: "",
@@ -50,6 +55,7 @@ function changedSettings(draft: Draft, settings: UserSettings): UserSettingsUpda
   const update: UserSettingsUpdate = {};
   if (draft.userName.trim() !== settings.userName) update.userName = draft.userName.trim();
   if (draft.watchlistVisibility !== settings.watchlistVisibility) update.watchlistVisibility = draft.watchlistVisibility;
+  if (draft.diaryVisibility !== settings.diaryVisibility) update.diaryVisibility = draft.diaryVisibility;
   if (draft.showFriendReviews !== settings.showFriendReviews) update.showFriendReviews = draft.showFriendReviews;
   if (draft.showOwnActivity !== settings.showOwnActivity) update.showOwnActivity = draft.showOwnActivity;
   return update;
@@ -68,6 +74,12 @@ function Section({ id, title, description, children }: { id: string; title: stri
     </section>
   );
 }
+
+const diaryVisibilityOptions: { value: DiaryVisibility; label: string; description: string }[] = [
+  { value: "Public", label: "Everyone", description: "Your diary, and what you log in the Community feed, are open to anyone." },
+  { value: "Followers", label: "People who follow you", description: "Followers see your diary and your logs in their feed. Reviews stay public." },
+  { value: "Private", label: "Only you", description: "Nobody else sees your diary or your logs. Reviews you write stay public." },
+];
 
 const visibilityOptions: { value: WatchlistVisibility; label: string; description: string }[] = [
   { value: "Public", label: "Everyone", description: "Anyone can see your watchlist, also people who are not logged in." },
@@ -277,6 +289,27 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
       </Section>
 
       <Section id="settings-privacy" title="Privacy">
+        <fieldset className="mb-8">
+          <legend className="text-sm font-medium">Who can see your diary</legend>
+          <div className="mt-3 space-y-3">
+            {diaryVisibilityOptions.map((option) => (
+              <label key={option.value} className="flex items-start gap-3 text-sm">
+                <input
+                  type="radio"
+                  name="diary-visibility"
+                  value={option.value}
+                  checked={draft.diaryVisibility === option.value}
+                  onChange={() => edit("diaryVisibility", option.value)}
+                  className="mt-0.5 size-4 accent-projector"
+                />
+                <span>
+                  <span className="font-medium">{option.label}</span>
+                  <span className="block text-haze">{option.description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
         <fieldset>
           <legend className="text-sm font-medium">Who can see your watchlist</legend>
           <div className="mt-3 space-y-3">
@@ -375,6 +408,113 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
   );
 }
 
+function BlockedSection() {
+  const blocked = useBlockedUsers();
+
+  return (
+    <Section
+      id="settings-blocked"
+      title="Blocked members"
+      description="Blocked members cannot follow you, comment on or like your reviews, and you do not see their reviews, comments or community activity."
+    >
+      {blocked.isPending ? (
+        <Loading label="Loading blocked members" />
+      ) : blocked.isError ? (
+        <ErrorMessage error={blocked.error} retry={() => blocked.refetch()} />
+      ) : blocked.data.length === 0 ? (
+        <p className="text-sm text-haze">You have not blocked anyone.</p>
+      ) : (
+        <ul className="space-y-3">
+          {blocked.data.map((member) => (
+            <BlockedMember key={member.id} member={member} />
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+}
+
+function BlockedMember({ member }: { member: UserSummary }) {
+  const toggle = useToggleBlock(member.id);
+
+  return (
+    <li className="flex items-center justify-between gap-4 text-sm">
+      <Link to={`/user/${member.id}`} className="flex min-w-0 items-center gap-3 hover:text-projector">
+        <UserAvatar userName={member.userName} imageUrl={member.profileImageUrl} className="size-8 text-sm" />
+        <span className="truncate">{member.userName}</span>
+      </Link>
+      <button type="button" onClick={() => toggle.mutate(true)} disabled={toggle.isPending} className={quietButtonClass}>
+        {toggle.isPending ? "Unblocking…" : "Unblock"}
+      </button>
+    </li>
+  );
+}
+
+function DataExportSection() {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+
+  async function download() {
+    setPending(true);
+    setError(null);
+    try {
+      await downloadDataExport();
+    } catch (err) {
+      setError(err);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <Section
+      id="settings-data"
+      title="Your data"
+      description="A file with everything Reelr stores about you: account, diary, ratings, reviews, comments, lists, watchlist and follows."
+    >
+      <FormError error={error} />
+      <button type="button" onClick={download} disabled={pending} className={quietButtonClass}>
+        {pending ? "Preparing…" : "Download my data"}
+      </button>
+    </Section>
+  );
+}
+
+// Signs out every device, for example after using a shared or lost one.
+function LogoutEverywhereSection() {
+  const { logout } = useAuth();
+  const logoutEverywhere = useLogoutEverywhere();
+
+  async function signOutEverywhere() {
+    try {
+      await logoutEverywhere.mutateAsync();
+      logout();
+      // A full load, for the same reason as after deleting the account below.
+      window.location.replace("/login");
+    } catch {
+      // The error is shown from logoutEverywhere.error.
+    }
+  }
+
+  return (
+    <Section
+      id="settings-sessions"
+      title="Devices"
+      description="Logs you out on every phone, computer and browser where you are logged in, this one included."
+    >
+      <FormError error={logoutEverywhere.error} />
+      <button
+        type="button"
+        onClick={signOutEverywhere}
+        disabled={logoutEverywhere.isPending}
+        className={quietButtonClass}
+      >
+        {logoutEverywhere.isPending ? "Logging out…" : "Log out everywhere"}
+      </button>
+    </Section>
+  );
+}
+
 // Its own form outside SettingsForm, so Save never touches it and deleting needs a separate, explicit step.
 function DeleteAccountSection({ userName }: { userName: string }) {
   const { user, logout } = useAuth();
@@ -470,6 +610,9 @@ export function SettingsPage() {
         ) : (
           <>
             <SettingsForm settings={settings.data} />
+            <BlockedSection />
+            <DataExportSection />
+            <LogoutEverywhereSection />
             <DeleteAccountSection userName={settings.data.userName} />
           </>
         )}

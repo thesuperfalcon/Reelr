@@ -2,6 +2,7 @@ using backend.Data;
 using backend.Features.Auth;
 using backend.Features.Movies;
 using backend.Features.Reviews.DTOs;
+using backend.Features.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -25,7 +26,9 @@ namespace backend.Features.Reviews
         [EndpointSummary("Get reviews for a movie")]
         public async Task<ActionResult<List<ReviewDto>>> GetReviews(int tmdbId)
         {
-            var reviews = await ToDtos(_context.Reviews.Where(r => r.Movie.TmdbId == tmdbId))
+            // People the viewer blocked are left out.
+            var blocked = _context.BlockedBy(User.FindUserId());
+            var reviews = await ToDtos(_context.Reviews.Where(r => r.Movie.TmdbId == tmdbId && !blocked.Contains(r.UserId)))
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync();
 

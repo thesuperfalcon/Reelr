@@ -8,6 +8,7 @@ import {
     useSearchParams,
 } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { useToggleBlock } from "../lib/moderation";
 import { DeleteReviewButton } from "../components/DeleteReviewButton";
 import { DiaryEntryDialog } from "../components/DiaryEntryDialog";
 import { ListCard } from "../components/ListCard";
@@ -579,6 +580,53 @@ function FollowList({
     );
 }
 
+// Blocking asks once first. A blocked member cannot follow you, comment on or like your reviews,
+// and you stop seeing their reviews, comments and community activity.
+function BlockButton({ profile }: { profile: UserProfile }) {
+    const toggle = useToggleBlock(profile.id);
+    const [confirming, setConfirming] = useState(false);
+    const blocked = profile.isBlocked;
+
+    if (confirming) {
+        return (
+            <div className="max-w-xs text-sm">
+                <p className="text-haze">
+                    Block {profile.userName}? You stop following each other, and they can no longer comment on or like
+                    your reviews.
+                </p>
+                <div className="mt-2 flex gap-3">
+                    <button
+                        type="button"
+                        onClick={() => toggle.mutate(false, { onSuccess: () => setConfirming(false) })}
+                        disabled={toggle.isPending}
+                        className="font-medium text-alarm underline underline-offset-4 disabled:opacity-50"
+                    >
+                        {toggle.isPending ? "Blocking…" : "Block"}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setConfirming(false)}
+                        className="text-haze underline underline-offset-4 hover:text-screen"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={() => (blocked ? toggle.mutate(true) : setConfirming(true))}
+            disabled={toggle.isPending}
+            className="inline-flex h-9 items-center rounded-sm px-3 text-sm font-medium text-haze ring-1 ring-white/15 transition hover:text-alarm disabled:opacity-50"
+        >
+            {blocked ? "Unblock" : "Block"}
+        </button>
+    );
+}
+
 function FollowButton({
     profile,
     currentUserId,
@@ -639,7 +687,10 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
     const owner: Owner = { id: userId, name, own };
 
     const tabs: { id: Tab; label: string; count?: number }[] = [
-        { id: "diary", label: "Diary" },
+        // Assumed visible until the profile loads, so most pages do not flicker from Reviews to Diary.
+        ...(own || (profile.data?.canSeeDiary ?? true)
+            ? [{ id: "diary" as const, label: "Diary" }]
+            : []),
         { id: "reviews", label: "Reviews" },
         { id: "lists", label: "Lists" },
         ...(own || profile.data?.canSeeWatchlist
@@ -662,7 +713,7 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
         tabs.map((t) => t.id),
     )
         ? requested
-        : "diary";
+        : tabs[0].id;
 
     return (
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
@@ -689,11 +740,14 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                     </Link>
                 )}
                 {!own && user && profile.data && (
-                    <div className="sm:ml-auto">
-                        <FollowButton
-                            profile={profile.data}
-                            currentUserId={user.id}
-                        />
+                    <div className="flex flex-wrap items-start gap-3 sm:ml-auto">
+                        {!profile.data.isBlocked && (
+                            <FollowButton
+                                profile={profile.data}
+                                currentUserId={user.id}
+                            />
+                        )}
+                        <BlockButton profile={profile.data} />
                     </div>
                 )}
             </header>

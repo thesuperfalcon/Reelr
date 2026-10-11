@@ -19,5 +19,13 @@ namespace backend.Features.Users.DTOs
 
         // Whether the caller may open this user's watchlist.
         public bool CanSeeWatchlist { get; set; }
+
+        public DiaryVisibility DiaryVisibility { get; set; }
+
+        // Whether the caller may open this user's diary.
+        public bool CanSeeDiary { get; set; }
+
+        // True when the logged-in caller has blocked this user.
+        public bool IsBlocked { get; set; }
     }
 }

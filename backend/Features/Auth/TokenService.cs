@@ -20,8 +20,10 @@ public class TokenService
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
-            new(ClaimTypes.Name, user.UserName ?? string.Empty)
+            // No email: the token is kept in the browser, where any script on the page could read it.
+            new(ClaimTypes.Name, user.UserName ?? string.Empty),
+            // Checked on every request, so changing the stamp revokes the token (see SecurityStamps).
+            new(SecurityStamps.ClaimType, user.SecurityStamp ?? string.Empty)
         };
 
         var key = new SymmetricSecurityKey(

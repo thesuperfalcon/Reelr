@@ -12,6 +12,12 @@ namespace backend.Features.Users
 
         public WatchlistVisibility WatchlistVisibility { get; set; } = WatchlistVisibility.Followers;
 
+        // Public by default, as diaries were before the setting existed.
+        public DiaryVisibility DiaryVisibility { get; set; } = DiaryVisibility.Public;
+
+        // When the user accepted the terms and privacy policy. Null for accounts made before sign-up asked.
+        public DateTime? TermsAcceptedAt { get; set; }
+
         // Whether the start page shows "Reviews from friends".
         public bool ShowFriendReviews { get; set; } = true;
 

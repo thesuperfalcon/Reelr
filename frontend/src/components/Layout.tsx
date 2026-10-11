@@ -164,6 +164,11 @@ export function Layout() {
                     </>
                   )}
                 </NavLink>
+                {settings.data?.isAdmin && (
+                  <NavLink to="/admin" className={navLinkClass}>
+                    Moderation
+                  </NavLink>
+                )}
                 <NavLink to="/settings" className={navLinkClass}>
                   Settings
                 </NavLink>
@@ -198,6 +203,14 @@ export function Layout() {
       </main>
 
       <footer className="mx-auto w-full max-w-6xl px-4 py-10 text-xs text-haze/70 sm:px-6">
+        <nav aria-label="Legal" className="mb-3 flex gap-4">
+          <Link to="/privacy" className="hover:text-screen">
+            Privacy
+          </Link>
+          <Link to="/terms" className="hover:text-screen">
+            Terms
+          </Link>
+        </nav>
         Film data and images from TMDB. Reelr is not endorsed or certified by TMDB.
       </footer>
     </div>
