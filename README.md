@@ -26,6 +26,11 @@ Reelr is a social film diary, in the spirit of Letterboxd. You log the films you
 - Watchlist visibility: public, followers only or private.
 - Profile settings with avatar upload, password change and "log out everywhere".
 - Email confirmation on sign-up and password reset by email.
+- Diary visibility (everyone, followers or only you), data export and account deletion.
+
+**Safety**
+- Report reviews, comments and lists; admins remove or dismiss them on a moderation page.
+- Block members: they cannot follow you, comment on or like your reviews, and you stop seeing them.
 
 ## Tech stack
 
@@ -91,6 +96,12 @@ Requires Docker Desktop.
    Emails (sign-up confirmation, password reset) are caught by Mailpit at http://localhost:8025; none reach a real inbox.
 
 The database is migrated automatically on start-up. All ports are bound to `127.0.0.1`.
+
+To make an account an admin (the moderation page), add its user id to `.env` and restart the backend:
+
+```
+Admin__UserIds__0=<user id>
+```
 
 ### Option 2: Run locally
 
@@ -163,3 +174,7 @@ Swagger UI is available at `/swagger` in Development. A Postman collection and e
 ## Attribution
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+## Before going live
+
+The privacy policy and terms (`frontend/src/pages/LegalPages.tsx`) are drafts that describe what the code does. Fill in the parts in [brackets] (who runs Reelr, contact address, email and hosting provider, how long logs and backups are kept) and have them reviewed before opening to the public.

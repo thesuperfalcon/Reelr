@@ -5,6 +5,8 @@ export interface RegisterInput {
   username: string;
   email: string;
   password: string;
+  /** The user is at least 13 and accepts the terms and privacy policy. */
+  acceptTerms: boolean;
 }
 
 /** "expiring": the session ends in a few minutes. "expired": it ended, or the API refused the token. */

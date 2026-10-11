@@ -1,6 +1,7 @@
 using backend.Data;
 using backend.Features.Auth;
 using backend.Features.Reviews.DTOs;
+using backend.Features.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -26,7 +27,9 @@ namespace backend.Features.Reviews
                 return NotFound();
             }
 
-            var comments = await ToDtos(_context.ReviewComments.Where(c => c.ReviewId == reviewId))
+            // Comments by people the viewer blocked are left out.
+            var blocked = _context.BlockedBy(User.FindUserId());
+            var comments = await ToDtos(_context.ReviewComments.Where(c => c.ReviewId == reviewId && !blocked.Contains(c.UserId)))
                 .OrderBy(c => c.CreatedAt)
                 .ThenBy(c => c.Id)
                 .ToListAsync();
@@ -41,9 +44,19 @@ namespace backend.Features.Reviews
         {
             var userId = User.GetUserId();
 
-            if (!await _context.Reviews.AnyAsync(r => r.Id == reviewId))
+            var authorId = await _context.Reviews
+                .Where(r => r.Id == reviewId)
+                .Select(r => (int?)r.UserId)
+                .FirstOrDefaultAsync();
+
+            if (authorId == null)
             {
                 return NotFound();
+            }
+
+            if (await _context.HasBlockedAsync(authorId.Value, userId))
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "You can't comment on this member's reviews.");
             }
 
             var comment = new ReviewComment

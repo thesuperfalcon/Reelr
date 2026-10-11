@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { ApiError, api, getToken } from "./api";
 
 // The account email flows. Every request that sends an email answers the same whether or not the address
 // has an account, so these only report errors such as rate limits or an invalid link.
@@ -33,4 +33,22 @@ export function clearEmailLink() {
   if (window.location.hash) {
     window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
   }
+}
+
+// Downloads everything Reelr stores about the user as a JSON file. The request needs the login token,
+// so a plain link would not work; the file is fetched and then handed to the browser to save.
+export async function downloadDataExport() {
+  const response = await fetch("/api/settings/export", { headers: { Authorization: `Bearer ${getToken() ?? ""}` } });
+
+  if (!response.ok) {
+    throw new ApiError(response.status, "Could not create the download. Try again in a moment.");
+  }
+
+  const name = /filename="?([^";]+)"?/.exec(response.headers.get("Content-Disposition") ?? "")?.[1] ?? "reelr-export.json";
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
 }

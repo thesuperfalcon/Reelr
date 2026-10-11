@@ -2,6 +2,7 @@ using backend.Data;
 using backend.Features.Auth;
 using backend.Features.Diary.DTOs;
 using backend.Features.Movies;
+using backend.Features.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -34,10 +35,11 @@ namespace backend.Features.Diary
 
         [AllowAnonymous]
         [HttpGet("api/users/{userId:int}/diary")]
-        [EndpointSummary("Get a user's diary, newest entry first")]
+        [EndpointSummary("Get a user's diary, newest entry first, if their diary visibility allows the caller to see it")]
         public async Task<ActionResult<List<DiaryEntryDto>>> GetUserDiary(int userId)
         {
-            if (!await _context.Users.AnyAsync(u => u.Id == userId))
+            // A hidden diary answers like a missing user, so it does not reveal that it exists.
+            if (await _context.CanSeeDiaryAsync(User.FindUserId(), userId) != true)
             {
                 return NotFound();
             }

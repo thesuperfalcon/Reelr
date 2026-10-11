@@ -9,7 +9,7 @@ namespace backend.Features.Settings
 
         public byte[] Data { get; set; } = [];
 
-        // Detected from the file's first bytes, never taken from the upload.
+        // Always WebP: uploads are drawn again before they are stored (see AvatarImage.Normalize).
         public string ContentType { get; set; } = string.Empty;
 
         // Part of the image URL, so browsers can cache an image forever and still see a new one.

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { ReportButton } from "../components/ReportButton";
 import { LockIcon } from "../components/ListCard";
 import { ListFormDialog } from "../components/ListFormDialog";
 import { Poster } from "../components/Poster";
@@ -231,6 +232,11 @@ export function ListPage() {
           )}
         </p>
         {owner && <OwnerActions list={list} />}
+        {user && !owner && (
+          <p className="mt-4 text-sm">
+            <ReportButton targetType="List" targetId={list.id} what="this list" />
+          </p>
+        )}
       </header>
 
       {movies.isPending ? (

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { ReportButton } from "./ReportButton";
 import { fullFormat, timeAgo } from "../lib/activity";
 import {
   COMMENT_MAX_LENGTH,
@@ -104,7 +105,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
           {timeAgo(created)}
         </time>
         {comment.updatedAt && <span className="text-xs text-haze">(edited)</span>}
-        {!editing && (own || canDelete) && (
+        {!editing && (own || canDelete || user) && (
           <span className="ml-auto flex items-center gap-3 text-xs">
             {confirming ? (
               <>
@@ -145,6 +146,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
                     Delete
                   </button>
                 )}
+                {user && !own && <ReportButton targetType="Comment" targetId={comment.id} what="this comment" />}
               </>
             )}
           </span>

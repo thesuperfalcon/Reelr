@@ -46,6 +46,7 @@ namespace backend.Features.Users
             var viewerId = User.FindUserId();
             var isFollowing = viewerId != null
                 && await _context.Set<Follow>().AnyAsync(f => f.FollowerId == viewerId && f.FollowedId == id);
+            var isBlocked = viewerId != null && await _context.HasBlockedAsync(viewerId.Value, id);
 
             return Ok(new UserProfileDto
             {
@@ -55,8 +56,11 @@ namespace backend.Features.Users
                 FollowerCount = followerCount,
                 FollowingCount = followingCount,
                 IsFollowing = isFollowing,
+                IsBlocked = isBlocked,
                 WatchlistVisibility = user.WatchlistVisibility,
-                CanSeeWatchlist = UserVisibility.CanSeeWatchlist(viewerId, id, user.WatchlistVisibility, isFollowing)
+                CanSeeWatchlist = UserVisibility.CanSeeWatchlist(viewerId, id, user.WatchlistVisibility, isFollowing),
+                DiaryVisibility = user.DiaryVisibility,
+                CanSeeDiary = UserVisibility.CanSeeDiary(viewerId, id, user.DiaryVisibility, isFollowing)
             });
         }
 
@@ -202,8 +206,10 @@ namespace backend.Features.Users
                 FollowerCount = followerCount,
                 FollowingCount = followingCount,
                 WatchlistVisibility = user.WatchlistVisibility,
-                // Only the owner can update a profile, and owners always see their own watchlist.
-                CanSeeWatchlist = true
+                DiaryVisibility = user.DiaryVisibility,
+                // Only the owner can update a profile, and owners always see their own watchlist and diary.
+                CanSeeWatchlist = true,
+                CanSeeDiary = true
             });
         }
 
@@ -241,6 +247,10 @@ namespace backend.Features.Users
 
             await _context.Set<Follow>()
                 .Where(f => f.FollowerId == id || f.FollowedId == id)
+                .ExecuteDeleteAsync();
+
+            await _context.Blocks
+                .Where(b => b.BlockerId == id || b.BlockedId == id)
                 .ExecuteDeleteAsync();
 
             await _context.ReviewLikes.Where(l => l.UserId == id).ExecuteDeleteAsync();
@@ -283,6 +293,11 @@ namespace backend.Features.Users
                 return NotFound();
             }
 
+            if (await _context.IsBlockedEitherWayAsync(userId, id))
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "You can't follow this member.");
+            }
+
             var alreadyFollowing = await _context.Set<Follow>()
                 .AnyAsync(f => f.FollowerId == userId && f.FollowedId == id);
 
@@ -298,6 +313,54 @@ namespace backend.Features.Users
             });
 
             await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        // Blocking twice is the same as blocking once. Follows between the two users end in both directions.
+        [Authorize]
+        [HttpPut("{id:int}/block")]
+        [EndpointSummary("Block a user")]
+        public async Task<IActionResult> BlockUser(int id)
+        {
+            var userId = User.GetUserId();
+
+            if (userId == id)
+            {
+                return BadRequest("Cannot block yourself.");
+            }
+
+            if (!await _context.Users.AnyAsync(u => u.Id == id))
+            {
+                return NotFound();
+            }
+
+            if (!await _context.HasBlockedAsync(userId, id))
+            {
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+
+                await _context.Follows
+                    .Where(f => (f.FollowerId == userId && f.FollowedId == id) || (f.FollowerId == id && f.FollowedId == userId))
+                    .ExecuteDeleteAsync();
+
+                _context.Blocks.Add(new Block { BlockerId = userId, BlockedId = id, CreatedAt = DateTime.UtcNow });
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+            }
+
+            return NoContent();
+        }
+
+        // Unblocking someone who is not blocked does nothing. Follows do not come back.
+        [Authorize]
+        [HttpDelete("{id:int}/block")]
+        [EndpointSummary("Unblock a user")]
+        public async Task<IActionResult> UnblockUser(int id)
+        {
+            var userId = User.GetUserId();
+
+            await _context.Blocks.Where(b => b.BlockerId == userId && b.BlockedId == id).ExecuteDeleteAsync();
 
             return NoContent();
         }

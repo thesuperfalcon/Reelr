@@ -12,9 +12,14 @@ namespace backend.Features.Settings.DTOs
 
         public WatchlistVisibility WatchlistVisibility { get; set; }
 
+        public DiaryVisibility DiaryVisibility { get; set; }
+
         public bool ShowFriendReviews { get; set; }
 
         public bool ShowOwnActivity { get; set; }
+
+        // Whether the user may open the moderation page.
+        public bool IsAdmin { get; set; }
     }
 
     // Returned after a change. Token is set when the username changed, since a rename revokes the old token.

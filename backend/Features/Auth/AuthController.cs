@@ -44,7 +44,8 @@ public class AuthController : ControllerBase
         var user = new User
         {
             UserName = dto.Username,
-            Email = dto.Email
+            Email = dto.Email,
+            TermsAcceptedAt = DateTime.UtcNow
         };
 
         // Password rules are checked first: Identity stops at a taken email before it looks at the password,

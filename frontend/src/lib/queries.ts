@@ -571,7 +571,10 @@ export function useUpdateSettings() {
       if (token) {
         replaceToken(token);
       }
-      saved(settings, update.userName !== undefined || update.watchlistVisibility !== undefined);
+      saved(
+        settings,
+        update.userName !== undefined || update.watchlistVisibility !== undefined || update.diaryVisibility !== undefined,
+      );
       // The Following feed reads this setting on the server.
       if (update.showOwnActivity !== undefined) {
         void queryClient.invalidateQueries({ queryKey: ["feed", "following"] });

@@ -20,7 +20,7 @@ public class AuthControllerTests : IClassFixture<ReelrApiFactory>
     private static string UniqueName() => $"user_{Guid.NewGuid():N}"[..20];
 
     private Task<HttpResponseMessage> PostRegisterAsync(string username, string email, string password = TestUsers.Password) =>
-        _client.PostAsJsonAsync("/auth/register", new { Username = username, Email = email, Password = password });
+        _client.PostAsJsonAsync("/auth/register", new { Username = username, Email = email, Password = password, AcceptTerms = true });
 
     // Registers and confirms the email, so the account can log in.
     private async Task<HttpResponseMessage> RegisterAsync(string username, string email, string password = TestUsers.Password)
@@ -72,6 +72,22 @@ public class AuthControllerTests : IClassFixture<ReelrApiFactory>
         var response = await _client.PostAsJsonAsync("/auth/confirm-email", new { UserId = userId, Token = "forged" });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Register_WithoutAcceptingTerms_Returns400_AndStoresTheTimeWhenAccepted()
+    {
+        var refused = UniqueName();
+        var accepted = UniqueName();
+
+        var response = await _client.PostAsJsonAsync("/auth/register",
+            new { Username = refused, Email = $"{refused}@test.local", TestUsers.Password, AcceptTerms = false });
+        await PostRegisterAsync(accepted, $"{accepted}@test.local");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.False(await _factory.WithContextAsync(c => c.Users.AnyAsync(u => u.UserName == refused)));
+        var acceptedAt = await _factory.WithContextAsync(c => c.Users.Where(u => u.UserName == accepted).Select(u => u.TermsAcceptedAt).SingleAsync());
+        Assert.NotNull(acceptedAt);
     }
 
     [Fact]

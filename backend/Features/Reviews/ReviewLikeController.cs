@@ -1,6 +1,7 @@
 using backend.Data;
 using backend.Features.Auth;
 using backend.Features.Reviews.DTOs;
+using backend.Features.Users;
 using backend.Features.Users.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -63,6 +64,11 @@ namespace backend.Features.Reviews
             if (authorId == userId)
             {
                 return BadRequest("You cannot like your own review.");
+            }
+
+            if (await _context.HasBlockedAsync(authorId.Value, userId))
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "You can't like this member's reviews.");
             }
 
             if (!await _context.ReviewLikes.AnyAsync(l => l.ReviewId == reviewId && l.UserId == userId))

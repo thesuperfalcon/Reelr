@@ -25,7 +25,8 @@ public static class TestUsers
         {
             Username = username,
             Email = $"{username}@test.local",
-            Password
+            Password,
+            AcceptTerms = true
         });
         registerResponse.EnsureSuccessStatusCode();
 

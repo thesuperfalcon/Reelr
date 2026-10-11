@@ -52,12 +52,15 @@ const router = createBrowserRouter([
           { path: "register", lazy: async () => ({ Component: (await import("./pages/AuthPages")).RegisterPage }) },
           { path: "confirm-email", lazy: async () => ({ Component: (await import("./pages/AuthPages")).ConfirmEmailPage }) },
           { path: "forgot-password", lazy: async () => ({ Component: (await import("./pages/AuthPages")).ForgotPasswordPage }) },
+          { path: "privacy", lazy: async () => ({ Component: (await import("./pages/LegalPages")).PrivacyPage }) },
+          { path: "terms", lazy: async () => ({ Component: (await import("./pages/LegalPages")).TermsPage }) },
           { path: "reset-password", lazy: async () => ({ Component: (await import("./pages/AuthPages")).ResetPasswordPage }) },
           {
             element: <RequireAuth />,
             children: [
               { path: "profile", lazy: async () => ({ Component: (await import("./pages/ProfilePage")).ProfilePage }) },
               { path: "settings", lazy: async () => ({ Component: (await import("./pages/SettingsPage")).SettingsPage }) },
+              { path: "admin", lazy: async () => ({ Component: (await import("./pages/AdminPage")).AdminPage }) },
             ],
           },
           { path: "*", element: <NotFoundPage /> },

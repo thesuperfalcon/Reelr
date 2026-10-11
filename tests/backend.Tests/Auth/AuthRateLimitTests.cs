@@ -27,7 +27,7 @@ public class AuthRateLimitTests : IClassFixture<LowAuthLimitApiFactory>
     private Task<HttpResponseMessage> RegisterAsync()
     {
         var username = $"user_{Guid.NewGuid():N}"[..20];
-        return _client.PostAsJsonAsync("/auth/register", new { Username = username, Email = $"{username}@test.local", TestUsers.Password });
+        return _client.PostAsJsonAsync("/auth/register", new { Username = username, Email = $"{username}@test.local", TestUsers.Password, AcceptTerms = true });
     }
 
     [Fact]

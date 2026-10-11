@@ -141,9 +141,16 @@ export interface UserProfile {
   watchlistVisibility: WatchlistVisibility;
   /** Whether the logged-in user (or a visitor) may open this user's watchlist. */
   canSeeWatchlist: boolean;
+  diaryVisibility: DiaryVisibility;
+  /** Whether the logged-in user (or a visitor) may open this user's diary. */
+  canSeeDiary: boolean;
+  /** True when the logged-in user has blocked this user. */
+  isBlocked: boolean;
 }
 
 export type WatchlistVisibility = "Public" | "Followers" | "Private";
+
+export type DiaryVisibility = "Public" | "Followers" | "Private";
 
 export interface WatchlistEntry {
   tmdbId: number;
@@ -308,12 +315,15 @@ export interface UserSettings {
   email: string;
   profileImageUrl: string | null;
   watchlistVisibility: WatchlistVisibility;
+  diaryVisibility: DiaryVisibility;
   showFriendReviews: boolean;
   /** Whether the Following feed also shows the user's own activity. */
   showOwnActivity: boolean;
+  /** Whether the user may open the moderation page. */
+  isAdmin: boolean;
 }
 
 /** Only the fields that are set change. */
 export type UserSettingsUpdate = Partial<
-  Pick<UserSettings, "userName" | "watchlistVisibility" | "showFriendReviews" | "showOwnActivity">
+  Pick<UserSettings, "userName" | "watchlistVisibility" | "diaryVisibility" | "showFriendReviews" | "showOwnActivity">
 >;

@@ -217,6 +217,7 @@ export function RegisterPage() {
         username: String(form.get("username")),
         email,
         password: String(form.get("password")),
+        acceptTerms: form.get("acceptTerms") === "on",
       });
       setSentTo(email);
     } catch (err) {
@@ -254,6 +255,20 @@ export function RegisterPage() {
         <Field id="username" label="Username" autoComplete="username" minLength={3} maxLength={50} />
         <Field id="email" label="Email" type="email" autoComplete="email" />
         <Field id="password" label="Password" type="password" autoComplete="new-password" minLength={8} hint={passwordHint} />
+        <label className="flex items-start gap-3 text-sm">
+          <input type="checkbox" name="acceptTerms" required className="mt-0.5 size-4 accent-projector" />
+          <span>
+            I am at least 13 and accept the{" "}
+            <Link to="/terms" target="_blank" className={linkClass}>
+              terms
+            </Link>{" "}
+            and the{" "}
+            <Link to="/privacy" target="_blank" className={linkClass}>
+              privacy policy
+            </Link>
+            .
+          </span>
+        </label>
         <FormError error={error} />
         <button type="submit" disabled={pending} className={submitClass}>
           {pending ? "Creating account…" : "Create account"}

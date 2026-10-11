@@ -1,7 +1,10 @@
 using backend.Data;
 using backend.Features.Auth;
+using backend.Features.Moderation;
 using backend.Features.Settings.DTOs;
 using backend.Features.Users;
+using backend.Features.Users.DTOs;
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -20,19 +23,22 @@ namespace backend.Features.Settings
         private readonly SignInManager<User> _signInManager;
         private readonly TokenService _tokenService;
         private readonly SecurityStamps _securityStamps;
+        private readonly AdminAccess _adminAccess;
 
         public SettingsController(
             ReelrContext context,
             UserManager<User> userManager,
             SignInManager<User> signInManager,
             TokenService tokenService,
-            SecurityStamps securityStamps)
+            SecurityStamps securityStamps,
+            AdminAccess adminAccess)
         {
             _context = context;
             _userManager = userManager;
             _signInManager = signInManager;
             _tokenService = tokenService;
             _securityStamps = securityStamps;
+            _adminAccess = adminAccess;
         }
 
         [HttpGet]
@@ -83,6 +89,17 @@ namespace backend.Features.Settings
                 user.WatchlistVisibility = visibility;
             }
 
+            if (dto.DiaryVisibility is DiaryVisibility diaryVisibility)
+            {
+                if (!Enum.IsDefined(diaryVisibility))
+                {
+                    ModelState.AddModelError(nameof(dto.DiaryVisibility), "Unknown diary visibility.");
+                    return ValidationProblem(ModelState);
+                }
+
+                user.DiaryVisibility = diaryVisibility;
+            }
+
             if (dto.ShowFriendReviews is bool show)
             {
                 user.ShowFriendReviews = show;
@@ -131,6 +148,43 @@ namespace backend.Features.Settings
             return Ok(new TokenDto { Token = _tokenService.CreateToken(user) });
         }
 
+        [HttpGet("export")]
+        [EndpointSummary("Download everything Reelr stores about the current user, as a JSON file")]
+        public async Task<IActionResult> Export()
+        {
+            var user = await CurrentUserAsync();
+
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            var export = await DataExport.BuildAsync(_context, user);
+            var json = JsonSerializer.SerializeToUtf8Bytes(export, ExportJsonOptions);
+
+            return File(json, "application/json", $"reelr-{user.UserName}-{DateTime.UtcNow:yyyy-MM-dd}.json");
+        }
+
+        [HttpGet("blocked")]
+        [EndpointSummary("Get the users the current user has blocked")]
+        public async Task<ActionResult<List<UserSummaryDto>>> GetBlocked()
+        {
+            var userId = User.GetUserId();
+
+            var blocked = await _context.Blocks
+                .Where(b => b.BlockerId == userId)
+                .OrderBy(b => b.Blocked.UserName)
+                .Select(b => new UserSummaryDto
+                {
+                    Id = b.Blocked.Id,
+                    UserName = b.Blocked.UserName ?? string.Empty,
+                    ProfileImageUrl = b.Blocked.ProfileImageUrl
+                })
+                .ToListAsync();
+
+            return Ok(blocked);
+        }
+
         [HttpPost("logout-everywhere")]
         [EndpointSummary("Sign out on every device, including this one")]
         public async Task<IActionResult> LogoutEverywhere()
@@ -168,12 +222,19 @@ namespace backend.Features.Settings
 
             using var buffer = new MemoryStream();
             await file.CopyToAsync(buffer);
-            var data = buffer.ToArray();
-            var contentType = AvatarImage.DetectContentType(data);
+            var upload = buffer.ToArray();
 
-            if (contentType == null)
+            if (AvatarImage.DetectContentType(upload) == null)
             {
                 return BadRequest("The picture must be a JPEG, PNG or WebP image.");
+            }
+
+            // Stored as a newly drawn picture, so metadata such as the GPS position from a phone camera is gone.
+            var data = AvatarImage.Normalize(upload);
+
+            if (data == null)
+            {
+                return BadRequest("The picture could not be read. Try another one.");
             }
 
             var avatar = await _context.Set<UserAvatar>().FindAsync(user.Id);
@@ -185,7 +246,7 @@ namespace backend.Features.Settings
             }
 
             avatar.Data = data;
-            avatar.ContentType = contentType;
+            avatar.ContentType = AvatarImage.StoredContentType;
             avatar.UpdatedAt = DateTime.UtcNow;
             user.ProfileImageUrl = $"/api/users/{user.Id}/avatar?v={avatar.UpdatedAt.Ticks}";
 
@@ -212,6 +273,8 @@ namespace backend.Features.Settings
             return Ok(ToDto(user, new UserSettingsDto()));
         }
 
+        private static readonly JsonSerializerOptions ExportJsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+
         // Null when the token belongs to a user that has since been deleted.
         private async Task<User?> CurrentUserAsync()
         {
@@ -219,12 +282,14 @@ namespace backend.Features.Settings
             return await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
         }
 
-        private static T ToDto<T>(User user, T dto) where T : UserSettingsDto
+        private T ToDto<T>(User user, T dto) where T : UserSettingsDto
         {
+            dto.IsAdmin = _adminAccess.IsAdmin(user.Id);
             dto.UserName = user.UserName ?? string.Empty;
             dto.Email = user.Email ?? string.Empty;
             dto.ProfileImageUrl = user.ProfileImageUrl;
             dto.WatchlistVisibility = user.WatchlistVisibility;
+            dto.DiaryVisibility = user.DiaryVisibility;
             dto.ShowFriendReviews = user.ShowFriendReviews;
             dto.ShowOwnActivity = user.ShowOwnActivity;
             return dto;

@@ -3,6 +3,7 @@ using backend.Features.Activity;
 using backend.Features.Auth;
 using backend.Features.Diary;
 using backend.Features.Email;
+using backend.Features.Moderation;
 using backend.Features.Movies;
 using backend.Features.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -91,6 +92,14 @@ builder.Services.AddSingleton<EmailQueue>();
 builder.Services.AddHostedService<EmailDispatcher>();
 builder.Services.AddScoped<AccountEmails>();
 builder.Services.AddSingleton<SecurityStamps>();
+
+// Admins are configured by user id under "Admin:UserIds" (see AdminAccess).
+var adminAccess = new AdminAccess(builder.Configuration);
+builder.Services.AddSingleton(adminAccess);
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(AdminAccess.Policy, policy => policy
+        .RequireAuthenticatedUser()
+        .RequireAssertion(context => adminAccess.IsAdmin(context.User)));
 
 builder.Services.AddRateLimits(builder.Configuration);
 builder.Services.AddSingleton<LoginThrottle>();

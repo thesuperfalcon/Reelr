@@ -2,6 +2,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { DeleteReviewButton } from "../components/DeleteReviewButton";
 import { ReviewComments } from "../components/ReviewComments";
+import { ReportButton } from "../components/ReportButton";
 import { ReviewReactions } from "../components/ReviewReactions";
 import { ReviewText } from "../components/ReviewText";
 import { SpoilerGate, SpoilerTag } from "../components/SpoilerGate";
@@ -91,6 +92,12 @@ export function ReviewPage() {
           </SpoilerGate>
 
           <ReviewReactions review={data} className="mt-6" />
+
+          {user && !own && (
+            <p className="mt-4 text-sm">
+              <ReportButton targetType="Review" targetId={data.id} what="this review" />
+            </p>
+          )}
 
           {own && (
             <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-white/5 pt-6 text-sm">
