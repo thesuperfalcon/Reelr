@@ -60,7 +60,9 @@ A few design decisions:
 - **Journal rules live in one service.** Watching, rating, reviewing and the watchlist depend on each other. `JournalService` keeps those rules in one place so every endpoint follows them the same way.
 - **The activity feed sits behind an interface.** `IActivityFeed` is built from existing tables today, with cursor pagination. It can be replaced with a stored event table without changing the controller.
 - **One place decides visibility.** `UserVisibility` decides who can see a member's watchlist.
-- **Errors use ProblemDetails.** Unhandled exceptions and empty error responses return `application/problem+json`. `GET /health/live` answers while the process runs; `GET /health/ready` checks the database (503 when it is down) and TMDB (reported as `Degraded`, still 200).
+- **Errors use ProblemDetails.** Unhandled exceptions and empty error responses return `application/problem+json`, with a `correlationId` a user can quote. `GET /health/live` answers while the process runs; `GET /health/ready` checks the database (503 when it is down) and TMDB (reported as `Degraded`, still 200).
+- **Logs are JSON lines.** Serilog writes one JSON object per line to the console outside Development (readable text in Development); levels are set in the `Serilog` section, e.g. `Serilog__MinimumLevel__Default=Debug`. Every request is logged once without its query string, and every line of a request carries a `CorrelationId` that matches `request_id` in the nginx access log. Account events (logins, password changes, deletions, admin actions) are logged under `backend.Features.Auth.SecurityLog` with user ids only.
+- **Lists are paged.** List endpoints take `?cursor=&limit=` (default 30, max 100) and return `{ items, nextCursor }`.
 
 ```
 backend/          ASP.NET Core API (Features/, Data/, Migrations/)
