@@ -31,6 +31,7 @@ public class LoginThrottleTests : IClassFixture<LowLoginThrottleApiFactory>
         var username = $"user_{Guid.NewGuid():N}"[..20];
         (await _client.PostAsJsonAsync("/auth/register", new { Username = username, Email = $"{username}@test.local", TestUsers.Password }))
             .EnsureSuccessStatusCode();
+        await _factory.ConfirmEmailAsync(username);
         return username;
     }
 

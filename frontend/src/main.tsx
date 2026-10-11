@@ -50,6 +50,9 @@ const router = createBrowserRouter([
           { path: "user/:userId", lazy: async () => ({ Component: (await import("./pages/ProfilePage")).UserPage }) },
           { path: "login", lazy: async () => ({ Component: (await import("./pages/AuthPages")).LoginPage }) },
           { path: "register", lazy: async () => ({ Component: (await import("./pages/AuthPages")).RegisterPage }) },
+          { path: "confirm-email", lazy: async () => ({ Component: (await import("./pages/AuthPages")).ConfirmEmailPage }) },
+          { path: "forgot-password", lazy: async () => ({ Component: (await import("./pages/AuthPages")).ForgotPasswordPage }) },
+          { path: "reset-password", lazy: async () => ({ Component: (await import("./pages/AuthPages")).ResetPasswordPage }) },
           {
             element: <RequireAuth />,
             children: [

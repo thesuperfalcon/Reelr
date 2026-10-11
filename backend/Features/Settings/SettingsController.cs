@@ -19,14 +19,20 @@ namespace backend.Features.Settings
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
         private readonly TokenService _tokenService;
+        private readonly SecurityStamps _securityStamps;
 
         public SettingsController(
-            ReelrContext context, UserManager<User> userManager, SignInManager<User> signInManager, TokenService tokenService)
+            ReelrContext context,
+            UserManager<User> userManager,
+            SignInManager<User> signInManager,
+            TokenService tokenService,
+            SecurityStamps securityStamps)
         {
             _context = context;
             _userManager = userManager;
             _signInManager = signInManager;
             _tokenService = tokenService;
+            _securityStamps = securityStamps;
         }
 
         [HttpGet]
@@ -61,6 +67,8 @@ namespace backend.Features.Settings
                     return IdentityProblem(renamed);
                 }
 
+                // A rename changes the security stamp, which revokes the old token; the new one carries the new stamp.
+                _securityStamps.Forget(user.Id);
                 result.Token = _tokenService.CreateToken(user);
             }
 
@@ -91,8 +99,8 @@ namespace backend.Features.Settings
         }
 
         [HttpPost("password")]
-        [EndpointSummary("Change the current user's password")]
-        public async Task<IActionResult> ChangePassword(ChangePasswordDto dto)
+        [EndpointSummary("Change the current user's password. Signs out every other device and returns a new token for this one")]
+        public async Task<ActionResult<TokenDto>> ChangePassword(ChangePasswordDto dto)
         {
             var user = await CurrentUserAsync();
 
@@ -113,7 +121,31 @@ namespace backend.Features.Settings
 
             var changed = await _userManager.ChangePasswordAsync(user, dto.CurrentPassword, dto.NewPassword);
 
-            return changed.Succeeded ? NoContent() : IdentityProblem(changed);
+            if (!changed.Succeeded)
+            {
+                return IdentityProblem(changed);
+            }
+
+            // The change revoked every token, including the one used here, so this device gets a new one.
+            _securityStamps.Forget(user.Id);
+            return Ok(new TokenDto { Token = _tokenService.CreateToken(user) });
+        }
+
+        [HttpPost("logout-everywhere")]
+        [EndpointSummary("Sign out on every device, including this one")]
+        public async Task<IActionResult> LogoutEverywhere()
+        {
+            var user = await CurrentUserAsync();
+
+            if (user == null)
+            {
+                return Unauthorized();
+            }
+
+            await _userManager.UpdateSecurityStampAsync(user);
+            _securityStamps.Forget(user.Id);
+
+            return NoContent();
         }
 
         [HttpPut("avatar")]

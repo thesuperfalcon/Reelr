@@ -7,6 +7,7 @@ public static class RateLimitPolicies
 {
     public const string Login = "auth-login";
     public const string Register = "auth-register";
+    public const string AccountEmail = "auth-account-email";
     public const string Search = "search";
 
     /// <summary>
@@ -16,6 +17,7 @@ public static class RateLimitPolicies
     /// Writes (POST, PUT, PATCH, DELETE) get a lower limit, which stops spam such as mass comments or follows.</item>
     /// <item>Search applies on top to the search endpoints, since each search calls TMDB.</item>
     /// <item>Login and Register apply per IP, to slow down password guessing and mass sign-ups.</item>
+    /// <item>AccountEmail applies per IP to the forms that send an account email (forgot password, resend confirmation).</item>
     /// </list>
     /// Rejected requests get 429 with a Retry-After header.
     /// </summary>
@@ -57,6 +59,7 @@ public static class RateLimitPolicies
             AddPolicy(options, Search, Limit(configuration, "Search", permitLimit: 30, windowSeconds: 60), ClientKey);
             AddPolicy(options, Login, Limit(configuration, "Login", permitLimit: 10, windowSeconds: 60), IpKey);
             AddPolicy(options, Register, Limit(configuration, "Register", permitLimit: 5, windowSeconds: 3600), IpKey);
+            AddPolicy(options, AccountEmail, Limit(configuration, "AccountEmail", permitLimit: 5, windowSeconds: 900), IpKey);
         });
     }
 

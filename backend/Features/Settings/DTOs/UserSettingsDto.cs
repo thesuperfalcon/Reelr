@@ -17,9 +17,15 @@ namespace backend.Features.Settings.DTOs
         public bool ShowOwnActivity { get; set; }
     }
 
-    // Returned after a change. Token is set when the username changed, since the old token still carries the old name.
+    // Returned after a change. Token is set when the username changed, since a rename revokes the old token.
     public class UpdatedSettingsDto : UserSettingsDto
     {
         public string? Token { get; set; }
+    }
+
+    // A new token for this device, after a change that revoked the old one.
+    public class TokenDto
+    {
+        public string Token { get; set; } = string.Empty;
     }
 }

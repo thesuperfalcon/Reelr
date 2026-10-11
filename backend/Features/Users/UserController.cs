@@ -17,12 +17,15 @@ namespace backend.Features.Users
         private readonly ReelrContext _context;
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
+        private readonly SecurityStamps _securityStamps;
 
-        public UserController(ReelrContext context, UserManager<User> userManager, SignInManager<User> signInManager)
+        public UserController(
+            ReelrContext context, UserManager<User> userManager, SignInManager<User> signInManager, SecurityStamps securityStamps)
         {
             _context = context;
             _userManager = userManager;
             _signInManager = signInManager;
+            _securityStamps = securityStamps;
         }
 
         [HttpGet("{id:int}")]
@@ -182,6 +185,10 @@ namespace backend.Features.Users
 
                     return ValidationProblem(ModelState);
                 }
+
+                // The rename changed the security stamp and so revoked the caller's token. PATCH /api/settings
+                // returns a new token; this older endpoint does not, so the caller has to log in again.
+                _securityStamps.Forget(user.Id);
             }
 
             var followerCount = await _context.Set<Follow>().CountAsync(f => f.FollowedId == id);
@@ -252,6 +259,7 @@ namespace backend.Features.Users
             }
 
             await transaction.CommitAsync();
+            _securityStamps.Forget(id);
 
             return NoContent();
         }

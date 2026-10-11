@@ -159,7 +159,7 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
 
         var changed = await user.Client.PostAsJsonAsync("/api/settings/password",
             new ChangePasswordDto { CurrentPassword = TestUsers.Password, NewPassword = newPassword });
-        Assert.Equal(HttpStatusCode.NoContent, changed.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
 
         var client = _factory.CreateClient();
         var oldLogin = await client.PostAsJsonAsync("/auth/login", new { UserInput = user.Username, Password = TestUsers.Password });

@@ -7,13 +7,14 @@ using backend.Features.Settings;
 using backend.Features.Users;
 using backend.Features.WatchedMovies;
 using backend.Features.WatchlistItems;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Data;
 
-public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
+public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDataProtectionKeyContext
 {
     public ReelrContext(DbContextOptions<ReelrContext> options)
         : base(options)
@@ -43,6 +44,10 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>
     public DbSet<MovieListItem> MovieListItems => Set<MovieListItem>();
 
     public DbSet<UserAvatar> UserAvatars => Set<UserAvatar>();
+
+    // The keys that sign email confirmation and password reset links. Kept in the database so links still
+    // work after a restart or a new container, and on every instance.
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

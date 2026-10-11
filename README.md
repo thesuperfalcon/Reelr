@@ -24,14 +24,16 @@ Reelr is a social film diary, in the spirit of Letterboxd. You log the films you
 - Activity feed with a Following tab and a Community tab.
 - Likes and comments on reviews.
 - Watchlist visibility: public, followers only or private.
-- Profile settings with avatar upload and password change.
+- Profile settings with avatar upload, password change and "log out everywhere".
+- Email confirmation on sign-up and password reset by email.
 
 ## Tech stack
 
 | Area | Technology |
 |---|---|
 | Backend | .NET 10, ASP.NET Core Web API, Entity Framework Core 10, SQL Server |
-| Auth | ASP.NET Core Identity, JWT bearer tokens, account lockout, per-IP rate limiting |
+| Auth | ASP.NET Core Identity, JWT bearer tokens revoked through the security stamp, email confirmation, password reset, lockout and rate limiting |
+| Email | SMTP through MailKit; Mailpit catches mail in development |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, React Router, TanStack Query |
 | Tests | xUnit integration tests with `WebApplicationFactory` against a real SQL Server and a fake TMDB |
 | Infrastructure | Docker Compose (SQL Server, API, nginx), GitHub Actions CI |
@@ -86,6 +88,7 @@ Requires Docker Desktop.
    ```
 
 3. Open http://localhost:8080. The API is on http://localhost:5084, with Swagger at `/swagger`.
+   Emails (sign-up confirmation, password reset) are caught by Mailpit at http://localhost:8025; none reach a real inbox.
 
 The database is migrated automatically on start-up. All ports are bound to `127.0.0.1`.
 
@@ -121,7 +124,15 @@ Requires the .NET 10 SDK, Node.js 24 and SQL Server (for example SQL Server Expr
    dotnet run --project backend/backend.csproj --launch-profile http
    ```
 
-5. Start the frontend on http://localhost:5173. Vite proxies `/api` and `/auth` to the API.
+5. Emails go to an SMTP server on `localhost:1025` (see `backend/appsettings.Development.json`). To read them, run Mailpit and open http://localhost:8025:
+
+   ```bash
+   docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit:v1.31.2
+   ```
+
+   Without it the API still works, but sign-up confirmation and password reset emails are not delivered.
+
+6. Start the frontend on http://localhost:5173. Vite proxies `/api` and `/auth` to the API.
 
    ```bash
    cd frontend

@@ -32,12 +32,20 @@ services:
       # Requests arrive through nginx. X-Forwarded-For is trusted only from this compose network,
       # so auth rate limiting is per client and a client cannot fake its IP by sending the header itself.
       ForwardedHeaders__KnownNetworks__0: "172.30.0.0/24"
+      # Account emails go to Mailpit, which keeps them instead of delivering them: http://localhost:8025
+      Email__Host: mailpit
+      Email__Port: "1025"
+      Email__Security: None
+      Email__FromAddress: noreply@reelr.local
+      App__BaseUrl: http://localhost:8080
     env_file: .env
     ports:
       - "127.0.0.1:5084:8080"
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     healthcheck:
       # The aspnet image has no curl or wget, so bash sends the request to /health itself.
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
@@ -45,6 +53,12 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
+  # Catches every email the backend sends and shows it in a web inbox, so nothing reaches a real address.
+  mailpit:
+    image: axllent/mailpit:v1.31.2
+    ports:
+      - "127.0.0.1:8025:8025"
 
   frontend:
     build: ./frontend

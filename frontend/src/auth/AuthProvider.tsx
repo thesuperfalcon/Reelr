@@ -106,13 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ]);
   }, [queryClient]);
 
-  const register = useCallback(
-    async (input: RegisterInput) => {
-      await api("/auth/register", { method: "POST", body: JSON.stringify(input) });
-      await login(input.username, input.password);
-    },
-    [login],
-  );
+  // The new account can log in once its email is confirmed, so registering does not log in.
+  const register = useCallback(async (input: RegisterInput) => {
+    await api("/auth/register", { method: "POST", body: JSON.stringify(input) });
+  }, []);
 
   const replaceToken = useCallback((token: string) => {
     setToken(token);

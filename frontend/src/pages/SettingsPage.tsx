@@ -8,6 +8,7 @@ import { prepareAvatar } from "../lib/avatar";
 import {
   useChangePassword,
   useDeleteAccount,
+  useLogoutEverywhere,
   useRemoveAvatar,
   useSettings,
   useUpdateSettings,
@@ -375,6 +376,41 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
   );
 }
 
+// Signs out every device, for example after using a shared or lost one.
+function LogoutEverywhereSection() {
+  const { logout } = useAuth();
+  const logoutEverywhere = useLogoutEverywhere();
+
+  async function signOutEverywhere() {
+    try {
+      await logoutEverywhere.mutateAsync();
+      logout();
+      // A full load, for the same reason as after deleting the account below.
+      window.location.replace("/login");
+    } catch {
+      // The error is shown from logoutEverywhere.error.
+    }
+  }
+
+  return (
+    <Section
+      id="settings-sessions"
+      title="Devices"
+      description="Logs you out on every phone, computer and browser where you are logged in, this one included."
+    >
+      <FormError error={logoutEverywhere.error} />
+      <button
+        type="button"
+        onClick={signOutEverywhere}
+        disabled={logoutEverywhere.isPending}
+        className={quietButtonClass}
+      >
+        {logoutEverywhere.isPending ? "Logging out…" : "Log out everywhere"}
+      </button>
+    </Section>
+  );
+}
+
 // Its own form outside SettingsForm, so Save never touches it and deleting needs a separate, explicit step.
 function DeleteAccountSection({ userName }: { userName: string }) {
   const { user, logout } = useAuth();
@@ -470,6 +506,7 @@ export function SettingsPage() {
         ) : (
           <>
             <SettingsForm settings={settings.data} />
+            <LogoutEverywhereSection />
             <DeleteAccountSection userName={settings.data.userName} />
           </>
         )}

@@ -48,7 +48,7 @@ public class AuthRateLimitTests : IClassFixture<LowAuthLimitApiFactory>
     {
         for (var i = 0; i < LowAuthLimitApiFactory.Limit; i++)
         {
-            Assert.Equal(HttpStatusCode.OK, (await RegisterAsync()).StatusCode);
+            Assert.Equal(HttpStatusCode.Accepted, (await RegisterAsync()).StatusCode);
         }
 
         var response = await RegisterAsync();

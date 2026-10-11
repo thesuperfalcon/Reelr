@@ -1,7 +1,9 @@
 using backend.Data;
+using backend.Features.Email;
 using backend.Features.Movies;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -21,6 +23,8 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
         $"{Environment.GetEnvironmentVariable("REELR_TEST_SQLSERVER") ?? DefaultServer}Database=ReelrTests_{Guid.NewGuid():N};";
 
     public FakeTmdbHandler Tmdb { get; } = new();
+
+    public FakeEmailSender Emails { get; } = new();
 
     protected virtual int AuthPermitLimit => 100_000;
 
@@ -56,12 +60,16 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("ConnectionStrings:ReelrContext", _connectionString);
         builder.UseSetting("Jwt:Key", "test-signing-key-that-is-long-enough-for-hmac-sha256");
         builder.UseSetting("TMDB_READ_ACCESS_TOKEN", "test-token");
+        builder.UseSetting("Email:Host", "smtp.test");
+        builder.UseSetting("Email:FromAddress", "noreply@reelr.test");
+        builder.UseSetting("App:BaseUrl", "http://reelr.test");
         // Tests read the community feed right after changing data, so its short cache is off.
         builder.UseSetting("Activity:CommunityCacheSeconds", "0");
         // Every test registers and logs in from the same address, so the auth limits are lifted.
         // AuthRateLimitTests sets low limits to check the limiter itself.
         builder.UseSetting("RateLimiting:Login:PermitLimit", AuthPermitLimit.ToString());
         builder.UseSetting("RateLimiting:Register:PermitLimit", AuthPermitLimit.ToString());
+        builder.UseSetting("RateLimiting:AccountEmail:PermitLimit", AuthPermitLimit.ToString());
         builder.UseSetting("RateLimiting:LoginPerAccount:PermitLimit", LoginPerAccountLimit.ToString());
         // Anonymous test requests all share one partition, so the general limits are lifted too.
         // RateLimitTests sets low limits to check them.
@@ -83,17 +91,20 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
         {
             services.AddHttpClient<TmdbService>()
                 .ConfigurePrimaryHttpMessageHandler(() => Tmdb);
+
+            services.AddSingleton<IEmailSender>(Emails);
         });
     }
 
     protected override IHost CreateHost(IHostBuilder builder)
     {
-        var host = base.CreateHost(builder);
+        // The database exists before the app starts, since data protection reads its keys from it at start-up.
+        using (var context = new ReelrContext(new DbContextOptionsBuilder<ReelrContext>().UseSqlServer(_connectionString).Options))
+        {
+            context.Database.EnsureCreated();
+        }
 
-        using var scope = host.Services.CreateScope();
-        scope.ServiceProvider.GetRequiredService<ReelrContext>().Database.EnsureCreated();
-
-        return host;
+        return base.CreateHost(builder);
     }
 
     public override async ValueTask DisposeAsync()
