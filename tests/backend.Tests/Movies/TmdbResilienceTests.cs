@@ -29,6 +29,17 @@ public class TmdbResilienceTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
+    public async Task Search_TmdbError_LogsThePathWithoutTheSearchText()
+    {
+        _factory.Tmdb.SetResponse("search/person", null, HttpStatusCode.InternalServerError);
+
+        await _client.GetAsync("/api/person/search?query=secret-search-text");
+
+        Assert.Contains(_factory.Logs.Entries, e => e.Message.Contains("TMDB request search/person failed"));
+        Assert.DoesNotContain(_factory.Logs.Entries, e => e.Message.Contains("secret-search-text"));
+    }
+
+    [Fact]
     public async Task Popular_TmdbError_Returns502()
     {
         _factory.Tmdb.SetResponse("movie/popular", null, HttpStatusCode.InternalServerError);

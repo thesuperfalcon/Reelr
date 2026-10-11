@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace backend.Tests.Infrastructure;
 
@@ -25,6 +26,8 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
     public FakeTmdbHandler Tmdb { get; } = new();
 
     public FakeEmailSender Emails { get; } = new();
+
+    public TestLogs Logs { get; } = new();
 
     protected virtual int AuthPermitLimit => 100_000;
 
@@ -86,6 +89,8 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
             builder.UseSetting("Tmdb:Resilience:TotalRequestTimeout:Timeout", "00:00:02");
             builder.UseSetting("Tmdb:Resilience:CircuitBreaker:MinimumThroughput", "100000");
         }
+
+        builder.ConfigureLogging(logging => logging.AddProvider(Logs));
 
         builder.ConfigureServices(services =>
         {
