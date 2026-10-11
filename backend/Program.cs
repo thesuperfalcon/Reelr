@@ -174,8 +174,8 @@ builder.Services
         };
     });
 
-// GET /health checks that the database answers. Docker uses it to know when the backend is ready.
-builder.Services.AddHealthChecks().AddDbContextCheck<ReelrContext>();
+// /health/live and /health/ready (database, and TMDB as Degraded). Docker waits for ready.
+builder.Services.AddAppHealthChecks();
 
 // TMDB: a cache, a handler that turns TMDB failures into 502/503, and timeouts, retries and a circuit breaker
 // so a slow or failing TMDB does not hold requests open. "Tmdb:Resilience" can override the defaults below.
@@ -267,6 +267,6 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapAppHealthChecks();
 
 app.Run();

@@ -314,6 +314,16 @@ public class TmdbService
         }
     }
 
+    // For the readiness check: whether TMDB answers right now. Never cached; failures are thrown as they come.
+    public async Task<bool> PingAsync(CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "configuration");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _configuration["TMDB_READ_ACCESS_TOKEN"]);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        return response.IsSuccessStatusCode;
+    }
+
     // Every TMDB call goes through here. A successful answer is cached for cacheFor; a 404 is not cached.
     // Any way TMDB can fail becomes a TmdbUnavailableException, so callers and the API handle one exception type.
     private async Task<T?> GetFromTmdb<T>(string path, TimeSpan cacheFor, bool notFoundReturnsNull = false) where T : class

@@ -60,7 +60,7 @@ A few design decisions:
 - **Journal rules live in one service.** Watching, rating, reviewing and the watchlist depend on each other. `JournalService` keeps those rules in one place so every endpoint follows them the same way.
 - **The activity feed sits behind an interface.** `IActivityFeed` is built from existing tables today, with cursor pagination. It can be replaced with a stored event table without changing the controller.
 - **One place decides visibility.** `UserVisibility` decides who can see a member's watchlist.
-- **Errors use ProblemDetails.** Unhandled exceptions and empty error responses return `application/problem+json`. `GET /health` checks the database.
+- **Errors use ProblemDetails.** Unhandled exceptions and empty error responses return `application/problem+json`. `GET /health/live` answers while the process runs; `GET /health/ready` checks the database (503 when it is down) and TMDB (reported as `Degraded`, still 200).
 
 ```
 backend/          ASP.NET Core API (Features/, Data/, Migrations/)

@@ -32,12 +32,12 @@ public class LoggingTests : IClassFixture<ReelrApiFactory>
     [Fact]
     public async Task HealthCheck_IsNotLoggedWhenItPasses()
     {
-        await _factory.CreateClient().GetAsync("/health");
+        await _factory.CreateClient().GetAsync("/health/ready");
         // A later request is logged, so the health check's line would have been written by then.
         await _factory.CreateClient().GetAsync("/api/movie/trending");
         await _factory.Logs.WaitForAsync(RequestTo("/api/movie/trending"));
 
-        var isHealthCheck = RequestTo("/health");
+        var isHealthCheck = RequestTo("/health/ready");
         Assert.DoesNotContain(_factory.Logs.Entries, e => isHealthCheck(e));
     }
 
