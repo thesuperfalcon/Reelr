@@ -15,14 +15,6 @@ public class PlatformTests : IClassFixture<ReelrApiFactory>
         _client = factory.CreateClient();
     }
 
-    [Fact]
-    public async Task Health_DatabaseUp_ReturnsHealthy()
-    {
-        var response = await _client.GetAsync("/health");
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Equal("Healthy", await response.Content.ReadAsStringAsync());
-    }
 
     [Fact]
     public async Task UnknownRoute_ReturnsProblemDetails()
@@ -39,7 +31,7 @@ public class PlatformTests : IClassFixture<ReelrApiFactory>
         // Production sets only the required secrets; optional sections such as Tmdb:Resilience are absent.
         await using var factory = new ProductionDefaultsApiFactory();
 
-        var response = await factory.CreateClient().GetAsync("/health");
+        var response = await factory.CreateClient().GetAsync("/health/ready");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

@@ -314,6 +314,16 @@ public class TmdbService
         }
     }
 
+    // For the readiness check: whether TMDB answers right now. Never cached; failures are thrown as they come.
+    public async Task<bool> PingAsync(CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "configuration");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _configuration["TMDB_READ_ACCESS_TOKEN"]);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        return response.IsSuccessStatusCode;
+    }
+
     // Every TMDB call goes through here. A successful answer is cached for cacheFor; a 404 is not cached.
     // Any way TMDB can fail becomes a TmdbUnavailableException, so callers and the API handle one exception type.
     private async Task<T?> GetFromTmdb<T>(string path, TimeSpan cacheFor, bool notFoundReturnsNull = false) where T : class
@@ -350,7 +360,7 @@ public class TmdbService
             {
                 // The response body only goes to the log; clients get a general problem body.
                 var error = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("TMDB request {Path} failed with {StatusCode}: {Body}", path, (int)response.StatusCode, error);
+                _logger.LogWarning("TMDB request {Path} failed with {StatusCode}: {Body}", LogPath(path), (int)response.StatusCode, error);
 
                 throw new TmdbUnavailableException(
                     $"TMDB returned {(int)response.StatusCode}.", StatusCodes.Status502BadGateway);
@@ -360,13 +370,13 @@ public class TmdbService
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogWarning(ex, "TMDB request {Path} could not be sent", path);
+            _logger.LogWarning(ex, "TMDB request {Path} could not be sent", LogPath(path));
             throw new TmdbUnavailableException("Could not reach TMDB.", StatusCodes.Status502BadGateway, ex);
         }
         catch (Exception ex) when (ex is TaskCanceledException or ExecutionRejectedException)
         {
             // A timeout, or the circuit breaker skipping TMDB for a while after many failures.
-            _logger.LogWarning(ex, "TMDB request {Path} timed out or was skipped", path);
+            _logger.LogWarning(ex, "TMDB request {Path} timed out or was skipped", LogPath(path));
             throw new TmdbUnavailableException("TMDB did not answer in time.", StatusCodes.Status503ServiceUnavailable, ex);
         }
 
@@ -378,7 +388,7 @@ public class TmdbService
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(ex, "TMDB request {Path} returned JSON that could not be read", path);
+            _logger.LogWarning(ex, "TMDB request {Path} returned JSON that could not be read", LogPath(path));
             throw new TmdbUnavailableException("TMDB sent an answer that could not be read.", StatusCodes.Status502BadGateway, ex);
         }
 
@@ -388,5 +398,12 @@ public class TmdbService
         }
 
         return result;
+    }
+
+    // The path without its query string. Searches carry what the user typed, which does not belong in the log.
+    private static string LogPath(string path)
+    {
+        var query = path.IndexOf('?');
+        return query < 0 ? path : path[..query];
     }
 }

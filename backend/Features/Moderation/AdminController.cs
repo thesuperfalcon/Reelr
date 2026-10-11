@@ -17,10 +17,12 @@ namespace backend.Features.Moderation
         private const int TextPreviewLength = 600;
 
         private readonly ReelrContext _context;
+        private readonly SecurityLog _securityLog;
 
-        public AdminController(ReelrContext context)
+        public AdminController(ReelrContext context, SecurityLog securityLog)
         {
             _context = context;
+            _securityLog = securityLog;
         }
 
         [HttpGet("reports")]
@@ -93,6 +95,7 @@ namespace backend.Features.Moderation
             }
 
             await transaction.CommitAsync();
+            _securityLog.ReportsResolved(User.GetUserId(), type.ToString(), id, outcome.ToString());
 
             return NoContent();
         }

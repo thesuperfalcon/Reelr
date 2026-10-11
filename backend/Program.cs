@@ -5,6 +5,7 @@ using backend.Features.Diary;
 using backend.Features.Email;
 using backend.Features.Moderation;
 using backend.Features.Movies;
+using backend.Features.Observability;
 using backend.Features.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
@@ -18,6 +19,8 @@ using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddAppLogging();
 
 // Required secrets are checked at start-up, so a missing or weak one stops the app
 // instead of failing the first login or the first TMDB request.
@@ -46,7 +49,7 @@ foreach (var key in new[] { "Email:Host", "Email:FromAddress", "App:BaseUrl" })
 builder.Services.AddControllers();
 
 // Unhandled exceptions and empty error responses (e.g. 401, 404, 429) get an RFC 7807 problem body.
-builder.Services.AddProblemDetails();
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = CorrelationId.AddToProblem);
 
 builder.Services.AddOpenApi();
 
@@ -92,6 +95,7 @@ builder.Services.AddSingleton<EmailQueue>();
 builder.Services.AddHostedService<EmailDispatcher>();
 builder.Services.AddScoped<AccountEmails>();
 builder.Services.AddSingleton<SecurityStamps>();
+builder.Services.AddSingleton<SecurityLog>();
 
 // Admins are configured by user id under "Admin:UserIds" (see AdminAccess).
 var adminAccess = new AdminAccess(builder.Configuration);
@@ -170,8 +174,8 @@ builder.Services
         };
     });
 
-// GET /health checks that the database answers. Docker uses it to know when the backend is ready.
-builder.Services.AddHealthChecks().AddDbContextCheck<ReelrContext>();
+// /health/live and /health/ready (database, and TMDB as Degraded). Docker waits for ready.
+builder.Services.AddAppHealthChecks();
 
 // TMDB: a cache, a handler that turns TMDB failures into 502/503, and timeouts, retries and a circuit breaker
 // so a slow or failing TMDB does not hold requests open. "Tmdb:Resilience" can override the defaults below.
@@ -232,6 +236,12 @@ if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
 // First, so the rate limiter, HTTPS redirection and logging see the real client IP and scheme.
 app.UseForwardedHeaders();
 
+// Before the request log, so its line and every other line of the request carry the id.
+app.UseCorrelationId();
+
+// Logs each request once it is done, with the status the later steps set.
+app.UseRequestLogging();
+
 // In Development the developer exception page runs first and still shows the stack trace.
 app.UseExceptionHandler();
 app.UseStatusCodePages();
@@ -257,6 +267,6 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers();
-app.MapHealthChecks("/health");
+app.MapAppHealthChecks();
 
 app.Run();
