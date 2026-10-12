@@ -191,6 +191,23 @@ Swagger UI is available at `/swagger` in Development. A Postman collection and e
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
 
+## Deploying to Azure
+
+The beta runs in Azure Container Apps with Azure SQL (free offer) and Key Vault in Sweden Central. `infra/` describes all of it as Bicep. There are no passwords for the database: the backend and the migration job sign in with managed identities, and the secrets (JWT key, TMDB token, SMTP key) live in Key Vault.
+
+First-time setup, with the Azure CLI signed in and the .NET 10 SDK installed:
+
+```powershell
+./infra/deploy.ps1 -EmailUserName '<smtp login>' -EmailFromAddress '<verified sender>'
+./infra/setup-github.ps1 -EmailUserName '<smtp login>' -EmailFromAddress '<verified sender>'
+```
+
+`deploy.ps1` creates the resources, asks for the TMDB token and the SMTP key (hidden input) and creates the database users. `setup-github.ps1` lets the Deploy workflow sign in to Azure with OIDC and prints the repository variables it needs.
+
+After that, `.github/workflows/deploy.yml` deploys every commit on `main` that passes CI: it pushes the images to GitHub Container Registry, runs the migrations as a Container Apps job and rolls out the new images. The images must be public on GitHub so Azure can pull them.
+
+Everything scales to zero when unused, so the first visit after a quiet spell takes up to a minute while the backend starts and the database resumes. For a demo, open the site a minute early, or deploy with `backendMinReplicas = 1`.
+
 ## Before going live
 
 The privacy policy and terms (`frontend/src/pages/LegalPages.tsx`) are drafts that describe what the code does. Fill in the parts in [brackets] (who runs Reelr, contact address, email and hosting provider, how long logs and backups are kept) and have them reviewed before opening to the public.
