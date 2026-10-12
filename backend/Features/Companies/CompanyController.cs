@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace backend.Features.Companies;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/companies")]
 public class CompanyController : ControllerBase
 {
     private readonly TmdbService _tmdbService;
