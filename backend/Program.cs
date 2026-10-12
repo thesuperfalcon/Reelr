@@ -226,12 +226,8 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// Apply pending migrations at startup, e.g. when running in Docker.
-if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
-{
-    using var scope = app.Services.CreateScope();
-    scope.ServiceProvider.GetRequiredService<ReelrContext>().Database.Migrate();
-}
+// The app never changes the database schema itself. Migrations run as a separate step before it starts
+// (the "migrate" service in Docker Compose), with an account that may change tables while the app's may not.
 
 // HTTP pipeline
 // First, so the rate limiter, HTTPS redirection and logging see the real client IP and scheme.
