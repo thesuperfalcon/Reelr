@@ -1,3 +1,4 @@
+using backend.Features.Auth;
 using backend.Features.Diary;
 using backend.Features.Moderation;
 using backend.Features.MovieLists;
@@ -54,6 +55,8 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
     // work after a restart or a new container, and on every instance.
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -61,6 +64,17 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
         modelBuilder.Entity<User>()
             .Property(u => u.ProfileImageUrl)
             .HasMaxLength(User.ProfileImageUrlMaxLength);
+
+        // RefreshToken: found by its hash, removed with the user.
+        modelBuilder.Entity<RefreshToken>(token =>
+        {
+            token.HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Cascade);
+            token.Property(t => t.TokenHash).HasMaxLength(RefreshToken.HashLength).IsFixedLength().IsUnicode(false);
+            token.Property(t => t.SecurityStamp).HasMaxLength(256);
+            token.HasIndex(t => t.TokenHash).IsUnique();
+            token.HasIndex(t => t.FamilyId);
+            token.HasIndex(t => new { t.UserId, t.ExpiresAt });
+        });
 
         // UserAvatar: one per user, removed with the user.
         modelBuilder.Entity<UserAvatar>(avatar =>

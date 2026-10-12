@@ -20,6 +20,7 @@ public class AuthController : ControllerBase
     private readonly AccountEmails _accountEmails;
     private readonly SecurityStamps _securityStamps;
     private readonly SecurityLog _securityLog;
+    private readonly RefreshTokens _refreshTokens;
 
     public AuthController(
         UserManager<User> userManager,
@@ -28,7 +29,8 @@ public class AuthController : ControllerBase
         LoginThrottle loginThrottle,
         AccountEmails accountEmails,
         SecurityStamps securityStamps,
-        SecurityLog securityLog)
+        SecurityLog securityLog,
+        RefreshTokens refreshTokens)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -37,6 +39,7 @@ public class AuthController : ControllerBase
         _accountEmails = accountEmails;
         _securityStamps = securityStamps;
         _securityLog = securityLog;
+        _refreshTokens = refreshTokens;
     }
 
     [HttpPost("register")]
@@ -188,7 +191,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("login")]
     [EnableRateLimiting(RateLimitPolicies.Login)]
-    [EndpointSummary("Log in and receive a JWT")]
+    [EndpointSummary("Log in. Returns a short access token and sets the refresh cookie")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
         var user = await _userManager.FindByEmailAsync(dto.UserInput);
@@ -245,9 +248,39 @@ public class AuthController : ControllerBase
         }
 
         var token = _tokenService.CreateToken(user);
+        await _refreshTokens.IssueAsync(Response, user);
         _securityLog.LoginSucceeded(user.Id);
 
         return Ok(new { token });
+    }
+
+    [HttpPost("refresh")]
+    [RequireCsrfHeader]
+    [EnableRateLimiting(RateLimitPolicies.Login)]
+    [EndpointSummary("Exchange the refresh cookie for a new access token and a new refresh cookie. 401 when signed out")]
+    public async Task<IActionResult> Refresh()
+    {
+        var user = await _refreshTokens.RotateAsync(Request, Response);
+
+        if (user == null)
+        {
+            return Unauthorized();
+        }
+
+        return Ok(new { token = _tokenService.CreateToken(user) });
+    }
+
+    [HttpPost("logout")]
+    [RequireCsrfHeader]
+    [EndpointSummary("End this device's sign-in and clear the refresh cookie")]
+    public async Task<IActionResult> Logout()
+    {
+        if (await _refreshTokens.RevokeAsync(Request, Response) is int userId)
+        {
+            _securityLog.LoggedOut(userId);
+        }
+
+        return NoContent();
     }
 
     private ObjectResult InvalidLink() =>
