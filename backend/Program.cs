@@ -77,8 +77,8 @@ builder.Services.AddDbContext<ReelrContext>(options =>
         builder.Configuration.GetConnectionString("ReelrContext")
         ?? throw new InvalidOperationException(
             "Connection string 'ReelrContext' not found."
-        )
-    ));
+        ))
+        .AddInterceptors(new OpenRetryInterceptor()));
 
 builder.Services
     .AddIdentity<User, IdentityRole<int>>(options =>

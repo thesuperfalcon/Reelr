@@ -36,6 +36,9 @@ public class ReelrContextFactory : IDesignTimeDbContextFactory<ReelrContext>
             options.UseSqlServer(connectionString);
         }
 
+        // The deploy's migration step may be the first to reach a paused database.
+        options.AddInterceptors(new OpenRetryInterceptor());
+
         return new ReelrContext(options.Options);
     }
 }
