@@ -43,14 +43,14 @@ public class TokenServiceTests
     }
 
     [Fact]
-    public void CreateToken_DefaultsTo60MinutesExpiry()
+    public void CreateToken_DefaultsTo15MinutesExpiry()
     {
         var settings = ValidSettings();
         settings.Remove("Jwt:ExpiryMinutes");
 
         var token = new JwtSecurityTokenHandler().ReadJwtToken(CreateService(settings).CreateToken(TestUser));
 
-        Assert.InRange(token.ValidTo, DateTime.UtcNow.AddMinutes(59), DateTime.UtcNow.AddMinutes(61));
+        Assert.InRange(token.ValidTo, DateTime.UtcNow.AddMinutes(14), DateTime.UtcNow.AddMinutes(16));
     }
 
     [Fact]

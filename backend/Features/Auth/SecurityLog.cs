@@ -30,6 +30,13 @@ public partial class SecurityLog
     [LoggerMessage(1011, LogLevel.Warning, "Login failed for account {UserId}: {Reason}")]
     public partial void LoginFailed(int? userId, string reason);
 
+    [LoggerMessage(1012, LogLevel.Information, "Account {UserId} logged out")]
+    public partial void LoggedOut(int userId);
+
+    // A refresh token came back after it had been exchanged: someone holds a copy. Its family is revoked.
+    [LoggerMessage(1013, LogLevel.Warning, "A used refresh token for account {UserId} came back; that sign-in was ended")]
+    public partial void RefreshTokenReused(int userId);
+
     [LoggerMessage(1020, LogLevel.Information, "Account {UserId} asked for a password reset")]
     public partial void PasswordResetRequested(int userId);
 

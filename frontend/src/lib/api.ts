@@ -1,22 +1,78 @@
-const TOKEN_KEY = "reelr.token";
+// The access token lives only in memory, so it is gone when the tab closes and scripts cannot find it in
+// storage. The sign-in itself is the refresh cookie, which the page's scripts cannot read at all; it gets a
+// new access token on load and whenever one runs out.
+let accessToken: string | null = null;
+
+// Not a secret: only whether this browser was signed in, so a visitor who never logged in does not send a
+// refresh request on every load.
+const SIGNED_IN_KEY = "reelr.signedIn";
+// Where tokens were kept before the refresh cookie. Removed on load.
+const OLD_TOKEN_KEY = "reelr.token";
+
+const CSRF_HEADER = "X-Reelr-Csrf";
 
 export function getToken(): string | null {
-  try {
-    return localStorage.getItem(TOKEN_KEY);
-  } catch {
-    return null;
-  }
+  return accessToken;
 }
 
 export function setToken(token: string | null) {
+  accessToken = token;
   try {
+    localStorage.removeItem(OLD_TOKEN_KEY);
     if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(SIGNED_IN_KEY, "1");
     } else {
-      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(SIGNED_IN_KEY);
     }
   } catch {
-    // Storage can be blocked (private mode). The session then lasts until reload.
+    // Storage can be blocked (private mode). The page then tries a refresh on every load.
+  }
+}
+
+export function wasSignedIn(): boolean {
+  try {
+    return localStorage.getItem(SIGNED_IN_KEY) !== null || localStorage.getItem(OLD_TOKEN_KEY) !== null;
+  } catch {
+    return true;
+  }
+}
+
+let refreshing: Promise<string | null> | null = null;
+
+// Swaps the refresh cookie for a new access token, or resolves to null when the sign-in has ended. Calls in
+// this tab share one request, and tabs take turns through a Web Lock, since every refresh replaces the
+// cookie and the server ends a sign-in whose old cookie comes back too late.
+export function refreshAccessToken(): Promise<string | null> {
+  refreshing ??= (async () => {
+    const request = async () => {
+      const response = await fetch("/auth/refresh", { method: "POST", headers: { [CSRF_HEADER]: "1" } });
+      if (!response.ok) {
+        return null;
+      }
+      const { token } = (await response.json()) as { token: string };
+      return token;
+    };
+
+    // A network error rejects instead: the sign-in may still be fine, so it is not ended.
+    try {
+      const token = navigator.locks ? await navigator.locks.request("reelr-refresh", request) : await request();
+      setToken(token);
+      return token;
+    } finally {
+      refreshing = null;
+    }
+  })();
+
+  return refreshing;
+}
+
+// Ends this browser's sign-in on the server. Other devices stay signed in.
+export async function revokeRefreshToken() {
+  setToken(null);
+  try {
+    await fetch("/auth/logout", { method: "POST", headers: { [CSRF_HEADER]: "1" } });
+  } catch {
+    // The cookie then runs out by itself.
   }
 }
 
@@ -32,7 +88,7 @@ export class ApiError extends Error {
   }
 }
 
-// Called when the API rejects the stored token, so the auth state can reset.
+// Called when the API refuses the token and no new one can be had, so the auth state can reset.
 let onUnauthorized: (() => void) | null = null;
 
 export function setUnauthorizedHandler(handler: (() => void) | null) {
@@ -70,15 +126,25 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     headers.set("Content-Type", "application/json");
   }
 
+  const send = (token: string | null) => {
+    if (token) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    return fetch(path, { ...init, headers });
+  };
+
   const token = getToken();
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
+  let response = await send(token);
 
-  const response = await fetch(path, { ...init, headers });
-
+  // The access token ran out or was revoked: get a new one once and try again. If the sign-in itself
+  // has ended, the auth state is reset.
   if (response.status === 401 && token) {
-    onUnauthorized?.();
+    const fresh = await refreshAccessToken().catch(() => null);
+    if (fresh) {
+      response = await send(fresh);
+    } else {
+      onUnauthorized?.();
+    }
   }
 
   if (!response.ok) {

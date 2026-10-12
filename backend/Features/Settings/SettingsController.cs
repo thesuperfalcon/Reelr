@@ -25,6 +25,7 @@ namespace backend.Features.Settings
         private readonly SecurityStamps _securityStamps;
         private readonly AdminAccess _adminAccess;
         private readonly SecurityLog _securityLog;
+        private readonly RefreshTokens _refreshTokens;
 
         public SettingsController(
             ReelrContext context,
@@ -33,7 +34,8 @@ namespace backend.Features.Settings
             TokenService tokenService,
             SecurityStamps securityStamps,
             AdminAccess adminAccess,
-            SecurityLog securityLog)
+            SecurityLog securityLog,
+            RefreshTokens refreshTokens)
         {
             _context = context;
             _userManager = userManager;
@@ -42,6 +44,7 @@ namespace backend.Features.Settings
             _securityStamps = securityStamps;
             _adminAccess = adminAccess;
             _securityLog = securityLog;
+            _refreshTokens = refreshTokens;
         }
 
         [HttpGet]
@@ -79,6 +82,7 @@ namespace backend.Features.Settings
                 // A rename changes the security stamp, which revokes the old token; the new one carries the new stamp.
                 _securityStamps.Forget(user.Id);
                 result.Token = _tokenService.CreateToken(user);
+                await _refreshTokens.IssueAsync(Response, user);
                 _securityLog.UsernameChanged(user.Id);
             }
 
@@ -151,6 +155,7 @@ namespace backend.Features.Settings
             // The change revoked every token, including the one used here, so this device gets a new one.
             _securityStamps.Forget(user.Id);
             _securityLog.PasswordChanged(user.Id);
+            await _refreshTokens.IssueAsync(Response, user);
             return Ok(new TokenDto { Token = _tokenService.CreateToken(user) });
         }
 

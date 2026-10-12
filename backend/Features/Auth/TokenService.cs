@@ -20,7 +20,7 @@ public class TokenService
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            // No email: the token is kept in the browser, where any script on the page could read it.
+            // No email: the page keeps the token in memory, where any script on the page could read it.
             new(ClaimTypes.Name, user.UserName ?? string.Empty),
             // Checked on every request, so changing the stamp revokes the token (see SecurityStamps).
             new(SecurityStamps.ClaimType, user.SecurityStamp ?? string.Empty)
@@ -32,7 +32,8 @@ public class TokenService
 
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var expiryMinutes = _configuration.GetValue("Jwt:ExpiryMinutes", 60);
+        // Short, since it cannot be taken back before it runs out; the refresh cookie gets the next one.
+        var expiryMinutes = _configuration.GetValue("Jwt:ExpiryMinutes", 15);
 
         var token = new JwtSecurityToken(
             issuer: _configuration["Jwt:Issuer"],

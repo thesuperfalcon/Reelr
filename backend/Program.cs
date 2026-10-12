@@ -122,6 +122,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<RefreshTokens>();
 builder.Services.AddScoped<MovieCatalog>();
 builder.Services.AddScoped<JournalService>();
 
