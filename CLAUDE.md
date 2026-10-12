@@ -34,7 +34,7 @@ cd e2e && npx playwright test journey.spec.ts -g "<test name>"
 
 The e2e tests read confirmation emails through Mailpit's API (`E2E_MAILPIT_URL`); base URL is `E2E_BASE_URL` (default http://localhost:8080). The fake TMDB is `e2e/fake-tmdb/server.mjs`, wired in through `Tmdb__BaseUrl`.
 
-CI (`.github/workflows/ci.yml`) runs backend build + tests against a SQL Server container, and frontend lint + build. It does not run e2e.
+CI (`.github/workflows/ci.yml`) runs on pushes and pull requests to `main` and `develop`. Read that file for the current job list rather than assuming which suites block a PR.
 
 ## Architecture
 
