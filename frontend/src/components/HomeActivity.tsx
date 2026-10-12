@@ -45,7 +45,7 @@ function FilmTile({ film }: { film: FollowingFilm }) {
     <li className="min-w-0">
       <div className="relative">
         <Link to={`/movie/${movie.tmdbId}`} className="group block rounded-sm outline-offset-4" aria-label={movie.title}>
-          <div className="aspect-[2/3] overflow-hidden rounded-sm bg-row ring-1 ring-white/5 transition group-hover:ring-2 group-hover:ring-projector">
+          <div className="aspect-[2/3] overflow-hidden rounded-sm bg-row ring-1 ring-rule/5 transition group-hover:ring-2 group-hover:ring-projector">
             {poster ? (
               <img src={poster} alt="" loading="lazy" className="h-full w-full object-cover" />
             ) : (

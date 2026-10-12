@@ -2,6 +2,13 @@
 log_format reelr '$remote_addr - [$time_local] "$request" $status $body_bytes_sent '
                  '"$http_referer" "$http_user_agent" request_id=$request_id';
 
+# Behind a platform proxy that ends TLS (Azure Container Apps), nginx itself is reached over plain HTTP,
+# so the scheme the browser used comes from that proxy's header.
+map $http_x_forwarded_proto $forwarded_proto {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+
 server {
     listen 8080;
     server_name _;
@@ -26,19 +33,21 @@ server {
 
     # Same routes the Vite dev server proxies, so the app needs no CORS setup.
     location /api/ {
-        proxy_pass http://backend:8080;
-        proxy_set_header Host $host;
+        proxy_pass ${BACKEND_URL};
+        # The backend's own name: Azure Container Apps routes internal requests by it.
+        proxy_set_header Host $proxy_host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         # Replaces any id the client sent.
         proxy_set_header X-Correlation-Id $request_id;
     }
 
     location /auth/ {
-        proxy_pass http://backend:8080;
-        proxy_set_header Host $host;
+        proxy_pass ${BACKEND_URL};
+        # The backend's own name: Azure Container Apps routes internal requests by it.
+        proxy_set_header Host $proxy_host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         # Replaces any id the client sent.
         proxy_set_header X-Correlation-Id $request_id;
     }

@@ -34,8 +34,8 @@ public class LoggingTests : IClassFixture<ReelrApiFactory>
     {
         await _factory.CreateClient().GetAsync("/health/ready");
         // A later request is logged, so the health check's line would have been written by then.
-        await _factory.CreateClient().GetAsync("/api/movie/trending");
-        await _factory.Logs.WaitForAsync(RequestTo("/api/movie/trending"));
+        await _factory.CreateClient().GetAsync("/api/movies/trending");
+        await _factory.Logs.WaitForAsync(RequestTo("/api/movies/trending"));
 
         var isHealthCheck = RequestTo("/health/ready");
         Assert.DoesNotContain(_factory.Logs.Entries, e => isHealthCheck(e));
@@ -44,7 +44,7 @@ public class LoggingTests : IClassFixture<ReelrApiFactory>
     [Fact]
     public async Task CorrelationId_IsMadeWhenMissingAndSentBack()
     {
-        var response = await _factory.CreateClient().GetAsync("/api/movie/trending");
+        var response = await _factory.CreateClient().GetAsync("/api/movies/trending");
 
         var id = Assert.Single(response.Headers.GetValues(CorrelationId.Header));
         Assert.Matches("^[0-9a-f]{32}$", id);
@@ -56,10 +56,10 @@ public class LoggingTests : IClassFixture<ReelrApiFactory>
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Add(CorrelationId.Header, "nginx-request-42");
 
-        var response = await client.GetAsync("/api/movie/popular");
+        var response = await client.GetAsync("/api/movies/popular");
 
         Assert.Equal("nginx-request-42", Assert.Single(response.Headers.GetValues(CorrelationId.Header)));
-        var entry = Assert.Single(await _factory.Logs.WaitForAsync(RequestTo("/api/movie/popular")));
+        var entry = Assert.Single(await _factory.Logs.WaitForAsync(RequestTo("/api/movies/popular")));
         Assert.Equal("nginx-request-42", entry.State[CorrelationId.LogProperty]);
     }
 
@@ -72,7 +72,7 @@ public class LoggingTests : IClassFixture<ReelrApiFactory>
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.TryAddWithoutValidation(CorrelationId.Header, sent);
 
-        var response = await client.GetAsync("/api/movie/trending");
+        var response = await client.GetAsync("/api/movies/trending");
 
         Assert.NotEqual(sent, Assert.Single(response.Headers.GetValues(CorrelationId.Header)));
     }

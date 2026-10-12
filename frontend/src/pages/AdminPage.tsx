@@ -1,7 +1,16 @@
+import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { FormError } from "../components/Form";
 import { ErrorMessage, Loading } from "../components/Status";
 import { UserAvatar } from "../components/UserAvatar";
+import {
+  INVITE_NOTE_MAX_LENGTH,
+  useCreateInvite,
+  useInvites,
+  useRevokeInvite,
+  type CreatedInvite,
+  type Invite,
+} from "../lib/invites";
 import { reportReasons, useOpenReports, useResolveReports, type ReportedItem } from "../lib/moderation";
 import { useSettings } from "../lib/queries";
 import { NotFoundPage } from "./NotFoundPage";
@@ -24,7 +33,7 @@ function ReportedItemCard({ item }: { item: ReportedItem }) {
   const link = itemLink(item);
 
   return (
-    <li className="border-t border-white/5 py-6">
+    <li className="border-t border-rule/5 py-6">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span className="rounded-sm bg-row px-2 py-0.5 font-medium">{typeLabel[item.targetType]}</span>
         <span className="text-alarm">
@@ -61,7 +70,7 @@ function ReportedItemCard({ item }: { item: ReportedItem }) {
       {item.notes.length > 0 && (
         <ul className="mt-4 space-y-1 text-sm">
           {item.notes.map((note, index) => (
-            <li key={index} className="border-l-2 border-white/10 pl-3 text-haze">
+            <li key={index} className="border-l-2 border-rule/10 pl-3 text-haze">
               {note}
             </li>
           ))}
@@ -84,7 +93,7 @@ function ReportedItemCard({ item }: { item: ReportedItem }) {
           type="button"
           onClick={() => resolve.mutate({ targetType: item.targetType, targetId: item.targetId, outcome: "Dismissed" })}
           disabled={resolve.isPending}
-          className="rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-white/15 transition hover:bg-row disabled:opacity-60"
+          className="rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row disabled:opacity-60"
         >
           Dismiss
         </button>
@@ -109,9 +118,121 @@ function OpenReports() {
   );
 }
 
-// Reported reviews, comments and lists, the most reported first. Only admins get past the check.
+function inviteStatus(invite: Invite) {
+  if (invite.usedAt) {
+    return `Used ${dateFormat.format(new Date(invite.usedAt))}${invite.usedBy ? ` by ${invite.usedBy}` : " (account deleted)"}`;
+  }
+  if (invite.revokedAt) return `Revoked ${dateFormat.format(new Date(invite.revokedAt))}`;
+  return "Not used yet";
+}
+
+// The link is shown once, right after the invite is made: only a hash of the code is stored.
+function NewInvite({ invite }: { invite: CreatedInvite }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    await navigator.clipboard.writeText(invite.link);
+    setCopied(true);
+  }
+
+  return (
+    <div className="mt-4 rounded-sm bg-row p-4 text-sm">
+      <p className="font-medium">
+        Invite {invite.note ? `for ${invite.note} ` : ""}ready. Send this link; it is shown only now.
+      </p>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <code className="break-all rounded-sm bg-salon px-2 py-1 text-xs">{invite.link}</code>
+        <button
+          type="button"
+          onClick={copy}
+          className="rounded-sm px-3 py-1.5 text-sm font-medium ring-1 ring-white/15 transition hover:bg-row-raised"
+        >
+          Copy link
+        </button>
+        <span role="status" className="text-haze">
+          {copied ? "Copied." : ""}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function Invites() {
+  const invites = useInvites();
+  const create = useCreateInvite();
+  const revoke = useRevokeInvite();
+  const [note, setNote] = useState("");
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    create.mutate(note.trim(), { onSuccess: () => setNote("") });
+  }
+
+  return (
+    <section aria-labelledby="invites-heading" className="mt-10">
+      <h2 id="invites-heading" className="text-2xl font-semibold">
+        Invites
+      </h2>
+      <p className="mt-2 text-sm text-haze">Registration is invite only. Each code creates one account.</p>
+
+      <form onSubmit={submit} className="mt-4 flex flex-wrap items-end gap-3">
+        <div className="min-w-48 flex-1">
+          <label htmlFor="invite-note" className="block text-sm font-medium">
+            Who is it for? <span className="text-haze">(optional)</span>
+          </label>
+          <input
+            id="invite-note"
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+            maxLength={INVITE_NOTE_MAX_LENGTH}
+            className="mt-1.5 w-full rounded-sm bg-row px-3 py-2 text-screen ring-1 ring-edge focus:bg-row-raised focus:outline-2 focus:outline-projector"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={create.isPending}
+          className="rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-60"
+        >
+          {create.isPending ? "Making invite…" : "Make invite"}
+        </button>
+      </form>
+      <FormError error={create.error} />
+      {create.data && <NewInvite key={create.data.id} invite={create.data} />}
+
+      {invites.isPending ? (
+        <Loading label="Loading invites" />
+      ) : invites.isError ? (
+        <ErrorMessage error={invites.error} retry={() => invites.refetch()} />
+      ) : invites.data.length === 0 ? (
+        <p className="mt-6 text-haze">No invites yet.</p>
+      ) : (
+        <ul className="mt-6">
+          {invites.data.map((invite) => (
+            <li key={invite.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/5 py-3 text-sm">
+              <span className="font-medium">{invite.note ?? `Invite ${invite.id}`}</span>
+              <span className="text-haze">{inviteStatus(invite)}</span>
+              {!invite.usedAt && !invite.revokedAt && (
+                <button
+                  type="button"
+                  onClick={() => revoke.mutate(invite.id)}
+                  disabled={revoke.isPending}
+                  className="ml-auto rounded-sm px-3 py-1 text-sm ring-1 ring-white/15 transition hover:bg-row disabled:opacity-60"
+                >
+                  Revoke<span className="sr-only"> {invite.note ?? `invite ${invite.id}`}</span>
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <FormError error={revoke.error} />
+    </section>
+  );
+}
+
+// Invites, and reported reviews, comments and lists, the most reported first. Only admins get past the check.
 export function AdminPage() {
-  usePageTitle("Moderation");
+  usePageTitle("Admin");
   const settings = useSettings();
 
   if (settings.isPending) return <Loading />;
@@ -119,11 +240,17 @@ export function AdminPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-      <h1 className="marquee text-6xl sm:text-7xl">Moderation</h1>
-      <p className="mt-3 text-sm text-haze">
-        Removing deletes the item for everyone. Dismissing keeps it and closes the reports.
-      </p>
-      <OpenReports />
+      <h1 className="marquee text-6xl sm:text-7xl">Admin</h1>
+      <Invites />
+      <section aria-labelledby="reports-heading" className="mt-12">
+        <h2 id="reports-heading" className="text-2xl font-semibold">
+          Reports
+        </h2>
+        <p className="mt-2 text-sm text-haze">
+          Removing deletes the item for everyone. Dismissing keeps it and closes the reports.
+        </p>
+        <OpenReports />
+      </section>
     </div>
   );
 }

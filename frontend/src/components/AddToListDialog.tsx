@@ -53,7 +53,7 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
       onClose={onClose}
       // A click on the backdrop lands on the dialog element itself.
       onClick={(event) => event.target === event.currentTarget && onClose()}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(28rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-white/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(28rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-rule/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
     >
       <div className="p-6">
         <div className="flex items-center gap-4">
@@ -76,7 +76,7 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
             event.preventDefault();
             void createAndAdd();
           }}
-          className="mt-6 flex gap-2 border-t border-white/5 pt-6"
+          className="mt-6 flex gap-2 border-t border-rule/5 pt-6"
         >
           <label htmlFor={newNameId} className="sr-only">
             New list name
@@ -108,7 +108,7 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
           <p className="py-6 text-sm text-haze">You have no lists yet. Name one above to start.</p>
         ) : (
           <div className="mt-4 max-h-80 overflow-y-auto">
-            <ul className="divide-y divide-white/5">
+            <ul className="divide-y divide-rule/5">
               {pageItems(lists.data).map((list) => {
                 const inList = inLists.has(list.id);
                 const busy = toggle.isPending && toggle.variables?.listId === list.id;
@@ -123,7 +123,7 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
                     >
                       <span
                         className={`flex size-5 shrink-0 items-center justify-center rounded-sm ring-1 ${
-                          inList ? "bg-projector text-salon ring-projector" : "ring-white/30"
+                          inList ? "bg-projector text-salon ring-projector" : "ring-rule/30"
                         }`}
                         aria-hidden="true"
                       >
@@ -160,7 +160,7 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm px-4 py-2 text-sm font-medium text-haze ring-1 ring-white/15 transition hover:text-screen"
+            className="rounded-sm px-4 py-2 text-sm font-medium text-haze ring-1 ring-rule/15 transition hover:text-screen"
           >
             Done
           </button>

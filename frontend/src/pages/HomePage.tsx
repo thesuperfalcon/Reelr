@@ -15,7 +15,7 @@ function Feature({ movie }: { movie: SearchMovie }) {
     <section aria-labelledby="feature-title" className="grid items-end gap-8 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12">
       <Link to={`/movie/${movie.id}`} className="block w-40 rounded-sm sm:w-56 md:w-full" tabIndex={-1} aria-hidden="true">
         {poster && (
-          <img src={poster} alt="" className="aspect-[2/3] w-full rounded-sm object-cover shadow-[0_30px_80px_-20px_rgba(242,181,68,0.35)]" />
+          <img src={poster} alt="" className="aspect-[2/3] w-full rounded-sm object-cover shadow-[0_30px_80px_-20px_color-mix(in_srgb,var(--color-projector)_35%,transparent)]" />
         )}
       </Link>
 

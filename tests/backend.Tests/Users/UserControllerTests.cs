@@ -53,86 +53,15 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
 
     // ---- Update ----
 
+    // Profile changes go through PATCH /api/settings (SettingsControllerTests); the older duplicate is gone.
     [Fact]
-    public async Task UpdateUser_WithoutToken_Returns401()
+    public async Task UpdateUser_OldEndpoint_IsGone()
     {
         var user = await _factory.CreateAuthenticatedAsync();
 
-        var response = await _factory.CreateClient().PutAsJsonAsync($"/api/users/{user.Id}", new UpdateUserDto { Username = "anonymous" });
+        var response = await user.Client.PutAsJsonAsync($"/api/users/{user.Id}", new { Username = "renamed" });
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task UpdateUser_ChangesUsername()
-    {
-        var user = await _factory.CreateAuthenticatedAsync();
-        var newName = $"renamed_{Guid.NewGuid():N}"[..20];
-
-        var response = await user.Client.PutAsJsonAsync($"/api/users/{user.Id}", new UpdateUserDto { Username = newName });
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var profile = await GetProfileAsync(user.Id);
-        Assert.Equal(newName, profile!.UserName);
-    }
-
-    [Fact]
-    public async Task UpdateUser_IgnoresProfileImageUrl_SoOnlyUploadsSetThePicture()
-    {
-        var user = await _factory.CreateAuthenticatedAsync();
-
-        var response = await user.Client.PutAsJsonAsync($"/api/users/{user.Id}", new { ProfileImageUrl = "https://img.test/new.png" });
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var profile = await GetProfileAsync(user.Id);
-        Assert.Equal(user.Username, profile!.UserName);
-        Assert.Null(profile.ProfileImageUrl);
-    }
-
-    [Fact]
-    public async Task UpdateUser_UsernameTakenByOtherUser_Returns400()
-    {
-        var user = await _factory.CreateAuthenticatedAsync();
-        var other = await _factory.CreateAuthenticatedAsync();
-
-        var response = await user.Client.PutAsJsonAsync($"/api/users/{user.Id}", new UpdateUserDto { Username = other.Username });
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var profile = await GetProfileAsync(user.Id);
-        Assert.Equal(user.Username, profile!.UserName);
-    }
-
-    [Fact]
-    public async Task UpdateUser_TooShortUsername_Returns400()
-    {
-        var user = await _factory.CreateAuthenticatedAsync();
-
-        var response = await user.Client.PutAsJsonAsync($"/api/users/{user.Id}", new UpdateUserDto { Username = "ab" });
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task UpdateUser_TooLongUsername_Returns400()
-    {
-        var user = await _factory.CreateAuthenticatedAsync();
-
-        var response = await user.Client.PutAsJsonAsync($"/api/users/{user.Id}", new UpdateUserDto { Username = new string('a', 51) });
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task UpdateUser_OtherUser_Returns403AndKeepsProfile()
-    {
-        var user = await _factory.CreateAuthenticatedAsync();
-        var victim = await _factory.CreateAuthenticatedAsync();
-
-        var response = await user.Client.PutAsJsonAsync($"/api/users/{victim.Id}", new UpdateUserDto { Username = "hijacked" });
-
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        var profile = await GetProfileAsync(victim.Id);
-        Assert.Equal(victim.Username, profile!.UserName);
+        Assert.Equal(HttpStatusCode.MethodNotAllowed, response.StatusCode);
     }
 
     // ---- Delete ----

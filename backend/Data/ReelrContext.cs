@@ -1,5 +1,6 @@
 using backend.Features.Auth;
 using backend.Features.Diary;
+using backend.Features.Invites;
 using backend.Features.Moderation;
 using backend.Features.MovieLists;
 using backend.Features.Movies;
@@ -57,6 +58,8 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<Invite> Invites => Set<Invite>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -76,6 +79,15 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
             token.HasIndex(t => new { t.UserId, t.ExpiresAt });
         });
 
+        // Invite: found by its hash. Deleting the account that used it keeps the invite as used.
+        modelBuilder.Entity<Invite>(invite =>
+        {
+            invite.HasOne(i => i.UsedBy).WithMany().HasForeignKey(i => i.UsedById).OnDelete(DeleteBehavior.SetNull);
+            invite.Property(i => i.CodeHash).HasMaxLength(Invite.HashLength).IsFixedLength().IsUnicode(false);
+            invite.Property(i => i.Note).HasMaxLength(Invite.NoteMaxLength);
+            invite.HasIndex(i => i.CodeHash).IsUnique();
+        });
+
         // UserAvatar: one per user, removed with the user.
         modelBuilder.Entity<UserAvatar>(avatar =>
         {
@@ -91,6 +103,7 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
         modelBuilder.Entity<Movie>(movie =>
         {
             movie.HasIndex(m => m.TmdbId).IsUnique();
+            movie.HasIndex(m => m.RefreshedAt);
             movie.Property(m => m.Title).HasMaxLength(Movie.TitleMaxLength);
             movie.Property(m => m.Description).HasMaxLength(Movie.DescriptionMaxLength);
             movie.Property(m => m.PosterUrl).HasMaxLength(Movie.ImagePathMaxLength);
@@ -182,7 +195,7 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
             .HasIndex(r => new { r.UserId, r.ActivityAt });
 
         // No database cascade: SQL Server rejects a second cascade path from users to reviews.
-        // DiaryExtensions.DeleteDiaryEntriesAsync removes the linked review in code instead.
+        // JournalService.DeleteEntriesAsync removes the linked review in code instead.
         modelBuilder.Entity<Review>()
             .HasOne(r => r.DiaryEntry)
             .WithOne()
@@ -304,7 +317,7 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
             .HasIndex(i => new { i.MovieListId, i.AddedAt });
     }
 
-    // A score from half a star to five stars in half steps, the same rule as JournalService.IsHalfStep.
+    // A score from half a star to five stars in half steps, the same rule as HalfStarsAttribute.
     private static string HalfStars(string column) =>
         $"{column} >= 0.5 AND {column} <= 5 AND {column} * 2 = FLOOR({column} * 2)";
 }

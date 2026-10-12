@@ -18,7 +18,7 @@ function StarRow({ className }: { className: string }) {
 function StarFill({ score, className = "" }: { score: number; className?: string }) {
   return (
     <span className={`relative inline-flex ${className}`}>
-      <StarRow className="h-full text-white/15" />
+      <StarRow className="h-full text-rule/15" />
       <span className="absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${(score / 5) * 100}%` }}>
         <StarRow className="h-full text-projector" />
       </span>

@@ -19,7 +19,7 @@ export function ListCard({ list }: { list: MovieListSummary }) {
 
   return (
     <Link to={`/list/${list.id}`} className="group block rounded-sm">
-      <div className="flex rounded-sm bg-row p-2 ring-1 ring-white/5 transition group-hover:ring-2 group-hover:ring-projector">
+      <div className="flex rounded-sm bg-row p-2 ring-1 ring-rule/5 transition group-hover:ring-2 group-hover:ring-projector">
         {slots.map((movie, i) => {
           const poster = movie && tmdbImage(movie.posterUrl, "w185");
           return (

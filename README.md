@@ -56,7 +56,8 @@ The backend is organised as **feature slices**. Each folder in `backend/Features
 
 A few design decisions:
 
-- **TMDB is the source of film data.** The database stores a film only when a member interacts with it (rating, diary entry, review, list or watchlist). `MovieCatalog` fetches and stores films on demand and handles two requests creating the same film at once.
+- **TMDB is the source of film data.** The database stores a film only when a member interacts with it (rating, diary entry, review, list or watchlist). `MovieCatalog` fetches and stores films on demand and handles two requests creating the same film at once. A background service copies each stored film from TMDB again once it is 30 days old (`MovieRefresh` settings).
+- **One instance for now.** The TMDB cache, rate limits, login throttling and security stamp cache are kept in memory, so they belong to one app instance. Running several instances would need Redis (or another shared store) for these first.
 - **Journal rules live in one service.** Watching, rating, reviewing and the watchlist depend on each other. `JournalService` keeps those rules in one place so every endpoint follows them the same way.
 - **The activity feed sits behind an interface.** `IActivityFeed` is built from existing tables today, with cursor pagination. It can be replaced with a stored event table without changing the controller.
 - **One place decides visibility.** `UserVisibility` decides who can see a member's watchlist.
@@ -98,7 +99,7 @@ Requires Docker Desktop.
 3. Open http://localhost:8080. The API is on http://localhost:5084, with Swagger at `/swagger`.
    Emails (sign-up confirmation, password reset) are caught by Mailpit at http://localhost:8025; none reach a real inbox.
 
-The database is migrated automatically on start-up. All ports are bound to `127.0.0.1`.
+A one-off `migrate` service applies the database migrations (an EF Core migrations bundle) before the backend starts; the app itself never changes the schema. All ports are bound to `127.0.0.1`.
 
 To make an account an admin (the moderation page), add its user id to `.env` and restart the backend:
 
@@ -189,6 +190,29 @@ Swagger UI is available at `/swagger` in Development. A Postman collection and e
 ## Attribution
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
+
+## Deploying to Azure
+
+The beta runs in Azure Container Apps with Azure SQL (free offer) and Key Vault in Sweden Central. `infra/` describes all of it as Bicep. There are no passwords for the database: the backend and the migration job sign in with managed identities, and the secrets (JWT key, TMDB token, SMTP key) live in Key Vault.
+
+First-time setup, with the Azure CLI signed in and the .NET 10 SDK installed:
+
+```powershell
+./infra/deploy.ps1 -EmailUserName '<smtp login>' -EmailFromAddress '<verified sender>'
+./infra/setup-github.ps1 -EmailUserName '<smtp login>' -EmailFromAddress '<verified sender>'
+```
+
+`deploy.ps1` creates the resources, asks for the TMDB token and the SMTP key (hidden input) and creates the database users. `setup-github.ps1` lets the Deploy workflow sign in to Azure with OIDC and prints the repository variables it needs.
+
+After that, `.github/workflows/deploy.yml` deploys every commit on `main` that passes CI: it pushes the images to GitHub Container Registry, runs the migrations as a Container Apps job and rolls out the new images. The images must be public on GitHub so Azure can pull them.
+
+**Invites and demo accounts.** Registration is invite only: an admin makes a one-time code on the Admin page and sends its sign-up link (`/register?invite=…`). Demo accounts, listed under `Demo:UserIds`, can do everything a member does except change their name, password or picture, sign out other devices or delete the account, so a shared login for interviews stays as it was. To create the first accounts on an empty database:
+
+1. Run `deploy.ps1` with `-OpenRegistration` and register your own account and the demo account.
+2. Run it again with `-AdminUserIds '<your id>' -DemoUserIds '<demo id>'` and without `-OpenRegistration`, which closes registration.
+3. Set the same ids as the repository variables `REELR_ADMIN_USER_IDS` and `REELR_DEMO_USER_IDS`, so the Deploy workflow keeps them.
+
+Everything scales to zero when unused, so the first visit after a quiet spell takes up to a minute while the backend starts and the database resumes. For a demo, open the site a minute early, or deploy with `backendMinReplicas = 1`.
 
 ## Before going live
 

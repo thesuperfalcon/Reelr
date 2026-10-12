@@ -207,7 +207,7 @@ function Diary({
                     <h2 className="marquee text-2xl text-projector">
                         {group.month}
                     </h2>
-                    <ol className="mt-3 divide-y divide-white/5">
+                    <ol className="mt-3 divide-y divide-rule/5">
                         {group.entries.map((entry) => {
                             const date = new Date(entry.watchedAt);
                             const poster = tmdbImage(entry.posterUrl, "w185");
@@ -348,7 +348,7 @@ function Reviews({ owner }: { owner: Owner }) {
 
     return (
         <>
-            <ol className="mt-4 divide-y divide-white/5">
+            <ol className="mt-4 divide-y divide-rule/5">
                 {items.map((review) => {
                     const poster = tmdbImage(review.posterUrl, "w185");
                     return (
@@ -652,7 +652,7 @@ function BlockButton({ profile }: { profile: UserProfile }) {
             type="button"
             onClick={() => (blocked ? toggle.mutate(true) : setConfirming(true))}
             disabled={toggle.isPending}
-            className="inline-flex h-9 items-center rounded-sm px-3 text-sm font-medium text-haze ring-1 ring-white/15 transition hover:text-alarm disabled:opacity-50"
+            className="inline-flex h-9 items-center rounded-sm px-3 text-sm font-medium text-haze ring-1 ring-rule/15 transition hover:text-alarm disabled:opacity-50"
         >
             {blocked ? "Unblock" : "Block"}
         </button>
@@ -678,7 +678,7 @@ function FollowButton({
                 aria-pressed={following}
                 className={`group inline-flex h-9 min-w-28 items-center justify-center rounded-sm px-4 text-sm font-semibold transition disabled:opacity-50 ${
                     following
-                        ? "text-screen ring-1 ring-white/15 hover:text-alarm hover:ring-alarm/50"
+                        ? "text-screen ring-1 ring-rule/15 hover:text-alarm hover:ring-alarm/50"
                         : "bg-projector text-salon hover:brightness-110"
                 }`}
             >
@@ -767,7 +767,7 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                 {own && (
                     <Link
                         to="/settings"
-                        className="rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-white/15 transition hover:bg-row sm:ml-auto"
+                        className="rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row sm:ml-auto"
                     >
                         Edit profile
                     </Link>
@@ -796,7 +796,7 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                 role="tablist"
                 aria-label="Profile sections"
                 onKeyDown={moveBetweenTabs}
-                className="mt-10 flex gap-6 overflow-x-auto overflow-y-hidden border-b border-white/5 scrollbar-none [&::-webkit-scrollbar]:hidden"
+                className="mt-10 flex gap-6 overflow-x-auto overflow-y-hidden border-b border-rule/5 scrollbar-none [&::-webkit-scrollbar]:hidden"
             >
                 {tabs.map(({ id, label, count }) => (
                     <button

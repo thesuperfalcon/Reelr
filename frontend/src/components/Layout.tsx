@@ -134,7 +134,7 @@ export function Layout() {
         Skip to content
       </a>
       <PageLoadingBar />
-      <header className="border-b border-white/5">
+      <header className="border-b border-rule/5">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-3 px-4 py-4 sm:px-6">
           <Link to="/" className="marquee text-3xl text-projector">
             Reelr
@@ -171,7 +171,7 @@ export function Layout() {
                           src={profileImageUrl}
                           alt=""
                           className={`size-8 rounded-full object-cover ring-2 transition ${
-                            isActive ? "ring-projector" : "ring-transparent hover:ring-white/20"
+                            isActive ? "ring-projector" : "ring-transparent hover:ring-rule/20"
                           }`}
                         />
                       ) : (
@@ -189,7 +189,7 @@ export function Layout() {
                 </NavLink>
                 {settings.data?.isAdmin && (
                   <NavLink to="/admin" className={navLinkClass}>
-                    Moderation
+                    Admin
                   </NavLink>
                 )}
                 <NavLink to="/settings" className={navLinkClass}>

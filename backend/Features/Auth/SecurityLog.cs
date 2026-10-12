@@ -20,6 +20,9 @@ public partial class SecurityLog
     [LoggerMessage(1001, LogLevel.Information, "Registration with an email address that already has an account")]
     public partial void RegisteredWithTakenEmail();
 
+    [LoggerMessage(1003, LogLevel.Warning, "Registration refused: the invite code is unknown, used or revoked")]
+    public partial void InviteRefused();
+
     [LoggerMessage(1002, LogLevel.Information, "Account {UserId} confirmed its email address")]
     public partial void EmailConfirmed(int userId);
 
@@ -60,6 +63,12 @@ public partial class SecurityLog
 
     [LoggerMessage(1040, LogLevel.Information, "Admin {AdminId} resolved reports about {TargetType} {TargetId}: {Outcome}")]
     public partial void ReportsResolved(int adminId, string targetType, int targetId, string outcome);
+
+    [LoggerMessage(1041, LogLevel.Information, "Admin {AdminId} made invite {InviteId}")]
+    public partial void InviteCreated(int adminId, int inviteId);
+
+    [LoggerMessage(1042, LogLevel.Information, "Admin {AdminId} revoked invite {InviteId}")]
+    public partial void InviteRevoked(int adminId, int inviteId);
 }
 
 public static class LoginFailure

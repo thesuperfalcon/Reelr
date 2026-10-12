@@ -24,11 +24,22 @@ services:
       retries: 10
       start_period: 20s
 
+  # Brings the database schema up to date, then exits. The backend starts only after it succeeded.
+  # Locally it uses the same sa connection as the backend; in production it gets its own account.
+  migrate:
+    build:
+      context: ./backend
+      target: migrations
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   backend:
     build: ./backend
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      Database__MigrateOnStartup: "true"
       # Requests arrive through nginx. X-Forwarded-For is trusted only from this compose network,
       # so auth rate limiting is per client and a client cannot fake its IP by sending the header itself.
       ForwardedHeaders__KnownNetworks__0: "172.30.0.0/24"
@@ -42,8 +53,8 @@ services:
     ports:
       - "127.0.0.1:5084:8080"
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       mailpit:
         condition: service_started
     healthcheck:

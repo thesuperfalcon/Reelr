@@ -2,6 +2,7 @@ using backend.Data;
 using backend.Features.Activity;
 using backend.Features.Auth;
 using backend.Features.Diary;
+using backend.Features.Invites;
 using backend.Features.Email;
 using backend.Features.Moderation;
 using backend.Features.Movies;
@@ -52,15 +53,33 @@ builder.Services.AddControllers();
 // Unhandled exceptions and empty error responses (e.g. 401, 404, 429) get an RFC 7807 problem body.
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = CorrelationId.AddToProblem);
 
-builder.Services.AddOpenApi();
+// The OpenAPI document, built in. In Development it is at /openapi/v1.json and Swagger UI shows it at /swagger.
+builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
+{
+    document.Components ??= new OpenApiComponents();
+    document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+    document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "An access token, e.g. from /auth/login (no need to type the 'Bearer ' prefix)."
+    };
+    document.Security ??= [];
+    document.Security.Add(new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+    });
+    return Task.CompletedTask;
+}));
 
 builder.Services.AddDbContext<ReelrContext>(options =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("ReelrContext")
         ?? throw new InvalidOperationException(
             "Connection string 'ReelrContext' not found."
-        )
-    ));
+        ))
+        .AddInterceptors(new OpenRetryInterceptor()));
 
 builder.Services
     .AddIdentity<User, IdentityRole<int>>(options =>
@@ -94,6 +113,10 @@ builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddSingleton<EmailQueue>();
 builder.Services.AddHostedService<EmailDispatcher>();
+
+// Copies stored films from TMDB again now and then ("MovieRefresh" section).
+builder.Services.Configure<MovieRefreshOptions>(builder.Configuration.GetSection("MovieRefresh"));
+builder.Services.AddHostedService<MovieRefresher>();
 builder.Services.AddScoped<AccountEmails>();
 builder.Services.AddSingleton<SecurityStamps>();
 builder.Services.AddSingleton<SecurityLog>();
@@ -101,6 +124,9 @@ builder.Services.AddSingleton<SecurityLog>();
 // Admins are configured by user id under "Admin:UserIds" (see AdminAccess).
 var adminAccess = new AdminAccess(builder.Configuration);
 builder.Services.AddSingleton(adminAccess);
+
+// Shared demo accounts are configured by user id under "Demo:UserIds" (see DemoAccounts).
+builder.Services.AddSingleton<DemoAccounts>();
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(AdminAccess.Policy, policy => policy
         .RequireAuthenticatedUser()
@@ -116,6 +142,11 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
 
+    // How many trusted proxies a request passes through: 1 behind nginx in Docker, more where a platform's
+    // own proxies sit in front of and behind nginx (Azure Container Apps). Addresses are read from the right
+    // and only while each one is a trusted proxy, so a client still cannot pick its own address.
+    options.ForwardLimit = builder.Configuration.GetValue("ForwardedHeaders:ForwardLimit", 1);
+
     foreach (var network in builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [])
     {
         options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse(network));
@@ -126,6 +157,7 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<RefreshTokens>();
 builder.Services.AddScoped<MovieCatalog>();
 builder.Services.AddScoped<JournalService>();
+builder.Services.AddScoped<InviteCodes>();
 
 // Activity feed. "Activity:Implementation" picks how the feed is computed; only "Derived" exists so far.
 builder.Services.AddMemoryCache();
@@ -215,33 +247,10 @@ if (tmdbResilienceOverrides.Exists())
     tmdbResilience.Configure(tmdbResilienceOverrides);
 }
 
-// Swagger
-builder.Services.AddSwaggerGen(options =>
-{
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "Bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Enter a JWT, e.g. from /auth/login (no need to type 'Bearer ' prefix)."
-    });
-
-    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
-    {
-        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
-    });
-});
-
 var app = builder.Build();
 
-// Apply pending migrations at startup, e.g. when running in Docker.
-if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
-{
-    using var scope = app.Services.CreateScope();
-    scope.ServiceProvider.GetRequiredService<ReelrContext>().Database.Migrate();
-}
+// The app never changes the database schema itself. Migrations run as a separate step before it starts
+// (the "migrate" service in Docker Compose), with an account that may change tables while the app's may not.
 
 // HTTP pipeline
 // First, so the rate limiter, HTTPS redirection and logging see the real client IP and scheme.
@@ -260,9 +269,7 @@ app.UseStatusCodePages();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Reelr API"));
 }
 else
 {

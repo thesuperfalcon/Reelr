@@ -24,7 +24,7 @@ public class PersonControllerTests : IClassFixture<ReelrApiFactory>
             Results = [new() { Id = 6384, Name = "Keanu Reeves", KnownForDepartment = "Acting", ProfilePath = "/keanu.jpg" }]
         });
 
-        var result = await _factory.CreateClient().GetFromJsonAsync<TmdbPersonSearchResultDto>("/api/person/search?query=keanu%20reeves");
+        var result = await _factory.CreateClient().GetFromJsonAsync<TmdbPersonSearchResultDto>("/api/people/search?query=keanu%20reeves");
 
         var person = Assert.Single(result!.Results);
         Assert.Equal(6384, person.Id);
@@ -59,7 +59,7 @@ public class PersonControllerTests : IClassFixture<ReelrApiFactory>
         new() { Id = movieId, Title = $"Film {movieId}", ReleaseDate = date, VoteCount = votes, Department = department, Job = job };
 
     private async Task<PersonDetailsDto> GetPersonAsync(int personId) =>
-        (await _factory.CreateClient().GetFromJsonAsync<PersonDetailsDto>($"/api/person/{personId}"))!;
+        (await _factory.CreateClient().GetFromJsonAsync<PersonDetailsDto>($"/api/people/{personId}"))!;
 
     [Fact]
     public async Task GetPerson_ReturnsDetailsAndExternalIds()
@@ -144,7 +144,7 @@ public class PersonControllerTests : IClassFixture<ReelrApiFactory>
     [Fact]
     public async Task GetPerson_UnknownPerson_Returns404()
     {
-        var response = await _factory.CreateClient().GetAsync("/api/person/999999");
+        var response = await _factory.CreateClient().GetAsync("/api/people/999999");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -154,15 +154,15 @@ public class PersonControllerTests : IClassFixture<ReelrApiFactory>
     {
         _factory.Tmdb.SetResponse("person/106", null, HttpStatusCode.InternalServerError);
 
-        var response = await _factory.CreateClient().GetAsync("/api/person/106");
+        var response = await _factory.CreateClient().GetAsync("/api/people/106");
 
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
     }
 
     [Theory]
-    [InlineData("/api/person/search")]
-    [InlineData("/api/person/search?query=")]
-    [InlineData("/api/person/search?query=%20")]
+    [InlineData("/api/people/search")]
+    [InlineData("/api/people/search?query=")]
+    [InlineData("/api/people/search?query=%20")]
     public async Task SearchPeople_WithoutQuery_Returns400(string url)
     {
         var response = await _factory.CreateClient().GetAsync(url);

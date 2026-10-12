@@ -23,7 +23,7 @@ public class CompanyControllerTests : IClassFixture<ReelrApiFactory>
             Results = [new() { Id = 174, Name = "Warner Bros. Pictures", LogoPath = "/wb.png" }]
         });
 
-        var result = await _factory.CreateClient().GetFromJsonAsync<TmdbCompanySearchResultDto>("/api/company/search?query=warner");
+        var result = await _factory.CreateClient().GetFromJsonAsync<TmdbCompanySearchResultDto>("/api/companies/search?query=warner");
 
         var company = Assert.Single(result!.Results);
         Assert.Equal(174, company.Id);
@@ -33,9 +33,9 @@ public class CompanyControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Theory]
-    [InlineData("/api/company/search")]
-    [InlineData("/api/company/search?query=")]
-    [InlineData("/api/company/search?query=%20")]
+    [InlineData("/api/companies/search")]
+    [InlineData("/api/companies/search?query=")]
+    [InlineData("/api/companies/search?query=%20")]
     public async Task SearchCompanies_WithoutQuery_Returns400(string url)
     {
         var response = await _factory.CreateClient().GetAsync(url);

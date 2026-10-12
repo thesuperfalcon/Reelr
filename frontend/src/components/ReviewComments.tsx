@@ -74,7 +74,7 @@ function CommentForm({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-sm px-3 py-1.5 text-sm font-medium text-haze ring-1 ring-white/15 transition hover:text-screen"
+            className="rounded-sm px-3 py-1.5 text-sm font-medium text-haze ring-1 ring-rule/15 transition hover:text-screen"
           >
             Cancel
           </button>
@@ -221,7 +221,7 @@ export function ReviewComments({ review }: { review: Review }) {
         <p className="py-4 text-haze">No comments yet.</p>
       ) : (
         <>
-          <ol className="mt-2 divide-y divide-white/5">
+          <ol className="mt-2 divide-y divide-rule/5">
             {items.map((comment) => (
               <CommentItem key={comment.id} comment={comment} reviewAuthorId={review.userId} />
             ))}
@@ -230,7 +230,7 @@ export function ReviewComments({ review }: { review: Review }) {
         </>
       )}
 
-      <div className="mt-4 border-t border-white/5 pt-6">
+      <div className="mt-4 border-t border-rule/5 pt-6">
         {user ? (
           <CommentForm
             key={formKey}

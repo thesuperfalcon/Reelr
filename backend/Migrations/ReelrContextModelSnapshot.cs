@@ -275,6 +275,47 @@ namespace backend.Migrations
                         });
                 });
 
+            modelBuilder.Entity("backend.Features.Invites.Invite", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .IsFixedLength();
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("UsedById")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CodeHash")
+                        .IsUnique();
+
+                    b.HasIndex("UsedById");
+
+                    b.ToTable("Invites");
+                });
+
             modelBuilder.Entity("backend.Features.Moderation.Report", b =>
                 {
                     b.Property<int>("Id")
@@ -402,6 +443,9 @@ namespace backend.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
+                    b.Property<DateTime>("RefreshedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateOnly?>("ReleaseDate")
                         .HasColumnType("date");
 
@@ -417,6 +461,8 @@ namespace backend.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RefreshedAt");
 
                     b.HasIndex("TmdbId")
                         .IsUnique();
@@ -827,6 +873,16 @@ namespace backend.Migrations
                     b.Navigation("Movie");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend.Features.Invites.Invite", b =>
+                {
+                    b.HasOne("backend.Features.Users.User", "UsedBy")
+                        .WithMany()
+                        .HasForeignKey("UsedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("UsedBy");
                 });
 
             modelBuilder.Entity("backend.Features.Moderation.Report", b =>

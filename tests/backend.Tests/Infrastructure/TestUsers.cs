@@ -1,6 +1,8 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using backend.Features.Invites;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace backend.Tests.Infrastructure;
 
@@ -26,7 +28,8 @@ public static class TestUsers
             Username = username,
             Email = $"{username}@test.local",
             Password,
-            AcceptTerms = true
+            AcceptTerms = true,
+            InviteCode = factory.RequiresInvite ? await factory.CreateInviteCodeAsync() : null
         });
         registerResponse.EnsureSuccessStatusCode();
 
@@ -57,6 +60,16 @@ public static class TestUsers
             await context.SaveChangesAsync();
             return user.Id;
         });
+
+    /// <summary>
+    /// Makes an invite the way an admin would and returns its code. InviteTests covers the admin endpoints.
+    /// </summary>
+    public static async Task<string> CreateInviteCodeAsync(this ReelrApiFactory factory, string? note = null)
+    {
+        using var scope = factory.Services.CreateScope();
+        var (_, code) = await scope.ServiceProvider.GetRequiredService<InviteCodes>().CreateAsync(note);
+        return code;
+    }
 
     /// <summary>
     /// Sends DELETE /api/users/{userId} with the password confirmation the endpoint requires.

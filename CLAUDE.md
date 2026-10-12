@@ -20,7 +20,7 @@ dotnet ef database update --project backend/backend.csproj
 
 Tests need a real SQL Server. Default is `.\SQLEXPRESS`; override with `REELR_TEST_SQLSERVER` (a connection string without `Database=`; the factory appends a per-class throwaway database).
 
-Frontend (in `frontend/`): `npm run dev` (http://localhost:5173, proxies `/api` and `/auth` to the API), `npm run lint`, `npm run build` (runs `tsc -b`, so it is also the type check). There are no frontend unit tests.
+Frontend (in `frontend/`): `npm run dev` (http://localhost:5173, proxies `/api` and `/auth` to the API), `npm run lint`, `npm run build` (runs `tsc -b`, so it is also the type check), `npm test` (Vitest: the API client, `AuthProvider`, and axe and keyboard checks in `src/test/`).
 
 Full stack: `docker compose up --build` (site http://localhost:8080, API :5084, Mailpit :8025). Needs a root `.env` (see README).
 
