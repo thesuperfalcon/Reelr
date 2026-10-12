@@ -307,6 +307,8 @@ export function useSaveDiaryEntry(tmdbId: number) {
         queryClient.invalidateQueries({ queryKey: ["me", "rating", tmdbId] }),
         queryClient.invalidateQueries({ queryKey: ["me", "status", tmdbId] }),
         queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+        // Diary stats are counted from the diary.
+        queryClient.invalidateQueries({ queryKey: ["stats"] }),
         // Logging a film removes it from the watchlist on the server.
         queryClient.invalidateQueries({ queryKey: ["me", "watchlist"] }),
         // Reviews show the author's current rating.
@@ -323,6 +325,8 @@ export function useDeleteRating(tmdbId: number) {
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+        // Diary stats are counted from the diary.
+        queryClient.invalidateQueries({ queryKey: ["stats"] }),
         queryClient.invalidateQueries({ queryKey: ["reviews"] }),
       ]),
   });
@@ -366,6 +370,8 @@ export function useDeleteReview() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ["reviews"] }),
         queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+        // Diary stats are counted from the diary.
+        queryClient.invalidateQueries({ queryKey: ["stats"] }),
       ]),
   });
 }
