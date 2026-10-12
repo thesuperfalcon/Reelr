@@ -205,6 +205,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
               onChange={choosePicture}
               className="sr-only"
               tabIndex={-1}
+              aria-hidden="true"
             />
             <button type="button" onClick={() => fileInput.current?.click()} disabled={saving} className={quietButtonClass}>
               {shownPicture ? "Choose another picture" : "Choose picture"}

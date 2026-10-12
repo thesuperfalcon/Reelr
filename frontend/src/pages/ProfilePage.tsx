@@ -229,6 +229,7 @@ function Diary({
                                         to={`/movie/${entry.tmdbId}`}
                                         className="shrink-0 rounded-sm"
                                         tabIndex={-1}
+                                        aria-hidden="true"
                                     >
                                         {poster ? (
                                             <img
@@ -353,6 +354,7 @@ function Reviews({ owner }: { owner: Owner }) {
                                 to={`/movie/${review.tmdbId}`}
                                 className="shrink-0 self-start rounded-sm"
                                 tabIndex={-1}
+                                aria-hidden="true"
                             >
                                 {poster ? (
                                     <img
