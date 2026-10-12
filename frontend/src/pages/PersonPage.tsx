@@ -289,16 +289,14 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
         ))}
       </div>
 
-      <ul
-        role="tabpanel"
-        id="filmography-panel"
-        aria-labelledby={tabId(department)}
-        className="mt-6 grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 md:grid-cols-6 lg:gap-x-4"
-      >
-        {credits.map((credit) => (
-          <CreditCard key={credit.tmdbId} credit={credit} watched={watched.has(credit.tmdbId)} />
-        ))}
-      </ul>
+      {/* The panel wraps the list, so the list keeps its list role for screen readers. */}
+      <div role="tabpanel" id="filmography-panel" aria-labelledby={tabId(department)}>
+        <ul className="mt-6 grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 md:grid-cols-6 lg:gap-x-4">
+          {credits.map((credit) => (
+            <CreditCard key={credit.tmdbId} credit={credit} watched={watched.has(credit.tmdbId)} />
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }

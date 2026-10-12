@@ -201,9 +201,9 @@ function Diary({
         <div className="mt-8 space-y-10">
             {groupByMonth(entries).map((group) => (
                 <section key={group.month} aria-label={group.month}>
-                    <h3 className="marquee text-2xl text-projector">
+                    <h2 className="marquee text-2xl text-projector">
                         {group.month}
-                    </h3>
+                    </h2>
                     <ol className="mt-3 divide-y divide-white/5">
                         {group.entries.map((entry) => {
                             const date = new Date(entry.watchedAt);
