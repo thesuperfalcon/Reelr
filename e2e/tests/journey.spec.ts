@@ -41,9 +41,13 @@ test("sign up, log a film with a review, follow someone and delete the account",
   await page.getByRole("searchbox", { name: /Search/ }).press("Enter");
   await page.getByRole("link", { name: friend }).first().click();
   await expect(page.getByRole("heading", { level: 1, name: friend })).toBeVisible();
-  const follow = page.getByRole("button", { name: "Follow" });
-  await follow.click();
-  await expect(page.getByRole("button", { pressed: true })).toBeVisible();
+  await page.getByRole("button", { name: "Follow", exact: true }).click();
+  // The pressed button reads "Unfollow" while the pointer rests on it, "Following" otherwise.
+  const following = page.getByRole("button", { name: /^(Following|Unfollow)$/, pressed: true });
+  await expect(following).toBeVisible();
+  // Still followed after a reload, so the server stored it.
+  await page.reload();
+  await expect(following).toBeVisible();
 
   // Delete the account.
   await page.goto("/settings");
