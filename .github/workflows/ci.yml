@@ -65,6 +65,20 @@ jobs:
           --collect "XPlat Code Coverage"
           --results-directory TestResults
 
+      # The tests build their database with EnsureCreated, so the migrations themselves are checked here:
+      # they must match the model, and apply cleanly to an empty database.
+      - name: Check that the migrations match the model
+        working-directory: backend
+        run: |
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes --configuration Release
+
+      - name: Apply every migration to an empty database
+        working-directory: backend
+        run: |
+          dotnet ef migrations bundle --configuration Release --output efbundle
+          ./efbundle --connection "Server=localhost,1433;Database=ReelrMigrations;User Id=sa;Password=${{ secrets.MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
