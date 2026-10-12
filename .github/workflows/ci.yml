@@ -101,19 +101,22 @@ jobs:
   e2e:
     name: End-to-end (Playwright)
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    # No "needs": it runs next to the other jobs, so a push waits for the slowest job only.
 
     steps:
       - uses: actions/checkout@v4
 
-      # The stack reads its secrets from .env. TMDB is the fake in e2e/fake-tmdb, so no real token is needed.
+      # The stack reads its secrets from .env. The password comes in through env and printf, so bash never
+      # expands it, and single quotes stop Compose from reading "$" in it. docker-compose.e2e.yml sets the
+      # fake TMDB token.
       - name: Write the stack's settings
+        env:
+          SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
         run: |
           {
-            echo "MSSQL_SA_PASSWORD=${{ secrets.MSSQL_SA_PASSWORD }}"
-            echo "ConnectionStrings__ReelrContext=Server=db;Database=Reelr;User Id=sa;Password=${{ secrets.MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
-            echo "Jwt__Key=$(openssl rand -base64 48)"
-            echo "TMDB_READ_ACCESS_TOKEN=unused"
+            printf "MSSQL_SA_PASSWORD='%s'\n" "$SA_PASSWORD"
+            printf "ConnectionStrings__ReelrContext='Server=db;Database=Reelr;User Id=sa;Password=%s;TrustServerCertificate=True;'\n" "$SA_PASSWORD"
+            printf "Jwt__Key='%s'\n" "$(openssl rand -base64 48)"
           } > .env
 
       - name: Start the stack
@@ -127,9 +130,28 @@ jobs:
 
       - name: Install
         working-directory: e2e
+        run: npm ci
+
+      # The browser download is cached per Playwright version; its system libraries are installed every run.
+      - name: Read the Playwright version
+        id: playwright
+        working-directory: e2e
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install the browser
+        working-directory: e2e
         run: |
-          npm ci
-          npx playwright install --with-deps chromium
+          if [ "${{ steps.browsers.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
 
       - name: Test
         working-directory: e2e
