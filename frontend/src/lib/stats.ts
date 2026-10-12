@@ -51,3 +51,35 @@ export function useStatsDay(userId: number, date: string | null) {
     enabled: date != null,
   });
 }
+
+// Dates from the API are calendar days ("YYYY-MM-DD"). They are handled as UTC midnight, so no time zone can
+// move a film to the day before or after.
+export const DAY_MS = 24 * 60 * 60 * 1000;
+export const toTime = (day: string) => Date.parse(`${day}T00:00:00Z`);
+export const toDay = (time: number) => new Date(time).toISOString().slice(0, 10);
+
+export interface Cell {
+  day: string;
+  count: number;
+}
+
+// Weeks as columns from Sunday to Saturday, like GitHub; null pads the days before the first and after the last.
+export function buildWeeks(stats: UserStats): (Cell | null)[][] {
+  const counts = new Map(stats.days.map((d) => [d.date, d.count]));
+  const first = toTime(stats.from);
+  const last = toTime(stats.to);
+  const start = first - new Date(first).getUTCDay() * DAY_MS;
+  const weeks: (Cell | null)[][] = [];
+
+  for (let weekStart = start; weekStart <= last; weekStart += 7 * DAY_MS) {
+    const week: (Cell | null)[] = [];
+    for (let i = 0; i < 7; i++) {
+      const time = weekStart + i * DAY_MS;
+      const day = toDay(time);
+      week.push(time < first || time > last ? null : { day, count: counts.get(day) ?? 0 });
+    }
+    weeks.push(week);
+  }
+
+  return weeks;
+}

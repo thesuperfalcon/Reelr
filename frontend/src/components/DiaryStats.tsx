@@ -1,16 +1,11 @@
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router";
-import { useStatsDay, useUserStats, type UserStats } from "../lib/stats";
+import { buildWeeks, DAY_MS, toDay, toTime, useStatsDay, useUserStats, type UserStats } from "../lib/stats";
 import { tmdbImage } from "../lib/tmdb";
 import { Stars } from "./Stars";
 import { ErrorMessage, Loading } from "./Status";
 
-// Dates from the API are calendar days ("YYYY-MM-DD"). They are handled as UTC midnight throughout, so no time
-// zone can move a film to the day before or after.
-const DAY_MS = 24 * 60 * 60 * 1000;
-const toTime = (day: string) => Date.parse(`${day}T00:00:00Z`);
-const toDay = (time: number) => new Date(time).toISOString().slice(0, 10);
-
+// Days are formatted in UTC, as lib/stats.ts handles them.
 const longDate = new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeZone: "UTC" });
 const shortMonth = new Intl.DateTimeFormat(undefined, { month: "short", timeZone: "UTC" });
 const longMonth = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
@@ -27,32 +22,6 @@ function level(count: number) {
   if (count === 2) return "bg-projector/55";
   if (count === 3) return "bg-projector/80";
   return "bg-projector";
-}
-
-interface Cell {
-  day: string;
-  count: number;
-}
-
-// Weeks as columns from Sunday to Saturday, like GitHub; null pads the days before the first and after the last.
-function buildWeeks(stats: UserStats): (Cell | null)[][] {
-  const counts = new Map(stats.days.map((d) => [d.date, d.count]));
-  const first = toTime(stats.from);
-  const last = toTime(stats.to);
-  const start = first - new Date(first).getUTCDay() * DAY_MS;
-  const weeks: (Cell | null)[][] = [];
-
-  for (let weekStart = start; weekStart <= last; weekStart += 7 * DAY_MS) {
-    const week: (Cell | null)[] = [];
-    for (let i = 0; i < 7; i++) {
-      const time = weekStart + i * DAY_MS;
-      const day = toDay(time);
-      week.push(time < first || time > last ? null : { day, count: counts.get(day) ?? 0 });
-    }
-    weeks.push(week);
-  }
-
-  return weeks;
 }
 
 function Graph({
