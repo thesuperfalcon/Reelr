@@ -269,7 +269,7 @@ function Diary({
                                         {entry.hasReview && (
                                             <Link
                                                 to="?tab=reviews"
-                                                className="text-haze hover:text-screen"
+                                                className="-m-1 inline-flex size-6 items-center justify-center text-haze hover:text-screen"
                                                 aria-label="Reviewed. Show reviews"
                                                 title="Reviewed"
                                             >
