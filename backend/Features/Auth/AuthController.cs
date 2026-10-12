@@ -254,9 +254,9 @@ public class AuthController : ControllerBase
         return Ok(new { token });
     }
 
+    // Not under the login limit: every open tab refreshes now and then. The general write limit applies.
     [HttpPost("refresh")]
     [RequireCsrfHeader]
-    [EnableRateLimiting(RateLimitPolicies.Login)]
     [EndpointSummary("Exchange the refresh cookie for a new access token and a new refresh cookie. 401 when signed out")]
     public async Task<IActionResult> Refresh()
     {
