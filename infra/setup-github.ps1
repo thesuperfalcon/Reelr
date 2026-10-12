@@ -35,11 +35,22 @@ if (-not $principalId) {
     $principalId = az ad sp create --id $appId --query id -o tsv
 }
 
-$subject = "repo:${Repository}:environment:production"
-$existing = az ad app federated-credential list --id $appId --query "[?subject=='$subject'] | length(@)" -o tsv
-if ($existing -ne '1') {
+# GitHub names the repository in the token's subject either by name or, in the newer format, by name and
+# numeric id ("owner@ownerId/repo@repoId"). Both are trusted, so the login works whichever format GitHub sends.
+$github = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repository"
+$owner, $repo = $Repository.Split('/')
+$subjects = [ordered]@{
+    'github-production'     = "repo:${Repository}:environment:production"
+    'github-production-ids' = "repo:${owner}@$($github.owner.id)/${repo}@$($github.id):environment:production"
+}
+
+foreach ($entry in $subjects.GetEnumerator()) {
+    $subject = $entry.Value
+    $existing = az ad app federated-credential list --id $appId --query "[?subject=='$subject'] | length(@)" -o tsv
+    if ($existing -eq '1') { continue }
+
     $credential = @{
-        name      = 'github-production'
+        name      = $entry.Key
         issuer    = 'https://token.actions.githubusercontent.com'
         subject   = $subject
         audiences = @('api://AzureADTokenExchange')
