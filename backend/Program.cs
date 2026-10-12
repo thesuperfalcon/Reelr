@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
@@ -154,7 +155,10 @@ builder.Services
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             // The default is 5 minutes, which would keep an expired token working that long.
-            ClockSkew = TimeSpan.FromSeconds(30)
+            ClockSkew = TimeSpan.FromSeconds(30),
+            // TokenService writes the username as the short "name" claim, which is not mapped to
+            // ClaimTypes.Name, so User.Identity.Name reads it from there.
+            NameClaimType = JwtRegisteredClaimNames.Name
         };
 
         // A token is refused once its security stamp is out of date, so a password change, a reset,
