@@ -93,6 +93,10 @@ builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email
 builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddSingleton<EmailQueue>();
 builder.Services.AddHostedService<EmailDispatcher>();
+
+// Copies stored films from TMDB again now and then ("MovieRefresh" section).
+builder.Services.Configure<MovieRefreshOptions>(builder.Configuration.GetSection("MovieRefresh"));
+builder.Services.AddHostedService<MovieRefresher>();
 builder.Services.AddScoped<AccountEmails>();
 builder.Services.AddSingleton<SecurityStamps>();
 builder.Services.AddSingleton<SecurityLog>();

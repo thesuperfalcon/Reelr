@@ -91,6 +91,7 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
         modelBuilder.Entity<Movie>(movie =>
         {
             movie.HasIndex(m => m.TmdbId).IsUnique();
+            movie.HasIndex(m => m.RefreshedAt);
             movie.Property(m => m.Title).HasMaxLength(Movie.TitleMaxLength);
             movie.Property(m => m.Description).HasMaxLength(Movie.DescriptionMaxLength);
             movie.Property(m => m.PosterUrl).HasMaxLength(Movie.ImagePathMaxLength);

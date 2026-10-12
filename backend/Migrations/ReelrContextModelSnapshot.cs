@@ -402,6 +402,9 @@ namespace backend.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
+                    b.Property<DateTime>("RefreshedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateOnly?>("ReleaseDate")
                         .HasColumnType("date");
 
@@ -417,6 +420,8 @@ namespace backend.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("RefreshedAt");
 
                     b.HasIndex("TmdbId")
                         .IsUnique();

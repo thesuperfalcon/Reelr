@@ -21,6 +21,9 @@ namespace backend.Features.Movies
 
         public string? PosterUrl { get; set; }
 
+        // When the data above was last copied from TMDB. MovieRefresher brings old copies up to date.
+        public DateTime RefreshedAt { get; set; }
+
         public string? BackdropUrl { get; set; }
 
         public ICollection<WatchedMovies.WatchedMovie> WatchedMovies { get; set; } = [];
