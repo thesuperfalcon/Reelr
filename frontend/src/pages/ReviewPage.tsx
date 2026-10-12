@@ -13,6 +13,7 @@ import { ApiError } from "../lib/api";
 import { useReview } from "../lib/queries";
 import { tmdbImage } from "../lib/tmdb";
 import { NotFoundPage } from "./NotFoundPage";
+import { usePageTitle } from "../lib/title";
 
 const dateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric" });
 
@@ -22,6 +23,7 @@ export function ReviewPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const review = useReview(reviewId);
+  usePageTitle(review.data && `${review.data.username} on ${review.data.title}`);
 
   if (!Number.isInteger(reviewId) || reviewId <= 0 || (review.error instanceof ApiError && review.error.status === 404)) {
     return <NotFoundPage />;
@@ -51,7 +53,7 @@ export function ReviewPage() {
   return (
     <article className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
       <div className="grid gap-8 md:grid-cols-[12rem_1fr] md:gap-12">
-        <Link to={filmUrl} className="block w-32 rounded-sm sm:w-40 md:w-full" tabIndex={-1}>
+        <Link to={filmUrl} className="block w-32 rounded-sm sm:w-40 md:w-full" tabIndex={-1} aria-hidden="true">
           {poster ? (
             <img src={poster} alt="" className="aspect-[2/3] w-full rounded-sm object-cover ring-1 ring-white/10" />
           ) : (

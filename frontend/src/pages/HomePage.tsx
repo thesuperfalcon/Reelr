@@ -5,6 +5,7 @@ import { ErrorMessage, Loading } from "../components/Status";
 import { usePopularMovies, useTrendingMovies } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { SearchMovie } from "../lib/types";
+import { usePageTitle } from "../lib/title";
 
 function Feature({ movie }: { movie: SearchMovie }) {
   const poster = tmdbImage(movie.poster_path, "w500");
@@ -12,7 +13,7 @@ function Feature({ movie }: { movie: SearchMovie }) {
 
   return (
     <section aria-labelledby="feature-title" className="grid items-end gap-8 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12">
-      <Link to={`/movie/${movie.id}`} className="block w-40 rounded-sm sm:w-56 md:w-full" tabIndex={-1}>
+      <Link to={`/movie/${movie.id}`} className="block w-40 rounded-sm sm:w-56 md:w-full" tabIndex={-1} aria-hidden="true">
         {poster && (
           <img src={poster} alt="" className="aspect-[2/3] w-full rounded-sm object-cover shadow-[0_30px_80px_-20px_rgba(242,181,68,0.35)]" />
         )}
@@ -48,6 +49,7 @@ function MovieShelf({ title, movies }: { title: string; movies: SearchMovie[] })
 }
 
 export function HomePage() {
+  usePageTitle("");
   const trending = useTrendingMovies();
   const popular = usePopularMovies();
 

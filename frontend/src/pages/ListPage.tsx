@@ -12,6 +12,8 @@ import { ApiError } from "../lib/api";
 import { pageItems, useDeleteMovieList, useMovieList, useMovieListMovies, useToggleListMovie, useWatchedFilms } from "../lib/queries";
 import type { MovieList, MovieListItem, SearchMovie } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { usePageTitle } from "../lib/title";
+import { useReturnFocus } from "../lib/focus";
 
 const dateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric" });
 
@@ -121,6 +123,7 @@ function OwnerActions({ list }: { list: MovieList }) {
   const remove = useDeleteMovieList();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const deleteRef = useReturnFocus(confirmDelete);
 
   return (
     <div className="mt-6">
@@ -148,6 +151,7 @@ function OwnerActions({ list }: { list: MovieList }) {
             </button>
             <button
               type="button"
+              autoFocus
               onClick={() => setConfirmDelete(false)}
               disabled={remove.isPending}
               className="text-haze underline underline-offset-4 hover:text-screen"
@@ -157,6 +161,7 @@ function OwnerActions({ list }: { list: MovieList }) {
           </span>
         ) : (
           <button
+            ref={deleteRef}
             type="button"
             onClick={() => setConfirmDelete(true)}
             className="text-haze underline underline-offset-4 transition hover:text-alarm"
@@ -179,6 +184,7 @@ export function ListPage() {
   const listId = Number(useParams().listId);
   const { user } = useAuth();
   const details = useMovieList(listId);
+  usePageTitle(details.data?.name);
   const movies = useMovieListMovies(listId);
 
   if (!Number.isInteger(listId) || listId <= 0 || (details.error instanceof ApiError && details.error.status === 404)) {

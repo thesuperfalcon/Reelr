@@ -4,6 +4,7 @@ import { useAuth } from "../auth/auth-context";
 import { Field, FormError } from "../components/Form";
 import { clearEmailLink, confirmEmail, forgotPassword, readEmailLink, resendConfirmation, resetPassword } from "../lib/account";
 import { ApiError } from "../lib/api";
+import { usePageTitle } from "../lib/title";
 
 function AuthShell({ title, children, footer }: { title: string; children: ReactNode; footer?: ReactNode }) {
   return (
@@ -64,6 +65,7 @@ function CheckYourEmail({ email, children }: { email: string; children: ReactNod
 }
 
 export function LoginPage() {
+  usePageTitle("Log in");
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const from = (useLocation().state as { from?: string } | null)?.from ?? "/";
@@ -196,6 +198,7 @@ function ResendForm({ initialEmail }: { initialEmail: string }) {
 }
 
 export function RegisterPage() {
+  usePageTitle("Create account");
   const { user, register } = useAuth();
   const [error, setError] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
@@ -280,6 +283,7 @@ export function RegisterPage() {
 
 // Opened from the link in the confirmation email.
 export function ConfirmEmailPage() {
+  usePageTitle("Confirm email");
   const [link] = useState(readEmailLink);
   const [state, setState] = useState<"confirming" | "done" | "failed">(link ? "confirming" : "failed");
   const [error, setError] = useState<unknown>(null);
@@ -332,6 +336,7 @@ export function ConfirmEmailPage() {
 }
 
 export function ForgotPasswordPage() {
+  usePageTitle("Forgot password");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
@@ -382,6 +387,7 @@ export function ForgotPasswordPage() {
 
 // Opened from the link in the reset email.
 export function ResetPasswordPage() {
+  usePageTitle("Choose a new password");
   const [link] = useState(readEmailLink);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<unknown>(null);

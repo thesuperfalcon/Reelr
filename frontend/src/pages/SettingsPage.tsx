@@ -17,6 +17,8 @@ import {
   useUploadAvatar,
 } from "../lib/queries";
 import type { DiaryVisibility, UserSettings, UserSettingsUpdate, UserSummary, WatchlistVisibility } from "../lib/types";
+import { usePageTitle } from "../lib/title";
+import { useReturnFocus } from "../lib/focus";
 
 const buttonClass =
   "rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-60";
@@ -205,6 +207,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
               onChange={choosePicture}
               className="sr-only"
               tabIndex={-1}
+              aria-hidden="true"
             />
             <button type="button" onClick={() => fileInput.current?.click()} disabled={saving} className={quietButtonClass}>
               {shownPicture ? "Choose another picture" : "Choose picture"}
@@ -520,6 +523,7 @@ function DeleteAccountSection({ userName }: { userName: string }) {
   const { user, logout } = useAuth();
   const deleteAccount = useDeleteAccount();
   const [open, setOpen] = useState(false);
+  const triggerRef = useReturnFocus(open);
   const [password, setPassword] = useState("");
 
   function cancel() {
@@ -559,6 +563,7 @@ function DeleteAccountSection({ userName }: { userName: string }) {
             label="Password"
             type="password"
             autoComplete="current-password"
+            autoFocus
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             hint="Wrong passwords count towards the login lockout."
@@ -579,6 +584,7 @@ function DeleteAccountSection({ userName }: { userName: string }) {
         </form>
       ) : (
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen(true)}
           className="rounded-sm px-4 py-2 text-sm font-medium text-alarm ring-1 ring-alarm/40 transition hover:bg-alarm/10"
@@ -591,6 +597,7 @@ function DeleteAccountSection({ userName }: { userName: string }) {
 }
 
 export function SettingsPage() {
+  usePageTitle("Settings");
   const settings = useSettings();
 
   return (

@@ -16,6 +16,7 @@ import { DeleteReviewButton } from "./DeleteReviewButton";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { StarInput } from "./Stars";
 import { WatchedOnField } from "./WatchedOnField";
+import { useReturnFocus } from "../lib/focus";
 
 interface RatingDialogProps {
   movie: MovieDetails;
@@ -83,6 +84,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
   const [containsSpoilers, setContainsSpoilers] = useState(reviewProp?.containsSpoilers ?? false);
   const [watchedOn, setWatchedOn] = useState(today);
   const [confirmUnwatch, setConfirmUnwatch] = useState(false);
+  const confirmUnwatchRef = useReturnFocus(confirmUnwatch);
   const save = useSaveDiaryEntry(movie.id);
   const remove = useDeleteRating(movie.id);
   const removeReview = useDeleteReview();
@@ -297,6 +299,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
                 </button>
                 <button
                   type="button"
+                  autoFocus
                   onClick={() => setConfirmUnwatch(false)}
                   disabled={busy}
                   className="text-haze underline underline-offset-4 hover:text-screen"
@@ -307,6 +310,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
             ) : (
               <button
                 type="button"
+                ref={confirmUnwatchRef}
                 onClick={() => setConfirmUnwatch(true)}
                 disabled={busy}
                 className="text-sm text-haze underline underline-offset-4 transition hover:text-alarm disabled:opacity-50"

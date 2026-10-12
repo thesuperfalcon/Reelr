@@ -20,7 +20,7 @@ export function FilmLink({ movie }: { movie: ActivityMovie }) {
 export function SmallPoster({ movie }: { movie: ActivityMovie }) {
   const poster = tmdbImage(movie.posterUrl, "w185");
   return (
-    <Link to={`/movie/${movie.tmdbId}`} className="block w-12 shrink-0 rounded-sm sm:w-14" tabIndex={-1} title={movie.title}>
+    <Link to={`/movie/${movie.tmdbId}`} className="block w-12 shrink-0 rounded-sm sm:w-14" tabIndex={-1} aria-hidden="true" title={movie.title}>
       {poster ? (
         <img src={poster} alt="" loading="lazy" className="aspect-[2/3] w-full rounded-sm object-cover ring-1 ring-white/10" />
       ) : (
@@ -133,7 +133,7 @@ export function ActivityItem({ item }: { item: Item }) {
 
   return (
     <li className="flex gap-3 py-5 sm:gap-4">
-      <Link to={userUrl} className="shrink-0 rounded-full" tabIndex={-1}>
+      <Link to={userUrl} className="shrink-0 rounded-full" tabIndex={-1} aria-hidden="true">
         <UserAvatar userName={actor.userName} imageUrl={actor.profileImageUrl} className="size-10 text-lg" />
       </Link>
 

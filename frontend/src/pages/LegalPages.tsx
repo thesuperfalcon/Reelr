@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { usePageTitle } from "../lib/title";
 
 // DRAFT. These texts describe what the code does as of this version, but they have not been reviewed by a
 // lawyer. The parts in [brackets] must be filled in before launch: who runs Reelr, how to reach them,
@@ -21,6 +22,7 @@ function LegalShell({ title, updated, children }: { title: string; updated: stri
 }
 
 export function PrivacyPage() {
+  usePageTitle("Privacy");
   return (
     <LegalShell title="Privacy" updated="11 October 2026">
       <p>
@@ -98,6 +100,7 @@ export function PrivacyPage() {
 }
 
 export function TermsPage() {
+  usePageTitle("Terms");
   return (
     <LegalShell title="Terms" updated="11 October 2026">
       <p>

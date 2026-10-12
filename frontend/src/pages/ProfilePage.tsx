@@ -43,6 +43,9 @@ import type {
     WatchlistEntry,
 } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { moveBetweenTabs } from "../lib/tabs";
+import { usePageTitle } from "../lib/title";
+import { useReturnFocus } from "../lib/focus";
 
 type Tab =
     | "diary"
@@ -201,9 +204,9 @@ function Diary({
         <div className="mt-8 space-y-10">
             {groupByMonth(entries).map((group) => (
                 <section key={group.month} aria-label={group.month}>
-                    <h3 className="marquee text-2xl text-projector">
+                    <h2 className="marquee text-2xl text-projector">
                         {group.month}
-                    </h3>
+                    </h2>
                     <ol className="mt-3 divide-y divide-white/5">
                         {group.entries.map((entry) => {
                             const date = new Date(entry.watchedAt);
@@ -229,6 +232,7 @@ function Diary({
                                         to={`/movie/${entry.tmdbId}`}
                                         className="shrink-0 rounded-sm"
                                         tabIndex={-1}
+                                        aria-hidden="true"
                                     >
                                         {poster ? (
                                             <img
@@ -267,7 +271,7 @@ function Diary({
                                         {entry.hasReview && (
                                             <Link
                                                 to="?tab=reviews"
-                                                className="text-haze hover:text-screen"
+                                                className="-m-1 inline-flex size-6 items-center justify-center text-haze hover:text-screen"
                                                 aria-label="Reviewed. Show reviews"
                                                 title="Reviewed"
                                             >
@@ -353,6 +357,7 @@ function Reviews({ owner }: { owner: Owner }) {
                                 to={`/movie/${review.tmdbId}`}
                                 className="shrink-0 self-start rounded-sm"
                                 tabIndex={-1}
+                                aria-hidden="true"
                             >
                                 {poster ? (
                                     <img
@@ -609,6 +614,7 @@ function FollowList({
 function BlockButton({ profile }: { profile: UserProfile }) {
     const toggle = useToggleBlock(profile.id);
     const [confirming, setConfirming] = useState(false);
+    const triggerRef = useReturnFocus(confirming);
     const blocked = profile.isBlocked;
 
     if (confirming) {
@@ -629,6 +635,7 @@ function BlockButton({ profile }: { profile: UserProfile }) {
                     </button>
                     <button
                         type="button"
+                        autoFocus
                         onClick={() => setConfirming(false)}
                         className="text-haze underline underline-offset-4 hover:text-screen"
                     >
@@ -641,6 +648,7 @@ function BlockButton({ profile }: { profile: UserProfile }) {
 
     return (
         <button
+            ref={triggerRef}
             type="button"
             onClick={() => (blocked ? toggle.mutate(true) : setConfirming(true))}
             disabled={toggle.isPending}
@@ -701,6 +709,7 @@ function isTab(value: string | null, tabs: Tab[]): value is Tab {
 function ProfileView({ userId, own }: { userId: number; own: boolean }) {
     const { user } = useAuth();
     const profile = useUserProfile(userId);
+    usePageTitle(own ? "Your profile" : profile.data?.userName);
     const [params, setParams] = useSearchParams();
 
     if (profile.error instanceof ApiError && profile.error.status === 404) {
@@ -786,6 +795,7 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
             <div
                 role="tablist"
                 aria-label="Profile sections"
+                onKeyDown={moveBetweenTabs}
                 className="mt-10 flex gap-6 overflow-x-auto overflow-y-hidden border-b border-white/5 scrollbar-none [&::-webkit-scrollbar]:hidden"
             >
                 {tabs.map(({ id, label, count }) => (
@@ -795,7 +805,8 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                         role="tab"
                         id={`tab-${id}`}
                         aria-selected={tab === id}
-                        aria-controls={`panel-${id}`}
+                        aria-controls={tab === id ? `panel-${id}` : undefined}
+                        tabIndex={tab === id ? 0 : -1}
                         onClick={() =>
                             setParams(id === "diary" ? {} : { tab: id }, {
                                 replace: true,

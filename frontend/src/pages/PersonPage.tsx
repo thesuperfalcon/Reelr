@@ -8,6 +8,8 @@ import { usePersonDetails, useWatchedFilms } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { PersonCredit, PersonDetails, SearchMovie } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { moveBetweenTabs } from "../lib/tabs";
+import { usePageTitle } from "../lib/title";
 
 // TMDB dates are plain calendar days, so format them in UTC to avoid shifting a day.
 const dateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
@@ -254,7 +256,7 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
           <select
             value={sort}
             onChange={(event) => update({ sort: event.target.value as Sort })}
-            className="rounded-sm bg-row px-2 py-1.5 text-screen ring-1 ring-white/15 focus:outline-2 focus:outline-projector"
+            className="rounded-sm bg-row px-2 py-1.5 text-screen ring-1 ring-edge focus:outline-2 focus:outline-projector"
           >
             {sorts.map((s) => (
               <option key={s.id} value={s.id}>
@@ -268,6 +270,7 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
       <div
         role="tablist"
         aria-label="Departments"
+        onKeyDown={moveBetweenTabs}
         className="mt-6 flex gap-6 overflow-x-auto overflow-y-hidden border-b border-white/5 [&::-webkit-scrollbar]:hidden"
       >
         {departments.map(({ name, count }) => (
@@ -277,7 +280,8 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
             role="tab"
             id={tabId(name)}
             aria-selected={department === name}
-            aria-controls="filmography-panel"
+            aria-controls={department === name ? "filmography-panel" : undefined}
+            tabIndex={department === name ? 0 : -1}
             onClick={() => update({ dept: name })}
             className={`-mb-px shrink-0 border-b-2 pb-3 text-sm font-medium transition-colors ${
               department === name ? "border-projector text-screen" : "border-transparent text-haze hover:text-screen"
@@ -289,16 +293,14 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
         ))}
       </div>
 
-      <ul
-        role="tabpanel"
-        id="filmography-panel"
-        aria-labelledby={tabId(department)}
-        className="mt-6 grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 md:grid-cols-6 lg:gap-x-4"
-      >
-        {credits.map((credit) => (
-          <CreditCard key={credit.tmdbId} credit={credit} watched={watched.has(credit.tmdbId)} />
-        ))}
-      </ul>
+      {/* The panel wraps the list, so the list keeps its list role for screen readers. */}
+      <div role="tabpanel" id="filmography-panel" aria-labelledby={tabId(department)}>
+        <ul className="mt-6 grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 md:grid-cols-6 lg:gap-x-4">
+          {credits.map((credit) => (
+            <CreditCard key={credit.tmdbId} credit={credit} watched={watched.has(credit.tmdbId)} />
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }
@@ -326,6 +328,7 @@ export function PersonPage() {
   const personId = Number(useParams().personId);
   const { user } = useAuth();
   const details = usePersonDetails(personId);
+  usePageTitle(details.data?.name ?? undefined);
   // Marks films the logged-in user has seen.
   const watchedFilms = useWatchedFilms(user !== null);
 

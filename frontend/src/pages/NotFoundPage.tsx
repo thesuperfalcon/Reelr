@@ -1,6 +1,8 @@
 import { Link } from "react-router";
+import { usePageTitle } from "../lib/title";
 
 export function NotFoundPage() {
+  usePageTitle("Page not found");
   return (
     <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
       <h1 className="marquee text-7xl sm:text-9xl">Reel missing</h1>
