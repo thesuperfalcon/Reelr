@@ -119,8 +119,30 @@ jobs:
             printf "Jwt__Key='%s'\n" "$(openssl rand -base64 48)"
           } > .env
 
+      # The images are built here with the GitHub Actions layer cache, so unchanged layers (restore, npm ci) are
+      # reused between runs. They get the names Compose gives them in the reelr-e2e project, so "up" finds them.
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          load: true
+          tags: reelr-e2e-backend:latest
+          cache-from: type=gha,scope=e2e-backend
+          cache-to: type=gha,scope=e2e-backend,mode=max
+
+      - name: Build the frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          load: true
+          tags: reelr-e2e-frontend:latest
+          cache-from: type=gha,scope=e2e-frontend
+          cache-to: type=gha,scope=e2e-frontend,mode=max
+
       - name: Start the stack
-        run: docker compose -p reelr-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+        run: docker compose -p reelr-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --no-build --wait
 
       - uses: actions/setup-node@v4
         with:
