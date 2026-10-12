@@ -216,4 +216,4 @@ Everything scales to zero when unused, so the first visit after a quiet spell ta
 
 ## Before going live
 
-The privacy policy and terms (`frontend/src/pages/LegalPages.tsx`) are drafts that describe what the code does. Fill in the parts in [brackets] (who runs Reelr, contact address, email and hosting provider, how long logs and backups are kept) and have them reviewed before opening to the public.
+The privacy policy and terms (`frontend/src/pages/LegalPages.tsx`) describe what the code and the Azure setup do, for the closed beta. They have not been reviewed by a lawyer; have them reviewed before opening to the public, and keep them in step when what is stored, where or for how long changes.
