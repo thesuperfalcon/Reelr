@@ -9,5 +9,10 @@ param imageTag = readEnvironmentVariable('REELR_IMAGE_TAG', '')
 param imageRepository = readEnvironmentVariable('REELR_IMAGE_REPOSITORY', 'ghcr.io/thesuperfalcon')
 param deployApps = bool(readEnvironmentVariable('REELR_DEPLOY_APPS', 'true'))
 
+// Comma-separated user ids, e.g. "1" or "1,4". Empty for none.
+param adminUserIds = map(filter(split(readEnvironmentVariable('REELR_ADMIN_USER_IDS', ''), ','), id => !empty(trim(id))), id => trim(id))
+param demoUserIds = map(filter(split(readEnvironmentVariable('REELR_DEMO_USER_IDS', ''), ','), id => !empty(trim(id))), id => trim(id))
+param inviteOnly = bool(readEnvironmentVariable('REELR_INVITE_ONLY', 'true'))
+
 param emailUserName = readEnvironmentVariable('REELR_EMAIL_USER', '')
 param emailFromAddress = readEnvironmentVariable('REELR_EMAIL_FROM', '')
