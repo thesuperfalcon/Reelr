@@ -1,9 +1,11 @@
 using backend.Data;
+using backend.Features.Movies.DTOs;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Features.Movies
 {
-    // The local copy of TMDB films. A film is stored the first time someone logs, rates, reviews or lists it.
+    // The local copy of TMDB films. A film is stored the first time someone logs, rates, reviews or lists it,
+    // and MovieRefresher copies it again now and then, since titles, posters and runtimes change on TMDB.
     public class MovieCatalog
     {
         private readonly ReelrContext _context;
@@ -33,16 +35,8 @@ namespace backend.Features.Movies
                 return null;
             }
 
-            movie = new Movie
-            {
-                TmdbId = tmdbId,
-                Title = Cut(tmdbMovie.Title ?? string.Empty, Movie.TitleMaxLength),
-                Description = tmdbMovie.Overview == null ? null : Cut(tmdbMovie.Overview, Movie.DescriptionMaxLength),
-                ReleaseDate = DateOnly.TryParse(tmdbMovie.ReleaseDate, out var releaseDate) ? releaseDate : null,
-                Runtime = tmdbMovie.Runtime,
-                PosterUrl = ImagePath(tmdbMovie.PosterPath),
-                BackdropUrl = ImagePath(tmdbMovie.BackdropPath)
-            };
+            movie = new Movie { TmdbId = tmdbId };
+            CopyFrom(tmdbMovie, movie);
 
             _context.Movies.Add(movie);
 
@@ -59,6 +53,67 @@ namespace backend.Features.Movies
                 return await _context.Movies.FirstOrDefaultAsync(m => m.TmdbId == tmdbId)
                     ?? throw new InvalidOperationException($"Could not store movie {tmdbId}.");
             }
+        }
+
+        /// <summary>
+        /// Copies the stalest films from TMDB again, oldest copy first, and returns how many were looked at.
+        /// A film TMDB no longer knows keeps its data. A film TMDB fails on stays due for the next run; a few
+        /// failures in a row mean TMDB itself is down, and the run stops there.
+        /// </summary>
+        public async Task<int> RefreshStaleAsync(TimeSpan maxAge, int batchSize, CancellationToken cancellationToken)
+        {
+            var cutoff = DateTime.UtcNow - maxAge;
+            var movies = await _context.Movies
+                .Where(m => m.RefreshedAt < cutoff)
+                .OrderBy(m => m.RefreshedAt)
+                .Take(batchSize)
+                .ToListAsync(cancellationToken);
+
+            const int MaxFailuresInARow = 3;
+            var done = 0;
+            var failuresInARow = 0;
+
+            foreach (var movie in movies)
+            {
+                TmdbMovieDto? tmdbMovie;
+
+                try
+                {
+                    tmdbMovie = await _tmdbService.GetMovie(movie.TmdbId);
+                    failuresInARow = 0;
+                }
+                catch (TmdbUnavailableException)
+                {
+                    if (++failuresInARow == MaxFailuresInARow)
+                    {
+                        break;
+                    }
+
+                    continue;
+                }
+
+                if (tmdbMovie != null)
+                {
+                    CopyFrom(tmdbMovie, movie);
+                }
+
+                movie.RefreshedAt = DateTime.UtcNow;
+                done++;
+            }
+
+            await _context.SaveChangesAsync(cancellationToken);
+            return done;
+        }
+
+        private static void CopyFrom(TmdbMovieDto tmdbMovie, Movie movie)
+        {
+            movie.Title = Cut(tmdbMovie.Title ?? string.Empty, Movie.TitleMaxLength);
+            movie.Description = tmdbMovie.Overview == null ? null : Cut(tmdbMovie.Overview, Movie.DescriptionMaxLength);
+            movie.ReleaseDate = DateOnly.TryParse(tmdbMovie.ReleaseDate, out var releaseDate) ? releaseDate : null;
+            movie.Runtime = tmdbMovie.Runtime;
+            movie.PosterUrl = ImagePath(tmdbMovie.PosterPath);
+            movie.BackdropUrl = ImagePath(tmdbMovie.BackdropPath);
+            movie.RefreshedAt = DateTime.UtcNow;
         }
 
         private static string Cut(string text, int maxLength) =>

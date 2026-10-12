@@ -68,6 +68,8 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("App:BaseUrl", "http://reelr.test");
         // Tests read the community feed right after changing data, so its short cache is off.
         builder.UseSetting("Activity:CommunityCacheSeconds", "0");
+        // MovieRefresherTests calls the refresh itself; the background run would change films under other tests.
+        builder.UseSetting("MovieRefresh:Enabled", "false");
         // Every test registers and logs in from the same address, so the auth limits are lifted.
         // AuthRateLimitTests sets low limits to check the limiter itself.
         builder.UseSetting("RateLimiting:Login:PermitLimit", AuthPermitLimit.ToString());

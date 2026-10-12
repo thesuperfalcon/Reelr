@@ -56,7 +56,8 @@ The backend is organised as **feature slices**. Each folder in `backend/Features
 
 A few design decisions:
 
-- **TMDB is the source of film data.** The database stores a film only when a member interacts with it (rating, diary entry, review, list or watchlist). `MovieCatalog` fetches and stores films on demand and handles two requests creating the same film at once.
+- **TMDB is the source of film data.** The database stores a film only when a member interacts with it (rating, diary entry, review, list or watchlist). `MovieCatalog` fetches and stores films on demand and handles two requests creating the same film at once. A background service copies each stored film from TMDB again once it is 30 days old (`MovieRefresh` settings).
+- **One instance for now.** The TMDB cache, rate limits, login throttling and security stamp cache are kept in memory, so they belong to one app instance. Running several instances would need Redis (or another shared store) for these first.
 - **Journal rules live in one service.** Watching, rating, reviewing and the watchlist depend on each other. `JournalService` keeps those rules in one place so every endpoint follows them the same way.
 - **The activity feed sits behind an interface.** `IActivityFeed` is built from existing tables today, with cursor pagination. It can be replaced with a stored event table without changing the controller.
 - **One place decides visibility.** `UserVisibility` decides who can see a member's watchlist.
