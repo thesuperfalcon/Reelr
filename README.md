@@ -37,7 +37,7 @@ Reelr is a social film diary, in the spirit of Letterboxd. You log the films you
 | Area | Technology |
 |---|---|
 | Backend | .NET 10, ASP.NET Core Web API, Entity Framework Core 10, SQL Server |
-| Auth | ASP.NET Core Identity, JWT bearer tokens revoked through the security stamp, email confirmation, password reset, lockout and rate limiting |
+| Auth | ASP.NET Core Identity, 15-minute JWT access tokens kept in memory, rotating refresh tokens in an HttpOnly cookie, revocation through the security stamp, email confirmation, password reset, lockout and rate limiting |
 | Email | SMTP through MailKit; Mailpit catches mail in development |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, React Router, TanStack Query |
 | Tests | xUnit integration tests with `WebApplicationFactory` against a real SQL Server and a fake TMDB |
@@ -62,6 +62,7 @@ A few design decisions:
 - **One place decides visibility.** `UserVisibility` decides who can see a member's watchlist.
 - **Errors use ProblemDetails.** Unhandled exceptions and empty error responses return `application/problem+json`, with a `correlationId` a user can quote. `GET /health/live` answers while the process runs; `GET /health/ready` checks the database (503 when it is down) and TMDB (reported as `Degraded`, still 200).
 - **Logs are JSON lines.** Serilog writes one JSON object per line to the console outside Development (readable text in Development); levels are set in the `Serilog` section, e.g. `Serilog__MinimumLevel__Default=Debug`. Every request is logged once without its query string, and every line of a request carries a `CorrelationId` that matches `request_id` in the nginx access log. Account events (logins, password changes, deletions, admin actions) are logged under `backend.Features.Auth.SecurityLog` with user ids only.
+- **Sign-in is a cookie, not a stored token.** Login sets a refresh token in a `Secure`, `HttpOnly`, `SameSite=Strict` cookie on `/auth`; the page keeps only a short access token in memory and gets a new one from `POST /auth/refresh` (which needs the `X-Reelr-Csrf` header). Each refresh replaces the cookie, and an old cookie that comes back ends that sign-in. The cookie is `Secure`, so outside `localhost` the site must be served over HTTPS.
 - **Lists are paged.** List endpoints take `?cursor=&limit=` (default 30, max 100) and return `{ items, nextCursor }`.
 
 ```
