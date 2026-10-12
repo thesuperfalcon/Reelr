@@ -43,6 +43,7 @@ import type {
     WatchlistEntry,
 } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { usePageTitle } from "../lib/title";
 
 type Tab =
     | "diary"
@@ -703,6 +704,7 @@ function isTab(value: string | null, tabs: Tab[]): value is Tab {
 function ProfileView({ userId, own }: { userId: number; own: boolean }) {
     const { user } = useAuth();
     const profile = useUserProfile(userId);
+    usePageTitle(own ? "Your profile" : profile.data?.userName);
     const [params, setParams] = useSearchParams();
 
     if (profile.error instanceof ApiError && profile.error.status === 404) {

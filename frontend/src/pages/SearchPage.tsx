@@ -5,6 +5,7 @@ import { ErrorMessage, Loading } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
 import { useSearchAll, useUserSearch } from "../lib/queries";
 import type { Person, UserSummary } from "../lib/types";
+import { usePageTitle } from "../lib/title";
 
 function PeopleList({ title, people }: { title: string; people: Person[] }) {
   if (people.length === 0) {
@@ -54,6 +55,7 @@ export function SearchPage() {
   const query = params.get("q")?.trim() ?? "";
   const search = useSearchAll(query);
   const members = useUserSearch(query);
+  usePageTitle(query ? `Search: ${query}` : "Search");
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">

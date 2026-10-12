@@ -5,6 +5,7 @@ import { ErrorMessage, Loading } from "../components/Status";
 import { usePopularMovies, useTrendingMovies } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { SearchMovie } from "../lib/types";
+import { usePageTitle } from "../lib/title";
 
 function Feature({ movie }: { movie: SearchMovie }) {
   const poster = tmdbImage(movie.poster_path, "w500");
@@ -48,6 +49,7 @@ function MovieShelf({ title, movies }: { title: string; movies: SearchMovie[] })
 }
 
 export function HomePage() {
+  usePageTitle("");
   const trending = useTrendingMovies();
   const popular = usePopularMovies();
 

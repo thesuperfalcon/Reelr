@@ -17,6 +17,7 @@ import {
   useUploadAvatar,
 } from "../lib/queries";
 import type { DiaryVisibility, UserSettings, UserSettingsUpdate, UserSummary, WatchlistVisibility } from "../lib/types";
+import { usePageTitle } from "../lib/title";
 
 const buttonClass =
   "rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-60";
@@ -592,6 +593,7 @@ function DeleteAccountSection({ userName }: { userName: string }) {
 }
 
 export function SettingsPage() {
+  usePageTitle("Settings");
   const settings = useSettings();
 
   return (

@@ -8,6 +8,7 @@ import { usePersonDetails, useWatchedFilms } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { PersonCredit, PersonDetails, SearchMovie } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { usePageTitle } from "../lib/title";
 
 // TMDB dates are plain calendar days, so format them in UTC to avoid shifting a day.
 const dateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
@@ -324,6 +325,7 @@ export function PersonPage() {
   const personId = Number(useParams().personId);
   const { user } = useAuth();
   const details = usePersonDetails(personId);
+  usePageTitle(details.data?.name ?? undefined);
   // Marks films the logged-in user has seen.
   const watchedFilms = useWatchedFilms(user !== null);
 

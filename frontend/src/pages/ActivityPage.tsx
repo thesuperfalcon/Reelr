@@ -2,6 +2,7 @@ import { Link, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { ActivityFeed } from "../components/ActivityFeed";
 import { type FeedKind, useSettings, useUpdateSettings, useUserProfile } from "../lib/queries";
+import { usePageTitle } from "../lib/title";
 
 const feedTabs: { id: FeedKind; label: string }[] = [
   { id: "following", label: "Following" },
@@ -43,6 +44,7 @@ function OwnActivityToggle() {
 // The full activity stream. Following is the default once you follow someone; until then Community,
 // so the page is never empty. Logged out, only Community exists.
 export function ActivityPage() {
+  usePageTitle("Activity");
   const { user } = useAuth();
   const profile = useUserProfile(user?.id ?? 0, user !== null);
   const [params, setParams] = useSearchParams();

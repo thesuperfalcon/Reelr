@@ -13,6 +13,7 @@ import { ApiError } from "../lib/api";
 import { useReview } from "../lib/queries";
 import { tmdbImage } from "../lib/tmdb";
 import { NotFoundPage } from "./NotFoundPage";
+import { usePageTitle } from "../lib/title";
 
 const dateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric" });
 
@@ -22,6 +23,7 @@ export function ReviewPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const review = useReview(reviewId);
+  usePageTitle(review.data && `${review.data.username} on ${review.data.title}`);
 
   if (!Number.isInteger(reviewId) || reviewId <= 0 || (review.error instanceof ApiError && review.error.status === 404)) {
     return <NotFoundPage />;

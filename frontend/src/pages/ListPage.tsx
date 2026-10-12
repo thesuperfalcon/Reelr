@@ -12,6 +12,7 @@ import { ApiError } from "../lib/api";
 import { pageItems, useDeleteMovieList, useMovieList, useMovieListMovies, useToggleListMovie, useWatchedFilms } from "../lib/queries";
 import type { MovieList, MovieListItem, SearchMovie } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { usePageTitle } from "../lib/title";
 
 const dateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric" });
 
@@ -179,6 +180,7 @@ export function ListPage() {
   const listId = Number(useParams().listId);
   const { user } = useAuth();
   const details = useMovieList(listId);
+  usePageTitle(details.data?.name);
   const movies = useMovieListMovies(listId);
 
   if (!Number.isInteger(listId) || listId <= 0 || (details.error instanceof ApiError && details.error.status === 404)) {

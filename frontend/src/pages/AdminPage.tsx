@@ -5,6 +5,7 @@ import { UserAvatar } from "../components/UserAvatar";
 import { reportReasons, useOpenReports, useResolveReports, type ReportedItem } from "../lib/moderation";
 import { useSettings } from "../lib/queries";
 import { NotFoundPage } from "./NotFoundPage";
+import { usePageTitle } from "../lib/title";
 
 const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
@@ -110,6 +111,7 @@ function OpenReports() {
 
 // Reported reviews, comments and lists, the most reported first. Only admins get past the check.
 export function AdminPage() {
+  usePageTitle("Moderation");
   const settings = useSettings();
 
   if (settings.isPending) return <Loading />;

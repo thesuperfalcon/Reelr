@@ -28,6 +28,7 @@ import {
 import { formatRuntime, releaseYear, tmdbImage } from "../lib/tmdb";
 import type { CastMember, CrewMember, MovieDetails, Review } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { usePageTitle } from "../lib/title";
 
 function Backdrop({ path }: { path: string | null }) {
   const src = tmdbImage(path, "w1280");
@@ -311,6 +312,7 @@ export function MoviePage() {
   const tmdbId = Number(useParams().tmdbId);
   const { user } = useAuth();
   const details = useMovieDetails(tmdbId);
+  usePageTitle(details.data?.title ?? undefined);
 
   if (!Number.isInteger(tmdbId) || tmdbId <= 0 || (details.error instanceof ApiError && details.error.status === 404)) {
     return <NotFoundPage />;
