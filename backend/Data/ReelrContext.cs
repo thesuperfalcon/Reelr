@@ -182,7 +182,7 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
             .HasIndex(r => new { r.UserId, r.ActivityAt });
 
         // No database cascade: SQL Server rejects a second cascade path from users to reviews.
-        // DiaryExtensions.DeleteDiaryEntriesAsync removes the linked review in code instead.
+        // JournalService.DeleteEntriesAsync removes the linked review in code instead.
         modelBuilder.Entity<Review>()
             .HasOne(r => r.DiaryEntry)
             .WithOne()
