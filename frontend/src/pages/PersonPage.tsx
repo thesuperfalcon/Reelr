@@ -4,10 +4,12 @@ import { useAuth } from "../auth/auth-context";
 import { Poster } from "../components/Poster";
 import { ErrorMessage, Loading } from "../components/Status";
 import { ApiError } from "../lib/api";
-import { useDiary, usePersonDetails } from "../lib/queries";
+import { usePersonDetails, useWatchedFilms } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { PersonCredit, PersonDetails, SearchMovie } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { moveBetweenTabs } from "../lib/tabs";
+import { usePageTitle } from "../lib/title";
 
 // TMDB dates are plain calendar days, so format them in UTC to avoid shifting a day.
 const dateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
@@ -254,7 +256,7 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
           <select
             value={sort}
             onChange={(event) => update({ sort: event.target.value as Sort })}
-            className="rounded-sm bg-row px-2 py-1.5 text-screen ring-1 ring-white/15 focus:outline-2 focus:outline-projector"
+            className="rounded-sm bg-row px-2 py-1.5 text-screen ring-1 ring-edge focus:outline-2 focus:outline-projector"
           >
             {sorts.map((s) => (
               <option key={s.id} value={s.id}>
@@ -268,6 +270,7 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
       <div
         role="tablist"
         aria-label="Departments"
+        onKeyDown={moveBetweenTabs}
         className="mt-6 flex gap-6 overflow-x-auto overflow-y-hidden border-b border-white/5 [&::-webkit-scrollbar]:hidden"
       >
         {departments.map(({ name, count }) => (
@@ -277,7 +280,8 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
             role="tab"
             id={tabId(name)}
             aria-selected={department === name}
-            aria-controls="filmography-panel"
+            aria-controls={department === name ? "filmography-panel" : undefined}
+            tabIndex={department === name ? 0 : -1}
             onClick={() => update({ dept: name })}
             className={`-mb-px shrink-0 border-b-2 pb-3 text-sm font-medium transition-colors ${
               department === name ? "border-projector text-screen" : "border-transparent text-haze hover:text-screen"
@@ -289,16 +293,14 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
         ))}
       </div>
 
-      <ul
-        role="tabpanel"
-        id="filmography-panel"
-        aria-labelledby={tabId(department)}
-        className="mt-6 grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 md:grid-cols-6 lg:gap-x-4"
-      >
-        {credits.map((credit) => (
-          <CreditCard key={credit.tmdbId} credit={credit} watched={watched.has(credit.tmdbId)} />
-        ))}
-      </ul>
+      {/* The panel wraps the list, so the list keeps its list role for screen readers. */}
+      <div role="tabpanel" id="filmography-panel" aria-labelledby={tabId(department)}>
+        <ul className="mt-6 grid grid-cols-3 gap-x-3 gap-y-6 sm:grid-cols-4 md:grid-cols-6 lg:gap-x-4">
+          {credits.map((credit) => (
+            <CreditCard key={credit.tmdbId} credit={credit} watched={watched.has(credit.tmdbId)} />
+          ))}
+        </ul>
+      </div>
     </section>
   );
 }
@@ -326,8 +328,9 @@ export function PersonPage() {
   const personId = Number(useParams().personId);
   const { user } = useAuth();
   const details = usePersonDetails(personId);
-  // The diary marks films the logged-in user has seen.
-  const diary = useDiary(user !== null);
+  usePageTitle(details.data?.name ?? undefined);
+  // Marks films the logged-in user has seen.
+  const watchedFilms = useWatchedFilms(user !== null);
 
   if (!Number.isInteger(personId) || personId <= 0 || (details.error instanceof ApiError && details.error.status === 404)) {
     return <NotFoundPage />;
@@ -351,7 +354,7 @@ export function PersonPage() {
 
   const person = details.data;
   const photo = tmdbImage(person.profilePath, "w500");
-  const watched = new Set(user ? (diary.data ?? []).map((entry) => entry.tmdbId) : []);
+  const watched = (user && watchedFilms.data) || new Set<number>();
   const films = new Set(person.credits.filter((c) => c.department !== "Appearances").map((c) => c.tmdbId));
   const watchedCount = [...films].filter((id) => watched.has(id)).length;
 
@@ -370,7 +373,7 @@ export function PersonPage() {
           {person.knownForDepartment && <p className="text-sm text-projector">{person.knownForDepartment}</p>}
           <h1 className="marquee mt-3 text-6xl sm:text-8xl">{person.name}</h1>
 
-          {user && films.size > 0 && diary.isSuccess && (
+          {user && films.size > 0 && watchedFilms.isSuccess && (
             <p className="mt-4 text-sm text-haze">
               You have watched <span className="font-semibold text-screen">{watchedCount}</span> of {films.size}{" "}
               {films.size === 1 ? "film" : "films"}.

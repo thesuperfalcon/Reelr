@@ -18,7 +18,7 @@ public class TokenServiceTests
         ["Jwt:ExpiryMinutes"] = "30"
     };
 
-    private static readonly User TestUser = new() { Id = 42, UserName = "neo", Email = "neo@test.local" };
+    private static readonly User TestUser = new() { Id = 42, UserName = "neo", Email = "neo@test.local", SecurityStamp = "stamp-1" };
 
     [Fact]
     public void CreateToken_ContainsUserClaims()
@@ -26,8 +26,11 @@ public class TokenServiceTests
         var token = new JwtSecurityTokenHandler().ReadJwtToken(CreateService(ValidSettings()).CreateToken(TestUser));
 
         Assert.Equal("42", token.Subject);
-        Assert.Equal("neo@test.local", token.Claims.Single(c => c.Type == JwtRegisteredClaimNames.Email).Value);
-        Assert.Contains(token.Claims, c => c.Value == "neo");
+        // The page shows the username from the "name" claim.
+        Assert.Equal("neo", token.Claims.Single(c => c.Type == JwtRegisteredClaimNames.Name).Value);
+        Assert.Equal("stamp-1", token.Claims.Single(c => c.Type == SecurityStamps.ClaimType).Value);
+        // The token lives in the browser, so it carries no email address.
+        Assert.DoesNotContain(token.Claims, c => c.Type == JwtRegisteredClaimNames.Email || c.Value == "neo@test.local");
         Assert.Equal("Reelr", token.Issuer);
         Assert.Equal(["Reelr"], token.Audiences);
     }
@@ -41,14 +44,14 @@ public class TokenServiceTests
     }
 
     [Fact]
-    public void CreateToken_DefaultsTo60MinutesExpiry()
+    public void CreateToken_DefaultsTo15MinutesExpiry()
     {
         var settings = ValidSettings();
         settings.Remove("Jwt:ExpiryMinutes");
 
         var token = new JwtSecurityTokenHandler().ReadJwtToken(CreateService(settings).CreateToken(TestUser));
 
-        Assert.InRange(token.ValidTo, DateTime.UtcNow.AddMinutes(59), DateTime.UtcNow.AddMinutes(61));
+        Assert.InRange(token.ValidTo, DateTime.UtcNow.AddMinutes(14), DateTime.UtcNow.AddMinutes(16));
     }
 
     [Fact]

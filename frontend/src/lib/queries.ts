@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData, type QueryKey } from "@tanstack/react-query";
 import { useAuth } from "../auth/auth-context";
 import { ApiError, api } from "./api";
 import type {
@@ -10,6 +10,8 @@ import type {
   MovieListInput,
   MovieListItem,
   MovieListSummary,
+  MovieReviewPage,
+  Page,
   PersonDetails,
   Rating,
   Review,
@@ -23,7 +25,28 @@ import type {
   UserSettingsUpdate,
   UserSummary,
   WatchlistEntry,
+  WatchlistState,
 } from "./types";
+
+// Every item loaded so far, across pages.
+export function pageItems<T>(data: InfiniteData<Page<T>> | undefined): T[] {
+  return data?.pages.flatMap((page) => page.items) ?? [];
+}
+
+// Lists come one page at a time, each fetched with the cursor of the page before.
+// Views show pageItems(query.data) and put LoadMore under them for the rest.
+function usePagedQuery<TPage extends Page<unknown>>(queryKey: QueryKey, url: string, enabled = true) {
+  return useInfiniteQuery({
+    queryKey,
+    queryFn: ({ pageParam }) => {
+      const separator = url.includes("?") ? "&" : "?";
+      return api<TPage>(pageParam ? `${url}${separator}cursor=${encodeURIComponent(pageParam)}` : url);
+    },
+    initialPageParam: null as string | null,
+    getNextPageParam: (page) => page.nextCursor,
+    enabled,
+  });
+}
 
 export function useTrendingMovies() {
   return useQuery({
@@ -74,18 +97,20 @@ export function useUserProfile(userId: number, enabled = true) {
 
 // Watchlist and diary belong to the logged-in user. Logout clears the cache.
 export function useWatchlist() {
+  return usePagedQuery<Page<WatchlistEntry>>(["me", "watchlist", "pages"], "/api/watchlist");
+}
+
+// Whether one film is on the user's watchlist, for its watchlist button.
+export function useWatchlistState(tmdbId: number) {
   return useQuery({
-    queryKey: ["me", "watchlist"],
-    queryFn: () => api<WatchlistEntry[]>("/api/watchlist"),
+    queryKey: ["me", "watchlist", tmdbId],
+    queryFn: () => api<WatchlistState>(`/api/watchlist/${tmdbId}`),
   });
 }
 
 // Another user's watchlist. The API answers 404 when their visibility setting hides it from the caller.
 export function useUserWatchlist(userId: number) {
-  return useQuery({
-    queryKey: ["users", userId, "watchlist"],
-    queryFn: () => api<WatchlistEntry[]>(`/api/users/${userId}/watchlist`),
-  });
+  return usePagedQuery<Page<WatchlistEntry>>(["users", userId, "watchlist"], `/api/users/${userId}/watchlist`);
 }
 
 export function useToggleWatchlist(tmdbId: number) {
@@ -97,10 +122,16 @@ export function useToggleWatchlist(tmdbId: number) {
   });
 }
 
-export function useDiary(enabled = true) {
+export function useDiary() {
+  return usePagedQuery<Page<DiaryEntry>>(["me", "diary", "pages"], "/api/watched");
+}
+
+// The TMDB ids of every film the user has watched, to mark them on list and person pages.
+// It sits under the diary key, so everything that refreshes the diary refreshes it too.
+export function useWatchedFilms(enabled = true) {
   return useQuery({
-    queryKey: ["me", "diary"],
-    queryFn: () => api<DiaryEntry[]>("/api/watched"),
+    queryKey: ["me", "diary", "films"],
+    queryFn: async () => new Set(await api<number[]>("/api/watched/films")),
     enabled,
   });
 }
@@ -114,17 +145,11 @@ export function usePersonDetails(personId: number) {
 }
 
 export function useUserDiary(userId: number) {
-  return useQuery({
-    queryKey: ["users", userId, "diary"],
-    queryFn: () => api<DiaryEntry[]>(`/api/users/${userId}/diary`),
-  });
+  return usePagedQuery<Page<DiaryEntry>>(["users", userId, "diary"], `/api/users/${userId}/diary`);
 }
 
 export function useFollowList(userId: number, list: "followers" | "following") {
-  return useQuery({
-    queryKey: ["users", userId, list],
-    queryFn: () => api<UserSummary[]>(`/api/users/${userId}/${list}`),
-  });
+  return usePagedQuery<Page<UserSummary>>(["users", userId, list], `/api/users/${userId}/${list}`);
 }
 
 export function useUserSearch(query: string) {
@@ -304,18 +329,24 @@ export function useDeleteRating(tmdbId: number) {
 }
 
 export function useMovieReviews(tmdbId: number) {
+  return usePagedQuery<MovieReviewPage>(
+    ["reviews", "movie", tmdbId],
+    `/api/movies/${tmdbId}/reviews?limit=10`,
+    Number.isInteger(tmdbId) && tmdbId > 0,
+  );
+}
+
+// The signed-in user's review of a film, or null. The API answers 204 when there is none.
+export function useMyReview(tmdbId: number, enabled = true) {
   return useQuery({
-    queryKey: ["reviews", "movie", tmdbId],
-    queryFn: () => api<Review[]>(`/api/movies/${tmdbId}/reviews`),
-    enabled: Number.isInteger(tmdbId) && tmdbId > 0,
+    queryKey: ["reviews", "movie", tmdbId, "mine"],
+    queryFn: async () => (await api<Review | undefined>(`/api/movies/${tmdbId}/reviews/mine`)) ?? null,
+    enabled: enabled && Number.isInteger(tmdbId) && tmdbId > 0,
   });
 }
 
 export function useUserReviews(userId: number) {
-  return useQuery({
-    queryKey: ["reviews", "user", userId],
-    queryFn: () => api<Review[]>(`/api/users/${userId}/reviews`),
-  });
+  return usePagedQuery<Page<Review>>(["reviews", "user", userId], `/api/users/${userId}/reviews?limit=10`);
 }
 
 export function useReview(reviewId: number) {
@@ -354,9 +385,15 @@ export function useSetReviewSpoilers() {
 
 // Applies a change to one review wherever it is cached: in film and profile lists and on its own page.
 function patchCachedReview(queryClient: ReturnType<typeof useQueryClient>, id: number, patch: Partial<Review>) {
-  queryClient.setQueriesData<Review | Review[]>({ queryKey: ["reviews"] }, (data) => {
-    if (Array.isArray(data)) {
-      return data.map((review) => (review.id === id ? { ...review, ...patch } : review));
+  queryClient.setQueriesData<Review | null | InfiniteData<Page<Review>>>({ queryKey: ["reviews"] }, (data) => {
+    if (data && "pages" in data) {
+      return {
+        ...data,
+        pages: data.pages.map((page) => ({
+          ...page,
+          items: page.items.map((review) => (review.id === id ? { ...review, ...patch } : review)),
+        })),
+      };
     }
     return data?.id === id ? { ...data, ...patch } : data;
   });
@@ -388,11 +425,11 @@ export const COMMENT_MAX_LENGTH = 1000;
 
 // Comments have their own key, so review list updates never touch them.
 export function useReviewComments(reviewId: number) {
-  return useQuery({
-    queryKey: ["review-comments", reviewId],
-    queryFn: () => api<ReviewComment[]>(`/api/reviews/${reviewId}/comments`),
-    enabled: Number.isInteger(reviewId) && reviewId > 0,
-  });
+  return usePagedQuery<Page<ReviewComment>>(
+    ["review-comments", reviewId],
+    `/api/reviews/${reviewId}/comments`,
+    Number.isInteger(reviewId) && reviewId > 0,
+  );
 }
 
 // Every comment write refreshes the thread and the review's comment count.
@@ -432,17 +469,11 @@ export function useDeleteComment(reviewId: number) {
 
 // Lists change from several places (movie page, profile, list page), so every write refreshes all of them.
 export function useUserLists(userId: number) {
-  return useQuery({
-    queryKey: ["lists", "user", userId],
-    queryFn: () => api<MovieListSummary[]>(`/api/users/${userId}/lists`),
-  });
+  return usePagedQuery<Page<MovieListSummary>>(["lists", "user", userId], `/api/users/${userId}/lists`);
 }
 
 export function useMyLists() {
-  return useQuery({
-    queryKey: ["lists", "mine"],
-    queryFn: () => api<MovieListSummary[]>("/api/lists"),
-  });
+  return usePagedQuery<Page<MovieListSummary>>(["lists", "mine"], "/api/lists");
 }
 
 export function useListsContaining(tmdbId: number) {
@@ -461,11 +492,11 @@ export function useMovieList(listId: number) {
 }
 
 export function useMovieListMovies(listId: number) {
-  return useQuery({
-    queryKey: ["lists", listId, "movies"],
-    queryFn: () => api<MovieListItem[]>(`/api/lists/${listId}/movies`),
-    enabled: Number.isInteger(listId) && listId > 0,
-  });
+  return usePagedQuery<Page<MovieListItem>>(
+    ["lists", listId, "movies"],
+    `/api/lists/${listId}/movies?limit=48`,
+    Number.isInteger(listId) && listId > 0,
+  );
 }
 
 // Creates a list when id is null, otherwise updates it.
@@ -571,7 +602,10 @@ export function useUpdateSettings() {
       if (token) {
         replaceToken(token);
       }
-      saved(settings, update.userName !== undefined || update.watchlistVisibility !== undefined);
+      saved(
+        settings,
+        update.userName !== undefined || update.watchlistVisibility !== undefined || update.diaryVisibility !== undefined,
+      );
       // The Following feed reads this setting on the server.
       if (update.showOwnActivity !== undefined) {
         void queryClient.invalidateQueries({ queryKey: ["feed", "following"] });
@@ -580,10 +614,29 @@ export function useUpdateSettings() {
   });
 }
 
+// A password change signs out every other device. This one gets a new token and stays logged in.
 export function useChangePassword() {
+  const { replaceToken } = useAuth();
+
   return useMutation({
     mutationFn: (input: { currentPassword: string; newPassword: string }) =>
-      api<void>("/api/settings/password", { method: "POST", body: JSON.stringify(input) }),
+      api<{ token: string }>("/api/settings/password", { method: "POST", body: JSON.stringify(input) }),
+    onSuccess: ({ token }) => replaceToken(token),
+  });
+}
+
+// Revokes every token for the account, this device's included, so the caller logs out afterwards.
+export function useLogoutEverywhere() {
+  return useMutation({
+    mutationFn: () => api<void>("/api/settings/logout-everywhere", { method: "POST" }),
+  });
+}
+
+// The API asks for the current password again before it deletes the account.
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: (input: { userId: number; password: string }) =>
+      api<void>(`/api/users/${input.userId}`, { method: "DELETE", body: JSON.stringify({ password: input.password }) }),
   });
 }
 

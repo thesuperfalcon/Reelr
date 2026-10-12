@@ -1,9 +1,11 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { ReportButton } from "./ReportButton";
 import { fullFormat, timeAgo } from "../lib/activity";
 import {
   COMMENT_MAX_LENGTH,
+  pageItems,
   useAddComment,
   useDeleteComment,
   useReviewComments,
@@ -11,11 +13,13 @@ import {
 } from "../lib/queries";
 import type { Review, ReviewComment } from "../lib/types";
 import { FormError } from "./Form";
+import { LoadMore } from "./LoadMore";
 import { ErrorMessage, Loading } from "./Status";
 import { UserLink } from "./UserAvatar";
+import { useReturnFocus } from "../lib/focus";
 
 const textareaClass =
-  "mt-2 block w-full resize-y rounded-sm bg-row px-3 py-2.5 text-screen focus:bg-row-raised focus:outline-2 focus:outline-projector";
+  "mt-2 block w-full resize-y rounded-sm bg-row px-3 py-2.5 text-screen ring-1 ring-edge focus:bg-row-raised focus:outline-2 focus:outline-projector";
 
 function CommentForm({
   initial = "",
@@ -24,6 +28,7 @@ function CommentForm({
   error,
   onSubmit,
   onCancel,
+  autoFocus = false,
 }: {
   initial?: string;
   submitLabel: string;
@@ -31,6 +36,8 @@ function CommentForm({
   error: unknown;
   onSubmit: (text: string) => void;
   onCancel?: () => void;
+  /** Focus the text box at once, as when an edit form replaces the comment. */
+  autoFocus?: boolean;
 }) {
   const id = useId();
   const [text, setText] = useState(initial);
@@ -53,6 +60,7 @@ function CommentForm({
         value={text}
         onChange={(event) => setText(event.target.value)}
         maxLength={COMMENT_MAX_LENGTH}
+        autoFocus={autoFocus}
         rows={3}
         placeholder="Add a comment"
         className={textareaClass}
@@ -89,6 +97,8 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
   const [confirming, setConfirming] = useState(false);
   const update = useUpdateComment(comment.reviewId);
   const remove = useDeleteComment(comment.reviewId);
+  const editRef = useReturnFocus(editing);
+  const deleteRef = useReturnFocus(confirming);
   const own = user?.id === comment.userId;
   const canDelete = own || user?.id === reviewAuthorId;
   const created = new Date(comment.createdAt);
@@ -104,7 +114,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
           {timeAgo(created)}
         </time>
         {comment.updatedAt && <span className="text-xs text-haze">(edited)</span>}
-        {!editing && (own || canDelete) && (
+        {!editing && (own || canDelete || user) && (
           <span className="ml-auto flex items-center gap-3 text-xs">
             {confirming ? (
               <>
@@ -119,6 +129,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
                 </button>
                 <button
                   type="button"
+                  autoFocus
                   onClick={() => setConfirming(false)}
                   className="text-haze underline underline-offset-4 hover:text-screen"
                 >
@@ -129,6 +140,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
               <>
                 {own && (
                   <button
+                    ref={editRef}
                     type="button"
                     onClick={() => setEditing(true)}
                     className="text-haze underline underline-offset-4 hover:text-screen"
@@ -138,6 +150,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
                 )}
                 {canDelete && (
                   <button
+                    ref={deleteRef}
                     type="button"
                     onClick={() => setConfirming(true)}
                     className="text-haze underline underline-offset-4 hover:text-alarm"
@@ -145,6 +158,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
                     Delete
                   </button>
                 )}
+                {user && !own && <ReportButton targetType="Comment" targetId={comment.id} what="this comment" />}
               </>
             )}
           </span>
@@ -159,6 +173,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
           error={update.error}
           onSubmit={(text) => update.mutate({ id: comment.id, text }, { onSuccess: () => setEditing(false) })}
           onCancel={() => setEditing(false)}
+          autoFocus
         />
       ) : (
         <p className="mt-2 whitespace-pre-line break-words">{comment.text}</p>
@@ -182,6 +197,7 @@ export function ReviewComments({ review }: { review: Review }) {
   const sectionRef = useRef<HTMLElement>(null);
   const { hash } = useLocation();
   const loaded = comments.isSuccess;
+  const items = pageItems(comments.data);
 
   // Links to "#comments" land here once the thread has loaded and the page has its full height.
   useEffect(() => {
@@ -194,23 +210,24 @@ export function ReviewComments({ review }: { review: Review }) {
     <section ref={sectionRef} id="comments" aria-labelledby="comments-title" className="mt-12 scroll-mt-24">
       <h2 id="comments-title" className="marquee text-3xl">
         Comments
-        {comments.data && comments.data.length > 0 && (
-          <span className="ml-2 text-xl text-haze">{comments.data.length}</span>
-        )}
+        {review.commentCount > 0 && <span className="ml-2 text-xl text-haze">{review.commentCount}</span>}
       </h2>
 
       {comments.isPending ? (
         <Loading label="Loading comments" />
       ) : comments.isError ? (
         <ErrorMessage error={comments.error} retry={() => comments.refetch()} />
-      ) : comments.data.length === 0 ? (
+      ) : items.length === 0 ? (
         <p className="py-4 text-haze">No comments yet.</p>
       ) : (
-        <ol className="mt-2 divide-y divide-white/5">
-          {comments.data.map((comment) => (
-            <CommentItem key={comment.id} comment={comment} reviewAuthorId={review.userId} />
-          ))}
-        </ol>
+        <>
+          <ol className="mt-2 divide-y divide-white/5">
+            {items.map((comment) => (
+              <CommentItem key={comment.id} comment={comment} reviewAuthorId={review.userId} />
+            ))}
+          </ol>
+          <LoadMore query={comments} what="comments" />
+        </>
       )}
 
       <div className="mt-4 border-t border-white/5 pt-6">

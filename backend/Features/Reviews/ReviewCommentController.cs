@@ -1,6 +1,8 @@
 using backend.Data;
 using backend.Features.Auth;
+using backend.Features.Paging;
 using backend.Features.Reviews.DTOs;
+using backend.Features.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,20 +20,32 @@ namespace backend.Features.Reviews
         }
 
         [HttpGet("api/reviews/{reviewId:int}/comments")]
-        [EndpointSummary("Get the comments on a review, oldest first")]
-        public async Task<ActionResult<List<ReviewCommentDto>>> GetComments(int reviewId)
+        [EndpointSummary("Get the comments on a review, oldest first, one page at a time")]
+        public async Task<ActionResult<PageDto<ReviewCommentDto>>> GetComments(int reviewId, [FromQuery] PageQuery page)
         {
             if (!await _context.Reviews.AnyAsync(r => r.Id == reviewId))
             {
                 return NotFound();
             }
 
-            var comments = await ToDtos(_context.ReviewComments.Where(c => c.ReviewId == reviewId))
+            // Comments by people the viewer blocked are left out.
+            var blocked = _context.BlockedBy(User.FindUserId());
+            var comments = _context.ReviewComments.Where(c => c.ReviewId == reviewId && !blocked.Contains(c.UserId));
+
+            if (page.After is PageCursor after)
+            {
+                var at = after.At;
+                var id = after.Id;
+                comments = comments.Where(c => c.CreatedAt > at || (c.CreatedAt == at && c.Id > id));
+            }
+
+            var rows = await ToDtos(comments)
                 .OrderBy(c => c.CreatedAt)
                 .ThenBy(c => c.Id)
+                .Take(page.Limit + 1)
                 .ToListAsync();
 
-            return Ok(comments);
+            return Ok(PageDto.From(rows, page.Limit, c => new PageCursor(c.CreatedAt, c.Id)));
         }
 
         [HttpPost("api/reviews/{reviewId:int}/comments")]
@@ -41,9 +55,19 @@ namespace backend.Features.Reviews
         {
             var userId = User.GetUserId();
 
-            if (!await _context.Reviews.AnyAsync(r => r.Id == reviewId))
+            var authorId = await _context.Reviews
+                .Where(r => r.Id == reviewId)
+                .Select(r => (int?)r.UserId)
+                .FirstOrDefaultAsync();
+
+            if (authorId == null)
             {
                 return NotFound();
+            }
+
+            if (await _context.HasBlockedAsync(authorId.Value, userId))
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "You can't comment on this member's reviews.");
             }
 
             var comment = new ReviewComment

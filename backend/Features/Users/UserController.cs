@@ -1,9 +1,12 @@
+using System.ComponentModel.DataAnnotations;
 using backend.Data;
 using backend.Features.Auth;
+using backend.Features.Paging;
 using backend.Features.Users.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Features.Users
@@ -14,11 +17,22 @@ namespace backend.Features.Users
     {
         private readonly ReelrContext _context;
         private readonly UserManager<User> _userManager;
+        private readonly SignInManager<User> _signInManager;
+        private readonly SecurityStamps _securityStamps;
+        private readonly SecurityLog _securityLog;
 
-        public UserController(ReelrContext context, UserManager<User> userManager)
+        public UserController(
+            ReelrContext context,
+            UserManager<User> userManager,
+            SignInManager<User> signInManager,
+            SecurityStamps securityStamps,
+            SecurityLog securityLog)
         {
             _context = context;
             _userManager = userManager;
+            _signInManager = signInManager;
+            _securityStamps = securityStamps;
+            _securityLog = securityLog;
         }
 
         [HttpGet("{id:int}")]
@@ -39,6 +53,7 @@ namespace backend.Features.Users
             var viewerId = User.FindUserId();
             var isFollowing = viewerId != null
                 && await _context.Set<Follow>().AnyAsync(f => f.FollowerId == viewerId && f.FollowedId == id);
+            var isBlocked = viewerId != null && await _context.HasBlockedAsync(viewerId.Value, id);
 
             return Ok(new UserProfileDto
             {
@@ -48,8 +63,11 @@ namespace backend.Features.Users
                 FollowerCount = followerCount,
                 FollowingCount = followingCount,
                 IsFollowing = isFollowing,
+                IsBlocked = isBlocked,
                 WatchlistVisibility = user.WatchlistVisibility,
-                CanSeeWatchlist = UserVisibility.CanSeeWatchlist(viewerId, id, user.WatchlistVisibility, isFollowing)
+                CanSeeWatchlist = UserVisibility.CanSeeWatchlist(viewerId, id, user.WatchlistVisibility, isFollowing),
+                DiaryVisibility = user.DiaryVisibility,
+                CanSeeDiary = UserVisibility.CanSeeDiary(viewerId, id, user.DiaryVisibility, isFollowing)
             });
         }
 
@@ -72,8 +90,9 @@ namespace backend.Features.Users
         }
 
         [HttpGet("search")]
+        [EnableRateLimiting(RateLimitPolicies.Search)]
         [EndpointSummary("Search users by username")]
-        public async Task<ActionResult<List<UserSummaryDto>>> SearchUsers([FromQuery] string query)
+        public async Task<ActionResult<List<UserSummaryDto>>> SearchUsers([FromQuery, MaxLength(Users.User.UserNameMaxLength)] string query)
         {
             if (string.IsNullOrWhiteSpace(query))
             {
@@ -100,49 +119,56 @@ namespace backend.Features.Users
         }
 
         [HttpGet("{id:int}/followers")]
-        [EndpointSummary("Get the users who follow a user")]
-        public async Task<ActionResult<List<UserSummaryDto>>> GetFollowers(int id)
+        [EndpointSummary("Get the users who follow a user, by name, one page at a time")]
+        public async Task<ActionResult<PageDto<UserSummaryDto>>> GetFollowers(int id, [FromQuery] PageQuery page)
         {
             if (!await _context.Users.AnyAsync(u => u.Id == id))
             {
                 return NotFound();
             }
 
-            var followers = await _context.Set<Follow>()
-                .Where(f => f.FollowedId == id)
-                .Select(f => new UserSummaryDto
-                {
-                    Id = f.Follower.Id,
-                    UserName = f.Follower.UserName ?? string.Empty,
-                    ProfileImageUrl = f.Follower.ProfileImageUrl
-                })
-                .OrderBy(u => u.UserName)
-                .ToListAsync();
+            var followers = _context.Set<Follow>().Where(f => f.FollowedId == id).Select(f => f.Follower);
 
-            return Ok(followers);
+            return Ok(await GetUserPage(followers, page));
         }
 
         [HttpGet("{id:int}/following")]
-        [EndpointSummary("Get the users a user follows")]
-        public async Task<ActionResult<List<UserSummaryDto>>> GetFollowing(int id)
+        [EndpointSummary("Get the users a user follows, by name, one page at a time")]
+        public async Task<ActionResult<PageDto<UserSummaryDto>>> GetFollowing(int id, [FromQuery] PageQuery page)
         {
             if (!await _context.Users.AnyAsync(u => u.Id == id))
             {
                 return NotFound();
             }
 
-            var following = await _context.Set<Follow>()
-                .Where(f => f.FollowerId == id)
-                .Select(f => new UserSummaryDto
-                {
-                    Id = f.Followed.Id,
-                    UserName = f.Followed.UserName ?? string.Empty,
-                    ProfileImageUrl = f.Followed.ProfileImageUrl
-                })
+            var following = _context.Set<Follow>().Where(f => f.FollowerId == id).Select(f => f.Followed);
+
+            return Ok(await GetUserPage(following, page));
+        }
+
+        // Users in name order. The id breaks ties, though names are unique apart from letter case.
+        private static async Task<PageDto<UserSummaryDto>> GetUserPage(IQueryable<User> users, PageQuery page)
+        {
+            if (page.After is PageCursor after)
+            {
+                var name = after.Text;
+                var id = after.Id;
+                users = users.Where(u => string.Compare(u.UserName, name) > 0 || (u.UserName == name && u.Id > id));
+            }
+
+            var rows = await users
                 .OrderBy(u => u.UserName)
+                .ThenBy(u => u.Id)
+                .Take(page.Limit + 1)
+                .Select(u => new UserSummaryDto
+                {
+                    Id = u.Id,
+                    UserName = u.UserName ?? string.Empty,
+                    ProfileImageUrl = u.ProfileImageUrl
+                })
                 .ToListAsync();
 
-            return Ok(following);
+            return PageDto.From(rows, page.Limit, u => new PageCursor(u.UserName, u.Id));
         }
 
         [Authorize]
@@ -177,6 +203,11 @@ namespace backend.Features.Users
 
                     return ValidationProblem(ModelState);
                 }
+
+                // The rename changed the security stamp and so revoked the caller's token. PATCH /api/settings
+                // returns a new token; this older endpoint does not, so the caller has to log in again.
+                _securityStamps.Forget(user.Id);
+                _securityLog.UsernameChanged(user.Id);
             }
 
             var followerCount = await _context.Set<Follow>().CountAsync(f => f.FollowedId == id);
@@ -190,15 +221,17 @@ namespace backend.Features.Users
                 FollowerCount = followerCount,
                 FollowingCount = followingCount,
                 WatchlistVisibility = user.WatchlistVisibility,
-                // Only the owner can update a profile, and owners always see their own watchlist.
-                CanSeeWatchlist = true
+                DiaryVisibility = user.DiaryVisibility,
+                // Only the owner can update a profile, and owners always see their own watchlist and diary.
+                CanSeeWatchlist = true,
+                CanSeeDiary = true
             });
         }
 
         [Authorize]
         [HttpDelete("{id:int}")]
-        [EndpointSummary("Delete the current user's account")]
-        public async Task<IActionResult> DeleteUser(int id)
+        [EndpointSummary("Delete the current user's account (requires the current password)")]
+        public async Task<IActionResult> DeleteUser(int id, DeleteUserDto dto)
         {
             var userId = User.GetUserId();
 
@@ -214,12 +247,25 @@ namespace backend.Features.Users
                 return NotFound();
             }
 
+            // Wrong passwords count towards the same lockout as login, so this endpoint cannot be used to guess it.
+            var passwordCheck = await _signInManager.CheckPasswordSignInAsync(user, dto.Password, lockoutOnFailure: true);
+
+            if (!passwordCheck.Succeeded)
+            {
+                ModelState.AddModelError(nameof(dto.Password), "The password is incorrect.");
+                return ValidationProblem(ModelState);
+            }
+
             // Follows, review likes and review comments use DeleteBehavior.Restrict (SQL Server disallows
             // two cascade paths), so they must be removed before the user.
             await using var transaction = await _context.Database.BeginTransactionAsync();
 
             await _context.Set<Follow>()
                 .Where(f => f.FollowerId == id || f.FollowedId == id)
+                .ExecuteDeleteAsync();
+
+            await _context.Blocks
+                .Where(b => b.BlockerId == id || b.BlockedId == id)
                 .ExecuteDeleteAsync();
 
             await _context.ReviewLikes.Where(l => l.UserId == id).ExecuteDeleteAsync();
@@ -238,6 +284,8 @@ namespace backend.Features.Users
             }
 
             await transaction.CommitAsync();
+            _securityStamps.Forget(id);
+            _securityLog.AccountDeleted(id);
 
             return NoContent();
         }
@@ -261,6 +309,11 @@ namespace backend.Features.Users
                 return NotFound();
             }
 
+            if (await _context.IsBlockedEitherWayAsync(userId, id))
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "You can't follow this member.");
+            }
+
             var alreadyFollowing = await _context.Set<Follow>()
                 .AnyAsync(f => f.FollowerId == userId && f.FollowedId == id);
 
@@ -276,6 +329,54 @@ namespace backend.Features.Users
             });
 
             await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        // Blocking twice is the same as blocking once. Follows between the two users end in both directions.
+        [Authorize]
+        [HttpPut("{id:int}/block")]
+        [EndpointSummary("Block a user")]
+        public async Task<IActionResult> BlockUser(int id)
+        {
+            var userId = User.GetUserId();
+
+            if (userId == id)
+            {
+                return BadRequest("Cannot block yourself.");
+            }
+
+            if (!await _context.Users.AnyAsync(u => u.Id == id))
+            {
+                return NotFound();
+            }
+
+            if (!await _context.HasBlockedAsync(userId, id))
+            {
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+
+                await _context.Follows
+                    .Where(f => (f.FollowerId == userId && f.FollowedId == id) || (f.FollowerId == id && f.FollowedId == userId))
+                    .ExecuteDeleteAsync();
+
+                _context.Blocks.Add(new Block { BlockerId = userId, BlockedId = id, CreatedAt = DateTime.UtcNow });
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+            }
+
+            return NoContent();
+        }
+
+        // Unblocking someone who is not blocked does nothing. Follows do not come back.
+        [Authorize]
+        [HttpDelete("{id:int}/block")]
+        [EndpointSummary("Unblock a user")]
+        public async Task<IActionResult> UnblockUser(int id)
+        {
+            var userId = User.GetUserId();
+
+            await _context.Blocks.Where(b => b.BlockerId == userId && b.BlockedId == id).ExecuteDeleteAsync();
 
             return NoContent();
         }

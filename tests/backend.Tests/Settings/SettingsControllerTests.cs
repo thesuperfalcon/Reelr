@@ -5,15 +5,15 @@ using backend.Features.Settings.DTOs;
 using backend.Features.Users;
 using backend.Features.Users.DTOs;
 using backend.Tests.Infrastructure;
+using SkiaSharp;
 
 namespace backend.Tests.Settings;
 
 public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
 {
-    // The smallest files each format is recognised by: its signature, padded out.
-    private static readonly byte[] Png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 0];
-    private static readonly byte[] Jpeg = [0xFF, 0xD8, 0xFF, 0xE0, 0, 0, 0, 0];
-    private static readonly byte[] Webp = [.. "RIFF"u8, 4, 0, 0, 0, .. "WEBP"u8];
+    private static readonly byte[] Png = TestImages.Create(SKEncodedImageFormat.Png);
+    private static readonly byte[] Jpeg = TestImages.Create(SKEncodedImageFormat.Jpeg);
+    private static readonly byte[] Webp = TestImages.Create(SKEncodedImageFormat.Webp);
 
     private readonly ReelrApiFactory _factory;
 
@@ -120,6 +120,20 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
         Assert.Equal(user.Username, (await GetSettingsAsync(user)).UserName);
     }
 
+    [Theory]
+    [InlineData("ab")]
+    [InlineData("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")] // 51 characters
+    [InlineData("someone@test.local")]
+    public async Task UpdateSettings_InvalidName_Returns400(string userName)
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+
+        var response = await user.Client.PatchAsJsonAsync("/api/settings", new UpdateUserSettingsDto { UserName = userName });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(user.Username, (await GetSettingsAsync(user)).UserName);
+    }
+
     [Fact]
     public async Task UpdateSettings_UnknownVisibility_Returns400()
     {
@@ -145,7 +159,7 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
 
         var changed = await user.Client.PostAsJsonAsync("/api/settings/password",
             new ChangePasswordDto { CurrentPassword = TestUsers.Password, NewPassword = newPassword });
-        Assert.Equal(HttpStatusCode.NoContent, changed.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
 
         var client = _factory.CreateClient();
         var oldLogin = await client.PostAsJsonAsync("/auth/login", new { UserInput = user.Username, Password = TestUsers.Password });
@@ -154,13 +168,67 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
         Assert.True(newLogin.IsSuccessStatusCode);
     }
 
+    [Fact]
+    public async Task ChangePassword_LockoutAttemptsWrongCurrentPasswords_LocksTheAccount()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var newPassword = TestUsers.Password + "-new";
+
+        // Same lockout as login, so a stolen token cannot be used to guess the password here.
+        for (var i = 0; i < TestUsers.LockoutAttempts; i++)
+        {
+            var wrong = await user.Client.PostAsJsonAsync("/api/settings/password",
+                new ChangePasswordDto { CurrentPassword = TestUsers.Password + "-wrong", NewPassword = newPassword });
+            Assert.Equal(HttpStatusCode.BadRequest, wrong.StatusCode);
+        }
+
+        var right = await user.Client.PostAsJsonAsync("/api/settings/password",
+            new ChangePasswordDto { CurrentPassword = TestUsers.Password, NewPassword = newPassword });
+        var login = await _factory.CreateClient().PostAsJsonAsync("/auth/login",
+            new { UserInput = user.Username, Password = TestUsers.Password });
+
+        Assert.Equal(HttpStatusCode.BadRequest, right.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
+    }
+
+    // ---- Data export ----
+
+    [Fact]
+    public async Task Export_ContainsTheUsersOwnData_AsADownload()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var other = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(9401, "Exported film");
+        (await user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/diary",
+            new { Score = 4.5m, Review = "My exported review" })).EnsureSuccessStatusCode();
+        (await user.Client.PostAsync($"/api/users/{other.Id}/follow", null)).EnsureSuccessStatusCode();
+
+        var response = await user.Client.GetAsync("/api/settings/export");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("attachment", response.Content.Headers.ContentDisposition?.DispositionType);
+        var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+        Assert.Equal(user.Username, json.GetProperty("account").GetProperty("userName").GetString());
+        Assert.Equal($"{user.Username}@test.local", json.GetProperty("account").GetProperty("email").GetString());
+        Assert.Equal("Exported film", json.GetProperty("diary")[0].GetProperty("title").GetString());
+        Assert.Equal(4.5m, json.GetProperty("ratings")[0].GetProperty("score").GetDecimal());
+        Assert.Equal("My exported review", json.GetProperty("reviews")[0].GetProperty("text").GetString());
+        Assert.Equal(other.Username, json.GetProperty("following")[0].GetString());
+    }
+
+    [Fact]
+    public async Task Export_WithoutToken_Returns401()
+    {
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _factory.CreateClient().GetAsync("/api/settings/export")).StatusCode);
+    }
+
     // ---- Profile picture ----
 
     [Theory]
-    [InlineData("png", "image/png")]
-    [InlineData("jpeg", "image/jpeg")]
-    [InlineData("webp", "image/webp")]
-    public async Task UploadAvatar_StoresThePicture_AndServesItPublicly(string format, string expectedType)
+    [InlineData("png")]
+    [InlineData("jpeg")]
+    [InlineData("webp")]
+    public async Task UploadAvatar_StoresThePictureAsWebP_AndServesItPublicly(string format)
     {
         var user = await _factory.CreateAuthenticatedAsync();
         var data = format switch { "png" => Png, "jpeg" => Jpeg, _ => Webp };
@@ -176,8 +244,47 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
 
         var image = await _factory.CreateClient().GetAsync(settings.ProfileImageUrl);
         Assert.Equal(HttpStatusCode.OK, image.StatusCode);
-        Assert.Equal(expectedType, image.Content.Headers.ContentType!.MediaType);
-        Assert.Equal(data, await image.Content.ReadAsByteArrayAsync());
+        Assert.Equal("image/webp", image.Content.Headers.ContentType!.MediaType);
+        var stored = TestImages.Describe(await image.Content.ReadAsByteArrayAsync());
+        Assert.Equal((40, 30, SKEncodedImageFormat.Webp), stored);
+    }
+
+    [Fact]
+    public async Task UploadAvatar_DropsCameraMetadata()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var upload = TestImages.JpegWithExif("GPS-59.3293N-18.0686E");
+        Assert.Contains("GPS-59.3293N", System.Text.Encoding.ASCII.GetString(upload));
+
+        var settings = await UploadOkAsync(user, upload);
+
+        var stored = await (await _factory.CreateClient().GetAsync(settings.ProfileImageUrl)).Content.ReadAsByteArrayAsync();
+        var text = System.Text.Encoding.ASCII.GetString(stored);
+        Assert.DoesNotContain("GPS-59.3293N", text);
+        Assert.DoesNotContain("Exif", text);
+    }
+
+    [Fact]
+    public async Task UploadAvatar_LargePicture_IsScaledDown()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+
+        var settings = await UploadOkAsync(user, TestImages.Create(SKEncodedImageFormat.Png, 1600, 800));
+
+        var stored = await (await _factory.CreateClient().GetAsync(settings.ProfileImageUrl)).Content.ReadAsByteArrayAsync();
+        Assert.Equal((512, 256, SKEncodedImageFormat.Webp), TestImages.Describe(stored));
+    }
+
+    [Fact]
+    public async Task UploadAvatar_RightSignatureButNotAPicture_Returns400()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        byte[] fake = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, .. "<script>alert(1)</script>"u8];
+
+        var response = await UploadAsync(user, fake);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null((await GetSettingsAsync(user)).ProfileImageUrl);
     }
 
     [Fact]
@@ -191,7 +298,7 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
 
         Assert.NotEqual(first.ProfileImageUrl, second.ProfileImageUrl);
         var image = await _factory.CreateClient().GetAsync(second.ProfileImageUrl);
-        Assert.Equal("image/jpeg", image.Content.Headers.ContentType!.MediaType);
+        Assert.Equal(HttpStatusCode.OK, image.StatusCode);
     }
 
     [Fact]
@@ -236,7 +343,7 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
         var user = await _factory.CreateAuthenticatedAsync();
         var uploaded = await UploadOkAsync(user, Png);
 
-        (await user.Client.DeleteAsync($"/api/users/{user.Id}")).EnsureSuccessStatusCode();
+        (await user.Client.DeleteAccountAsync(user.Id)).EnsureSuccessStatusCode();
 
         Assert.Equal(HttpStatusCode.NotFound, (await _factory.CreateClient().GetAsync(uploaded.ProfileImageUrl)).StatusCode);
     }

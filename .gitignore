@@ -36,3 +36,7 @@ TestResults/
 
 # Docker Compose secrets
 .env
+
+# Claude Code: settings.json and hooks/ are shared, these are personal
+.claude/settings.local.json
+.claude/worktrees/

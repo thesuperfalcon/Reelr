@@ -1,6 +1,8 @@
 using backend.Data;
 using backend.Features.Auth;
+using backend.Features.Paging;
 using backend.Features.Reviews.DTOs;
+using backend.Features.Users;
 using backend.Features.Users.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,26 +22,40 @@ namespace backend.Features.Reviews
         }
 
         [HttpGet("likes")]
-        [EndpointSummary("Get the users who like a review, newest like first")]
-        public async Task<ActionResult<List<UserSummaryDto>>> GetLikes(int reviewId)
+        [EndpointSummary("Get the users who like a review, newest like first, one page at a time")]
+        public async Task<ActionResult<PageDto<UserSummaryDto>>> GetLikes(int reviewId, [FromQuery] PageQuery page)
         {
             if (!await _context.Reviews.AnyAsync(r => r.Id == reviewId))
             {
                 return NotFound();
             }
 
-            var users = await _context.ReviewLikes
-                .Where(l => l.ReviewId == reviewId)
+            var likes = _context.ReviewLikes.Where(l => l.ReviewId == reviewId);
+
+            if (page.After is PageCursor after)
+            {
+                var at = after.At;
+                var id = after.Id;
+                likes = likes.Where(l => l.CreatedAt < at || (l.CreatedAt == at && l.UserId < id));
+            }
+
+            var rows = await likes
                 .OrderByDescending(l => l.CreatedAt)
-                .Select(l => new UserSummaryDto
+                .ThenByDescending(l => l.UserId)
+                .Take(page.Limit + 1)
+                .Select(l => new
                 {
-                    Id = l.User.Id,
-                    UserName = l.User.UserName ?? string.Empty,
-                    ProfileImageUrl = l.User.ProfileImageUrl
+                    l.CreatedAt,
+                    User = new UserSummaryDto
+                    {
+                        Id = l.User.Id,
+                        UserName = l.User.UserName ?? string.Empty,
+                        ProfileImageUrl = l.User.ProfileImageUrl
+                    }
                 })
                 .ToListAsync();
 
-            return Ok(users);
+            return Ok(PageDto.From(rows, page.Limit, r => new PageCursor(r.CreatedAt, r.User.Id), r => r.User));
         }
 
         // Liking twice is the same as liking once.
@@ -63,6 +79,11 @@ namespace backend.Features.Reviews
             if (authorId == userId)
             {
                 return BadRequest("You cannot like your own review.");
+            }
+
+            if (await _context.HasBlockedAsync(authorId.Value, userId))
+            {
+                return Problem(statusCode: StatusCodes.Status403Forbidden, title: "You can't like this member's reviews.");
             }
 
             if (!await _context.ReviewLikes.AnyAsync(l => l.ReviewId == reviewId && l.UserId == userId))

@@ -61,15 +61,13 @@ namespace backend.Features.WatchedMovies
                 return NotFound();
             }
 
-            var alreadyWatched = await _context.WatchedMovies
-                .AnyAsync(w => w.UserId == userId && w.MovieId == movie.Id);
+            // The check and the insert happen together, so a second request at the same moment gets 409 too.
+            var status = await _journal.MarkWatchedAsync(userId, movie.Id, dto.Liked, dto.Rewatched, onlyIfNew: true);
 
-            if (alreadyWatched)
+            if (status == null)
             {
                 return Conflict("Movie status already exists for this user.");
             }
-
-            var status = await _journal.MarkWatchedAsync(userId, movie.Id, dto.Liked, dto.Rewatched);
 
             return Ok(new StatusDto
             {

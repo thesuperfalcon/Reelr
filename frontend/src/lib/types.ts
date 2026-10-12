@@ -141,15 +141,32 @@ export interface UserProfile {
   watchlistVisibility: WatchlistVisibility;
   /** Whether the logged-in user (or a visitor) may open this user's watchlist. */
   canSeeWatchlist: boolean;
+  diaryVisibility: DiaryVisibility;
+  /** Whether the logged-in user (or a visitor) may open this user's diary. */
+  canSeeDiary: boolean;
+  /** True when the logged-in user has blocked this user. */
+  isBlocked: boolean;
 }
 
 export type WatchlistVisibility = "Public" | "Followers" | "Private";
+
+export type DiaryVisibility = "Public" | "Followers" | "Private";
+
+/** One page of a list. Pass nextCursor back as ?cursor= for the next page; it is null on the last page. */
+export interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+}
 
 export interface WatchlistEntry {
   tmdbId: number;
   title: string;
   posterUrl: string | null;
   addedAt: string;
+}
+
+export interface WatchlistState {
+  onWatchlist: boolean;
 }
 
 export interface DiaryEntry {
@@ -198,6 +215,11 @@ export interface Review {
   updatedAt: string | null;
 }
 
+export interface MovieReviewPage extends Page<Review> {
+  /** Every review of the film the viewer can see, not only this page. */
+  totalCount: number;
+}
+
 export interface ReviewLikeState {
   likeCount: number;
   likedByMe: boolean;
@@ -244,6 +266,8 @@ export interface MovieList extends MovieListSummary {
   username: string;
   description: string | null;
   updatedAt: string | null;
+  /** How many of the films the signed-in user has watched. Null when signed out. */
+  watchedCount: number | null;
 }
 
 export interface MovieListInput {
@@ -286,10 +310,7 @@ export interface ActivityItem {
   groupMovies: ActivityMovie[];
 }
 
-export interface ActivityPage {
-  items: ActivityItem[];
-  nextCursor: string | null;
-}
+export type ActivityPage = Page<ActivityItem>;
 
 export interface FollowingFilm {
   movie: ActivityMovie;
@@ -308,12 +329,15 @@ export interface UserSettings {
   email: string;
   profileImageUrl: string | null;
   watchlistVisibility: WatchlistVisibility;
+  diaryVisibility: DiaryVisibility;
   showFriendReviews: boolean;
   /** Whether the Following feed also shows the user's own activity. */
   showOwnActivity: boolean;
+  /** Whether the user may open the moderation page. */
+  isAdmin: boolean;
 }
 
 /** Only the fields that are set change. */
 export type UserSettingsUpdate = Partial<
-  Pick<UserSettings, "userName" | "watchlistVisibility" | "showFriendReviews" | "showOwnActivity">
+  Pick<UserSettings, "userName" | "watchlistVisibility" | "diaryVisibility" | "showFriendReviews" | "showOwnActivity">
 >;

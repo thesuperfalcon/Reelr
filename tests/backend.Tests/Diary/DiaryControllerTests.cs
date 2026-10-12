@@ -22,7 +22,7 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
     private static string DiaryUrl(int tmdbId) => $"/api/movies/{tmdbId}/diary";
 
     private static async Task<List<DiaryEntryDto>> GetDiaryAsync(HttpClient client) =>
-        (await client.GetFromJsonAsync<List<DiaryEntryDto>>("/api/watched"))!;
+        (await client.GetItemsAsync<DiaryEntryDto>("/api/watched"))!;
 
     [Fact]
     public async Task LogEntry_WithoutToken_Returns401()
@@ -265,7 +265,7 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     private async Task<List<ReviewDto>> GetReviewsAsync(int tmdbId) =>
-        (await _factory.CreateClient().GetFromJsonAsync<List<ReviewDto>>($"/api/movies/{tmdbId}/reviews"))!;
+        (await _factory.CreateClient().GetItemsAsync<ReviewDto>($"/api/movies/{tmdbId}/reviews"))!;
 
     [Fact]
     public async Task DeleteEntry_WithReview_DeletesThatReview()
@@ -317,7 +317,7 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
         var tmdbId = _factory.Tmdb.AddMovie(6026, "Account gone");
         await LogAsync(user, tmdbId, new LogDiaryEntryDto { Score = 3, Review = "Last words" });
 
-        var response = await user.Client.DeleteAsync($"/api/users/{user.Id}");
+        var response = await user.Client.DeleteAccountAsync(user.Id);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Empty(await GetReviewsAsync(tmdbId));
@@ -376,7 +376,7 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
 
         await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto());
 
-        Assert.Empty((await user.Client.GetFromJsonAsync<List<object>>("/api/watchlist"))!);
+        Assert.Empty((await user.Client.GetItemsAsync<object>("/api/watchlist"))!);
     }
 
     [Fact]
@@ -391,7 +391,7 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
         Assert.True((await response.Content.ReadFromJsonAsync<DiaryEntryDto>())!.HasReview);
         var entry = Assert.Single(await GetDiaryAsync(user.Client));
         Assert.True(entry.HasReview);
-        var review = Assert.Single((await user.Client.GetFromJsonAsync<List<ReviewDto>>($"/api/movies/{tmdbId}/reviews"))!);
+        var review = Assert.Single((await user.Client.GetItemsAsync<ReviewDto>($"/api/movies/{tmdbId}/reviews"))!);
         Assert.Equal("**Loved** it", review.Text);
         Assert.Equal(4m, review.Score);
         Assert.Null(review.UpdatedAt);
@@ -407,7 +407,7 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
         await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Review = "Second take", Rewatched = true });
 
         Assert.Equal(2, (await GetDiaryAsync(user.Client)).Count);
-        var review = Assert.Single((await user.Client.GetFromJsonAsync<List<ReviewDto>>($"/api/movies/{tmdbId}/reviews"))!);
+        var review = Assert.Single((await user.Client.GetItemsAsync<ReviewDto>($"/api/movies/{tmdbId}/reviews"))!);
         Assert.Equal("Second take", review.Text);
         Assert.NotNull(review.UpdatedAt);
     }
@@ -421,7 +421,7 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
 
         await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Score = 3, Review = "   " });
 
-        var review = Assert.Single((await user.Client.GetFromJsonAsync<List<ReviewDto>>($"/api/movies/{tmdbId}/reviews"))!);
+        var review = Assert.Single((await user.Client.GetItemsAsync<ReviewDto>($"/api/movies/{tmdbId}/reviews"))!);
         Assert.Equal("Keep me", review.Text);
     }
 
@@ -434,7 +434,7 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
         await alice.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Score = 3, Review = "Fine" });
         await bob.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Score = 1 });
 
-        var diary = await _factory.CreateClient().GetFromJsonAsync<List<DiaryEntryDto>>($"/api/users/{alice.Id}/diary");
+        var diary = await _factory.CreateClient().GetItemsAsync<DiaryEntryDto>($"/api/users/{alice.Id}/diary");
 
         var entry = Assert.Single(diary!);
         Assert.Equal(3m, entry.Rating);

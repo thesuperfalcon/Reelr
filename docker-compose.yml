@@ -1,3 +1,6 @@
+# Local development only: the backend runs in Development (Swagger, detailed error pages)
+# and every port is bound to 127.0.0.1, so nothing is reachable from other machines.
+#
 # Secrets come from a .env file next to this one (git-ignored). It must define:
 #   MSSQL_SA_PASSWORD               SQL Server sa password (8+ chars, upper, lower, digit, symbol)
 #   ConnectionStrings__ReelrContext SQL Server connection string to host "db", database "Reelr", user "sa"
@@ -11,7 +14,7 @@ services:
       ACCEPT_EULA: "Y"
     env_file: .env
     ports:
-      - "1433:1433"
+      - "127.0.0.1:1433:1433"
     volumes:
       - sqldata:/var/opt/mssql
     healthcheck:
@@ -26,19 +29,51 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       Database__MigrateOnStartup: "true"
+      # Requests arrive through nginx. X-Forwarded-For is trusted only from this compose network,
+      # so auth rate limiting is per client and a client cannot fake its IP by sending the header itself.
+      ForwardedHeaders__KnownNetworks__0: "172.30.0.0/24"
+      # Account emails go to Mailpit, which keeps them instead of delivering them: http://localhost:8025
+      Email__Host: mailpit
+      Email__Port: "1025"
+      Email__Security: None
+      Email__FromAddress: noreply@reelr.local
+      App__BaseUrl: http://localhost:8080
     env_file: .env
     ports:
-      - "5084:8080"
+      - "127.0.0.1:5084:8080"
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      # The aspnet image has no curl or wget, so bash sends the request to /health/ready itself.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Catches every email the backend sends and shows it in a web inbox, so nothing reaches a real address.
+  mailpit:
+    image: axllent/mailpit:v1.31.2
+    ports:
+      - "127.0.0.1:8025:8025"
 
   frontend:
     build: ./frontend
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+
+networks:
+  # A fixed subnet, so the backend knows which addresses belong to the nginx proxy.
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
 
 volumes:
   sqldata:

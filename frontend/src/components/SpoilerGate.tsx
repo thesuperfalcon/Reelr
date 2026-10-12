@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Hides a review that its author marked as containing spoilers until the reader asks to see it.
 // The author always sees their own text.
@@ -13,9 +13,25 @@ export function SpoilerGate({
   children: React.ReactNode;
 }) {
   const [revealed, setRevealed] = useState(false);
+  const textRef = useRef<HTMLDivElement>(null);
 
-  if (!active || revealed) {
+  // The button goes away when pressed, so focus moves to the text it showed instead of being lost.
+  useEffect(() => {
+    if (revealed) {
+      textRef.current?.focus();
+    }
+  }, [revealed]);
+
+  if (!active) {
     return <>{children}</>;
+  }
+
+  if (revealed) {
+    return (
+      <div ref={textRef} tabIndex={-1} className="outline-none">
+        {children}
+      </div>
+    );
   }
 
   return (

@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { useAuth } from "../auth/auth-context";
 import { today } from "../lib/dates";
+import { clearDraft, readDraft, writeDraft } from "../lib/drafts";
 import {
   REVIEW_MAX_LENGTH,
   useDeleteRating,
@@ -14,6 +16,7 @@ import { DeleteReviewButton } from "./DeleteReviewButton";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { StarInput } from "./Stars";
 import { WatchedOnField } from "./WatchedOnField";
+import { useReturnFocus } from "../lib/focus";
 
 interface RatingDialogProps {
   movie: MovieDetails;
@@ -59,10 +62,29 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
   // The review list refetches after a delete, so remember the deletion until the prop catches up.
   const [reviewDeleted, setReviewDeleted] = useState(false);
   const currentReview = reviewDeleted ? null : reviewProp;
-  const [review, setReview] = useState(reviewProp?.text ?? "");
+  // Unsaved review text is kept per user and film, so it survives closing the dialog or an expired session.
+  const { user } = useAuth();
+  const draftKey = `review:${user?.id}:${movie.id}`;
+  const [restoredDraft] = useState(() => {
+    const draft = readDraft(draftKey);
+    return draft !== null && draft !== (reviewProp?.text ?? "") ? draft : null;
+  });
+  const [review, setReviewText] = useState(restoredDraft ?? reviewProp?.text ?? "");
+  const [showDraftNotice, setShowDraftNotice] = useState(restoredDraft !== null);
+
+  function setReview(text: string) {
+    setReviewText(text);
+    if (text === (currentReview?.text ?? "")) {
+      clearDraft(draftKey);
+    } else {
+      writeDraft(draftKey, text);
+    }
+  }
+
   const [containsSpoilers, setContainsSpoilers] = useState(reviewProp?.containsSpoilers ?? false);
   const [watchedOn, setWatchedOn] = useState(today);
   const [confirmUnwatch, setConfirmUnwatch] = useState(false);
+  const confirmUnwatchRef = useReturnFocus(confirmUnwatch);
   const save = useSaveDiaryEntry(movie.id);
   const remove = useDeleteRating(movie.id);
   const removeReview = useDeleteReview();
@@ -112,6 +134,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
         });
       }
 
+      clearDraft(draftKey);
       onClose();
     } catch {
       // The mutation keeps the error, and the dialog shows it.
@@ -198,11 +221,27 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
                 reviewId={currentReview.id}
                 onDeleted={() => {
                   setReviewDeleted(true);
-                  setReview("");
+                  setReviewText("");
+                  clearDraft(draftKey);
                 }}
               />
             )}
           </div>
+          {showDraftNotice && (
+            <p className="mt-2 flex flex-wrap items-center gap-3 text-sm text-haze" role="status">
+              Your unsaved text from last time is back.
+              <button
+                type="button"
+                onClick={() => {
+                  setReview(currentReview?.text ?? "");
+                  setShowDraftNotice(false);
+                }}
+                className="font-medium text-projector underline underline-offset-4"
+              >
+                Discard it
+              </button>
+            </p>
+          )}
           <MarkdownEditor
             id={reviewId}
             value={review}
@@ -260,6 +299,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
                 </button>
                 <button
                   type="button"
+                  autoFocus
                   onClick={() => setConfirmUnwatch(false)}
                   disabled={busy}
                   className="text-haze underline underline-offset-4 hover:text-screen"
@@ -270,6 +310,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
             ) : (
               <button
                 type="button"
+                ref={confirmUnwatchRef}
                 onClick={() => setConfirmUnwatch(true)}
                 disabled={busy}
                 className="text-sm text-haze underline underline-offset-4 transition hover:text-alarm disabled:opacity-50"

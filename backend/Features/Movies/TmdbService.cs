@@ -3,13 +3,23 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using backend.Features.Movies.DTOs;
 using backend.Features.People.DTOs;
+using Polly;
 
 namespace backend.Features.Movies;
 
 public class TmdbService
 {
+    // Limits for search input, checked by the controllers. TMDB itself serves at most 500 pages.
+    public const int MaxQueryLength = 100;
+    public const int MaxPage = 500;
+
     private const int MaxCastMembers = 10;
     private const int MaxImages = 20;
+
+    // How long answers are cached: lists change daily, film and person data hardly ever.
+    private static readonly TimeSpan ListCacheDuration = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan SearchCacheDuration = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan DetailsCacheDuration = TimeSpan.FromHours(6);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -36,30 +46,38 @@ public class TmdbService
     };
 
     private readonly HttpClient _httpClient;
+    private readonly TmdbCache _cache;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<TmdbService> _logger;
 
-    public TmdbService(HttpClient httpClient, IConfiguration configuration)
+    public TmdbService(HttpClient httpClient, TmdbCache cache, IConfiguration configuration, ILogger<TmdbService> logger)
     {
         _httpClient = httpClient;
+        _cache = cache;
         _configuration = configuration;
+        _logger = logger;
     }
 
     public Task<TmdbMovieDto?> GetMovie(int tmdbId) =>
-        GetFromTmdb<TmdbMovieDto>($"movie/{tmdbId}?language=en-US", notFoundReturnsNull: true);
+        GetFromTmdb<TmdbMovieDto>($"movie/{tmdbId}?language=en-US", DetailsCacheDuration, notFoundReturnsNull: true);
 
     public Task<TmdbSearchResultDto?> SearchMovies(string query, int page = 1) =>
-        GetFromTmdb<TmdbSearchResultDto>($"search/movie?query={Uri.EscapeDataString(query)}&language=en-US&page={page}");
+        GetFromTmdb<TmdbSearchResultDto>(
+            $"search/movie?query={Uri.EscapeDataString(query)}&language=en-US&page={page}", SearchCacheDuration);
 
     public Task<TmdbPersonSearchResultDto?> SearchPeople(string query, int page = 1) =>
-        GetFromTmdb<TmdbPersonSearchResultDto>($"search/person?query={Uri.EscapeDataString(query)}&language=en-US&page={page}");
+        GetFromTmdb<TmdbPersonSearchResultDto>(
+            $"search/person?query={Uri.EscapeDataString(query)}&language=en-US&page={page}", SearchCacheDuration);
 
     public Task<TmdbPersonDetailsDto?> GetPerson(int personId) =>
         GetFromTmdb<TmdbPersonDetailsDto>(
             $"person/{personId}?append_to_response=movie_credits,external_ids&language=en-US",
+            DetailsCacheDuration,
             notFoundReturnsNull: true);
 
     public Task<TmdbCompanySearchResultDto?> SearchCompanies(string query, int page = 1) =>
-        GetFromTmdb<TmdbCompanySearchResultDto>($"search/company?query={Uri.EscapeDataString(query)}&page={page}");
+        GetFromTmdb<TmdbCompanySearchResultDto>(
+            $"search/company?query={Uri.EscapeDataString(query)}&page={page}", SearchCacheDuration);
 
     public async Task<MovieSearchResultDto> SearchAll(string query, int page = 1)
     {
@@ -134,31 +152,33 @@ public class TmdbService
             queryParams.Add($"with_genres={genreId.Value}");
         }
 
-        return GetFromTmdb<TmdbSearchResultDto>($"discover/movie?{string.Join("&", queryParams)}");
+        return GetFromTmdb<TmdbSearchResultDto>($"discover/movie?{string.Join("&", queryParams)}", SearchCacheDuration);
     }
 
     public Task<TmdbSearchResultDto?> GetRecommendedMovies(int tmdbId) =>
-        GetFromTmdb<TmdbSearchResultDto>($"movie/{tmdbId}/recommendations?language=en-US", notFoundReturnsNull: true);
+        GetFromTmdb<TmdbSearchResultDto>(
+            $"movie/{tmdbId}/recommendations?language=en-US", DetailsCacheDuration, notFoundReturnsNull: true);
 
     // TMDB note: this method only looks for other items based on genres and plot keywords,
     // so results are not always going to be accurate. Use it with that in mind.
     public Task<TmdbSearchResultDto?> GetSimilarMovies(int tmdbId) =>
-        GetFromTmdb<TmdbSearchResultDto>($"movie/{tmdbId}/similar?language=en-US", notFoundReturnsNull: true);
+        GetFromTmdb<TmdbSearchResultDto>(
+            $"movie/{tmdbId}/similar?language=en-US", DetailsCacheDuration, notFoundReturnsNull: true);
 
     public Task<TmdbSearchResultDto?> GetTrendingMovies() =>
-        GetFromTmdb<TmdbSearchResultDto>("trending/movie/week?language=en-US");
+        GetFromTmdb<TmdbSearchResultDto>("trending/movie/week?language=en-US", ListCacheDuration);
 
     public Task<TmdbSearchResultDto?> GetPopularMovies() =>
-        GetFromTmdb<TmdbSearchResultDto>("movie/popular?language=en-US");
+        GetFromTmdb<TmdbSearchResultDto>("movie/popular?language=en-US", ListCacheDuration);
 
     public Task<TmdbCreditsDto?> GetCredits(int tmdbId) =>
-        GetFromTmdb<TmdbCreditsDto>($"movie/{tmdbId}/credits?language=en-US", notFoundReturnsNull: true);
+        GetFromTmdb<TmdbCreditsDto>($"movie/{tmdbId}/credits?language=en-US", DetailsCacheDuration, notFoundReturnsNull: true);
 
     public Task<TmdbVideosDto?> GetVideos(int tmdbId) =>
-        GetFromTmdb<TmdbVideosDto>($"movie/{tmdbId}/videos?language=en-US");
+        GetFromTmdb<TmdbVideosDto>($"movie/{tmdbId}/videos?language=en-US", DetailsCacheDuration);
 
     public Task<TmdbImagesDto?> GetImages(int tmdbId) =>
-        GetFromTmdb<TmdbImagesDto>($"movie/{tmdbId}/images");
+        GetFromTmdb<TmdbImagesDto>($"movie/{tmdbId}/images", DetailsCacheDuration);
 
     public async Task<MovieDetailsDto?> GetMovieDetails(int tmdbId)
     {
@@ -264,7 +284,7 @@ public class TmdbService
         {
             return await GetCredits(tmdbId);
         }
-        catch (HttpRequestException)
+        catch (TmdbUnavailableException)
         {
             return null;
         }
@@ -276,7 +296,7 @@ public class TmdbService
         {
             return await GetVideos(tmdbId);
         }
-        catch (HttpRequestException)
+        catch (TmdbUnavailableException)
         {
             return null;
         }
@@ -288,14 +308,31 @@ public class TmdbService
         {
             return await GetImages(tmdbId);
         }
-        catch (HttpRequestException)
+        catch (TmdbUnavailableException)
         {
             return null;
         }
     }
 
-    private async Task<T?> GetFromTmdb<T>(string path, bool notFoundReturnsNull = false)
+    // For the readiness check: whether TMDB answers right now. Never cached; failures are thrown as they come.
+    public async Task<bool> PingAsync(CancellationToken cancellationToken)
     {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "configuration");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _configuration["TMDB_READ_ACCESS_TOKEN"]);
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        return response.IsSuccessStatusCode;
+    }
+
+    // Every TMDB call goes through here. A successful answer is cached for cacheFor; a 404 is not cached.
+    // Any way TMDB can fail becomes a TmdbUnavailableException, so callers and the API handle one exception type.
+    private async Task<T?> GetFromTmdb<T>(string path, TimeSpan cacheFor, bool notFoundReturnsNull = false) where T : class
+    {
+        if (_cache.TryGet(path, out T? cached))
+        {
+            return cached;
+        }
+
         var token = _configuration["TMDB_READ_ACCESS_TOKEN"];
 
         if (string.IsNullOrEmpty(token))
@@ -303,29 +340,70 @@ public class TmdbService
             throw new InvalidOperationException("TMDB_READ_ACCESS_TOKEN is missing.");
         }
 
-        var request = new HttpRequestMessage(HttpMethod.Get, path);
+        string json;
 
-        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        var response = await _httpClient.SendAsync(request);
-
-        if (notFoundReturnsNull && response.StatusCode == HttpStatusCode.NotFound)
+        try
         {
-            return default;
+            using var request = new HttpRequestMessage(HttpMethod.Get, path);
+
+            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            using var response = await _httpClient.SendAsync(request);
+
+            if (notFoundReturnsNull && response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return null;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // The response body only goes to the log; clients get a general problem body.
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("TMDB request {Path} failed with {StatusCode}: {Body}", LogPath(path), (int)response.StatusCode, error);
+
+                throw new TmdbUnavailableException(
+                    $"TMDB returned {(int)response.StatusCode}.", StatusCodes.Status502BadGateway);
+            }
+
+            json = await response.Content.ReadAsStringAsync();
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "TMDB request {Path} could not be sent", LogPath(path));
+            throw new TmdbUnavailableException("Could not reach TMDB.", StatusCodes.Status502BadGateway, ex);
+        }
+        catch (Exception ex) when (ex is TaskCanceledException or ExecutionRejectedException)
+        {
+            // A timeout, or the circuit breaker skipping TMDB for a while after many failures.
+            _logger.LogWarning(ex, "TMDB request {Path} timed out or was skipped", LogPath(path));
+            throw new TmdbUnavailableException("TMDB did not answer in time.", StatusCodes.Status503ServiceUnavailable, ex);
         }
 
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync();
+        T? result;
 
-            throw new HttpRequestException(
-                $"TMDB error: {(int)response.StatusCode} {response.StatusCode}. Response: {error}"
-            );
+        try
+        {
+            result = JsonSerializer.Deserialize<T>(json, JsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "TMDB request {Path} returned JSON that could not be read", LogPath(path));
+            throw new TmdbUnavailableException("TMDB sent an answer that could not be read.", StatusCodes.Status502BadGateway, ex);
         }
 
-        var json = await response.Content.ReadAsStringAsync();
+        if (result != null)
+        {
+            _cache.Set(path, result, json.Length, cacheFor);
+        }
 
-        return JsonSerializer.Deserialize<T>(json, JsonOptions);
+        return result;
+    }
+
+    // The path without its query string. Searches carry what the user typed, which does not belong in the log.
+    private static string LogPath(string path)
+    {
+        var query = path.IndexOf('?');
+        return query < 0 ? path : path[..query];
     }
 }

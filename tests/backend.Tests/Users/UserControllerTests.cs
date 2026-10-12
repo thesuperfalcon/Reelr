@@ -113,6 +113,16 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
+    public async Task UpdateUser_TooLongUsername_Returns400()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+
+        var response = await user.Client.PutAsJsonAsync($"/api/users/{user.Id}", new UpdateUserDto { Username = new string('a', 51) });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task UpdateUser_OtherUser_Returns403AndKeepsProfile()
     {
         var user = await _factory.CreateAuthenticatedAsync();
@@ -132,7 +142,7 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
     {
         var user = await _factory.CreateAuthenticatedAsync();
 
-        var response = await user.Client.DeleteAsync($"/api/users/{user.Id}");
+        var response = await user.Client.DeleteAccountAsync(user.Id);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         var getResponse = await _factory.CreateClient().GetAsync($"/api/users/{user.Id}");
@@ -151,10 +161,10 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
         await user.Client.PostAsync($"/api/watchlist/{tmdbId}", null);
         await user.Client.PostAsJsonAsync("/api/lists", new CreateMovieListDto { Name = "Last list" });
 
-        var response = await user.Client.DeleteAsync($"/api/users/{user.Id}");
+        var response = await user.Client.DeleteAccountAsync(user.Id);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        var reviews = await _factory.CreateClient().GetFromJsonAsync<List<ReviewDto>>($"/api/movies/{tmdbId}/reviews");
+        var reviews = await _factory.CreateClient().GetItemsAsync<ReviewDto>($"/api/movies/{tmdbId}/reviews");
         Assert.DoesNotContain(reviews!, r => r.UserId == user.Id);
     }
 
@@ -167,7 +177,7 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
         await FollowAsync(follower, user);
         await FollowAsync(user, followed);
 
-        var response = await user.Client.DeleteAsync($"/api/users/{user.Id}");
+        var response = await user.Client.DeleteAccountAsync(user.Id);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         Assert.Equal(0, (await GetProfileAsync(follower.Id))!.FollowingCount);
@@ -185,7 +195,7 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
         (await user.Client.PutAsync($"/api/reviews/{review.Id}/like", null)).EnsureSuccessStatusCode();
         (await user.Client.PostAsJsonAsync($"/api/reviews/{review.Id}/comments", new CreateReviewCommentDto { Text = "Agreed" })).EnsureSuccessStatusCode();
 
-        var response = await user.Client.DeleteAsync($"/api/users/{user.Id}");
+        var response = await user.Client.DeleteAccountAsync(user.Id);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         var after = await _factory.CreateClient().GetFromJsonAsync<ReviewDto>($"/api/reviews/{review.Id}");
@@ -194,12 +204,34 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
+    public async Task DeleteUser_WrongPassword_Returns400AndKeepsAccount()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+
+        var response = await user.Client.DeleteAccountAsync(user.Id, "WrongPassw0rd!");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.NotNull(await GetProfileAsync(user.Id));
+    }
+
+    [Fact]
+    public async Task DeleteUser_WithoutBody_Returns415AndKeepsAccount()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+
+        var response = await user.Client.DeleteAsync($"/api/users/{user.Id}");
+
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
+        Assert.NotNull(await GetProfileAsync(user.Id));
+    }
+
+    [Fact]
     public async Task DeleteUser_OtherUser_Returns403AndKeepsAccount()
     {
         var user = await _factory.CreateAuthenticatedAsync();
         var victim = await _factory.CreateAuthenticatedAsync();
 
-        var response = await user.Client.DeleteAsync($"/api/users/{victim.Id}");
+        var response = await user.Client.DeleteAccountAsync(victim.Id);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.NotNull(await GetProfileAsync(victim.Id));
@@ -274,7 +306,7 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
         await FollowAsync(bob, target);
 
         var followers = await _factory.CreateClient()
-            .GetFromJsonAsync<List<UserSummaryDto>>($"/api/users/{target.Id}/followers");
+            .GetItemsAsync<UserSummaryDto>($"/api/users/{target.Id}/followers");
 
         Assert.NotNull(followers);
         Assert.Equal(
@@ -293,7 +325,7 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
         await FollowAsync(follower, user);
 
         var following = await _factory.CreateClient()
-            .GetFromJsonAsync<List<UserSummaryDto>>($"/api/users/{user.Id}/following");
+            .GetItemsAsync<UserSummaryDto>($"/api/users/{user.Id}/following");
 
         var only = Assert.Single(following!);
         Assert.Equal(followed.Id, only.Id);
@@ -306,7 +338,7 @@ public class UserControllerTests : IClassFixture<ReelrApiFactory>
         var user = await _factory.CreateAuthenticatedAsync();
 
         var followers = await _factory.CreateClient()
-            .GetFromJsonAsync<List<UserSummaryDto>>($"/api/users/{user.Id}/followers");
+            .GetItemsAsync<UserSummaryDto>($"/api/users/{user.Id}/followers");
 
         Assert.Empty(followers!);
     }

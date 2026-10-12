@@ -24,8 +24,8 @@ public class WatchlistControllerTests : IClassFixture<ReelrApiFactory>
         response.EnsureSuccessStatusCode();
     }
 
-    private static Task<List<WatchlistResponse>?> GetWatchlistAsync(HttpClient client) =>
-        client.GetFromJsonAsync<List<WatchlistResponse>>("/api/watchlist");
+    private static Task<List<WatchlistResponse>> GetWatchlistAsync(HttpClient client) =>
+        client.GetItemsAsync<WatchlistResponse>("/api/watchlist");
 
     private record WatchlistResponse(int TmdbId, string Title, string? PosterUrl, DateTime AddedAt);
 
@@ -248,7 +248,7 @@ public class WatchlistControllerTests : IClassFixture<ReelrApiFactory>
             }
 
             response.EnsureSuccessStatusCode();
-            Assert.Equal(tmdbId, Assert.Single((await response.Content.ReadFromJsonAsync<List<WatchlistResponse>>())!).TmdbId);
+            Assert.Equal(tmdbId, Assert.Single((await response.Content.ReadItemsAsync<WatchlistResponse>())!).TmdbId);
             return true;
         }
 

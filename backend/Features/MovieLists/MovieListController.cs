@@ -2,6 +2,7 @@ using backend.Data;
 using backend.Features.Auth;
 using backend.Features.Movies;
 using backend.Features.MovieLists.DTOs;
+using backend.Features.Paging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -25,20 +26,17 @@ namespace backend.Features.MovieLists
 
         [Authorize]
         [HttpGet]
-        [EndpointSummary("Get the current user's movie lists")]
-        public async Task<ActionResult<List<MovieListSummaryDto>>> GetLists()
+        [EndpointSummary("Get the current user's movie lists, newest first, one page at a time")]
+        public async Task<ActionResult<PageDto<MovieListSummaryDto>>> GetLists([FromQuery] PageQuery page)
         {
             var userId = User.GetUserId();
 
-            var lists = await ToSummaries(_context.MovieLists.Where(l => l.UserId == userId))
-                .ToListAsync();
-
-            return Ok(lists);
+            return Ok(await GetSummaryPage(_context.MovieLists.Where(l => l.UserId == userId), page));
         }
 
         [HttpGet("/api/users/{userId:int}/lists")]
-        [EndpointSummary("Get a user's movie lists. Private lists are included only for their owner")]
-        public async Task<ActionResult<List<MovieListSummaryDto>>> GetUserLists(int userId)
+        [EndpointSummary("Get a user's movie lists, newest first, one page at a time. Private lists are included only for their owner")]
+        public async Task<ActionResult<PageDto<MovieListSummaryDto>>> GetUserLists(int userId, [FromQuery] PageQuery page)
         {
             if (!await _context.Users.AnyAsync(u => u.Id == userId))
             {
@@ -47,10 +45,7 @@ namespace backend.Features.MovieLists
 
             var own = User.FindUserId() == userId;
 
-            var lists = await ToSummaries(_context.MovieLists.Where(l => l.UserId == userId && (own || l.IsPublic)))
-                .ToListAsync();
-
-            return Ok(lists);
+            return Ok(await GetSummaryPage(_context.MovieLists.Where(l => l.UserId == userId && (own || l.IsPublic)), page));
         }
 
         [Authorize]
@@ -101,12 +96,12 @@ namespace backend.Features.MovieLists
 
             var movieCount = await _context.MovieListItems.CountAsync(i => i.MovieListId == id);
 
-            return Ok(ToDto(list, movieCount, topMovies));
+            return Ok(await WithWatchedCount(ToDto(list, movieCount, topMovies)));
         }
 
         [HttpGet("{id:int}/movies")]
-        [EndpointSummary("Get the movies in a list")]
-        public async Task<ActionResult<List<MovieListItemDto>>> GetListMovies(int id)
+        [EndpointSummary("Get the movies in a list, newest addition first, one page at a time")]
+        public async Task<ActionResult<PageDto<MovieListItemDto>>> GetListMovies(int id, [FromQuery] PageQuery page)
         {
             var list = await _context.MovieLists.FirstOrDefaultAsync(l => l.Id == id);
 
@@ -120,19 +115,33 @@ namespace backend.Features.MovieLists
                 return NotFound();
             }
 
-            var movies = await _context.MovieListItems
-                .Where(i => i.MovieListId == id)
+            var items = _context.MovieListItems.Where(i => i.MovieListId == id);
+
+            if (page.After is PageCursor after)
+            {
+                var at = after.At;
+                var movieId = after.Id;
+                items = items.Where(i => i.AddedAt < at || (i.AddedAt == at && i.MovieId < movieId));
+            }
+
+            var rows = await items
                 .OrderByDescending(i => i.AddedAt)
-                .Select(i => new MovieListItemDto
+                .ThenByDescending(i => i.MovieId)
+                .Take(page.Limit + 1)
+                .Select(i => new
                 {
-                    TmdbId = i.Movie.TmdbId,
-                    Title = i.Movie.Title,
-                    PosterUrl = i.Movie.PosterUrl,
-                    AddedAt = i.AddedAt
+                    i.MovieId,
+                    Item = new MovieListItemDto
+                    {
+                        TmdbId = i.Movie.TmdbId,
+                        Title = i.Movie.Title,
+                        PosterUrl = i.Movie.PosterUrl,
+                        AddedAt = i.AddedAt
+                    }
                 })
                 .ToListAsync();
 
-            return Ok(movies);
+            return Ok(PageDto.From(rows, page.Limit, r => new PageCursor(r.Item.AddedAt, r.MovieId), r => r.Item));
         }
 
         [Authorize]
@@ -209,7 +218,7 @@ namespace backend.Features.MovieLists
 
             var movieCount = await _context.MovieListItems.CountAsync(i => i.MovieListId == id);
 
-            return Ok(ToDto(list, movieCount, topMovies));
+            return Ok(await WithWatchedCount(ToDto(list, movieCount, topMovies)));
         }
 
         [Authorize]
@@ -304,9 +313,26 @@ namespace backend.Features.MovieLists
         }
 
         // Newest list first, each with its newest movies as a preview.
+        private static async Task<PageDto<MovieListSummaryDto>> GetSummaryPage(IQueryable<MovieList> lists, PageQuery page)
+        {
+            if (page.After is PageCursor after)
+            {
+                var at = after.At;
+                var id = after.Id;
+                lists = lists.Where(l => l.CreatedAt < at || (l.CreatedAt == at && l.Id < id));
+            }
+
+            var rows = await ToSummaries(lists)
+                .OrderByDescending(l => l.CreatedAt)
+                .ThenByDescending(l => l.Id)
+                .Take(page.Limit + 1)
+                .ToListAsync();
+
+            return PageDto.From(rows, page.Limit, l => new PageCursor(l.CreatedAt, l.Id));
+        }
+
         private static IQueryable<MovieListSummaryDto> ToSummaries(IQueryable<MovieList> lists) =>
             lists
-                .OrderByDescending(l => l.CreatedAt)
                 .Select(l => new MovieListSummaryDto
                 {
                     Id = l.Id,
@@ -326,6 +352,18 @@ namespace backend.Features.MovieLists
                         .ToList(),
                     CreatedAt = l.CreatedAt
                 });
+
+        // The list page shows how many of its films the viewer has seen, so it need not load every film.
+        private async Task<MovieListDto> WithWatchedCount(MovieListDto list)
+        {
+            if (User.FindUserId() is int viewerId)
+            {
+                list.WatchedCount = await _context.MovieListItems.CountAsync(i =>
+                    i.MovieListId == list.Id && _context.WatchedMovies.Any(w => w.UserId == viewerId && w.MovieId == i.MovieId));
+            }
+
+            return list;
+        }
 
         private bool IsOwner(MovieList list)
         {

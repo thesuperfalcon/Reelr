@@ -25,7 +25,7 @@ namespace backend.Features.Diary
             _context = context;
         }
 
-        // Scores go from 0 to 5 in half steps.
+        // Scores go from half a star (0.5) to 5 in half steps, the same range the star picker offers.
         public static bool IsHalfStep(decimal score) => decimal.Remainder(score * 2, 1) == 0;
 
         // A picked day is stored at noon UTC, so it shows as the same calendar day in every time zone from UTC-12 to UTC+12.
@@ -121,6 +121,7 @@ namespace backend.Features.Diary
 
                 // A written or rewritten review belongs to the entry that logged it.
                 review.DiaryEntry = entry;
+                review.ActivityAt = entry.LoggedAt;
             }
 
             await RemoveFromWatchlistAsync(userId, movieId);
@@ -130,11 +131,17 @@ namespace backend.Features.Diary
         }
 
         // Marks the film watched now, or updates the existing status, and logs it with the current rating.
-        // An existing status keeps its watch date.
-        public async Task<WatchedMovie> MarkWatchedAsync(int userId, int movieId, bool? liked, bool rewatched)
+        // An existing status keeps its watch date. With onlyIfNew, an existing status is left alone and null is
+        // returned, so two "mark as watched" requests at once cannot both succeed and log the film twice.
+        public async Task<WatchedMovie?> MarkWatchedAsync(int userId, int movieId, bool? liked, bool rewatched, bool onlyIfNew = false)
         {
             var status = await _context.WatchedMovies
                 .FirstOrDefaultAsync(w => w.UserId == userId && w.MovieId == movieId);
+
+            if (status != null && onlyIfNew)
+            {
+                return null;
+            }
 
             if (status == null)
             {
@@ -164,10 +171,16 @@ namespace backend.Features.Diary
         }
 
         // Sets the rating, creating it when needed. A rated film counts as watched, so each rating logs a new diary entry.
-        public async Task<Rating> RateAsync(int userId, int movieId, decimal score)
+        // With onlyIfNew, an existing rating is left alone and null is returned, as in MarkWatchedAsync.
+        public async Task<Rating?> RateAsync(int userId, int movieId, decimal score, bool onlyIfNew = false)
         {
             var rating = await _context.Ratings
                 .FirstOrDefaultAsync(r => r.UserId == userId && r.MovieId == movieId);
+
+            if (rating != null && onlyIfNew)
+            {
+                return null;
+            }
 
             if (rating == null)
             {
@@ -224,18 +237,29 @@ namespace backend.Features.Diary
             entry.Liked = liked;
             entry.Rewatched = rewatched;
 
+            // The status is computed from the saved diary, so it takes two saves. One transaction keeps the
+            // diary and the status in step if the second save fails.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
             await _context.SaveChangesAsync();
             await SyncWatchedStatusAsync(entry.UserId, entry.MovieId);
             await _context.SaveChangesAsync();
+
+            await transaction.CommitAsync();
         }
 
         // Deletes one entry and its review. Deleting the last entry marks the film unwatched.
         public async Task DeleteEntryAsync(DiaryEntry entry)
         {
+            // Two saves in one transaction, as in EditEntryAsync.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
             await DeleteEntriesAsync([entry]);
             await _context.SaveChangesAsync();
             await SyncWatchedStatusAsync(entry.UserId, entry.MovieId);
             await _context.SaveChangesAsync();
+
+            await transaction.CommitAsync();
         }
 
         // Adds a diary entry that snapshots the current status and rating. A null watchedAt means now.

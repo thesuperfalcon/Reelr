@@ -1,7 +1,9 @@
 using backend.Data;
 using backend.Features.Auth;
 using backend.Features.Movies;
+using backend.Features.Paging;
 using backend.Features.Reviews.DTOs;
+using backend.Features.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,25 +24,55 @@ namespace backend.Features.Reviews
         }
 
         [HttpGet]
-        [EndpointSummary("Get reviews for a movie")]
-        public async Task<ActionResult<List<ReviewDto>>> GetReviews(int tmdbId)
+        [EndpointSummary("Get reviews for a movie, newest first, one page at a time")]
+        public async Task<ActionResult<MovieReviewPageDto>> GetReviews(int tmdbId, [FromQuery] PageQuery page)
         {
-            var reviews = await ToDtos(_context.Reviews.Where(r => r.Movie.TmdbId == tmdbId))
-                .OrderByDescending(r => r.CreatedAt)
-                .ToListAsync();
+            // People the viewer blocked are left out.
+            var blocked = _context.BlockedBy(User.FindUserId());
+            var reviews = _context.Reviews.Where(r => r.Movie.TmdbId == tmdbId && !blocked.Contains(r.UserId));
+            var result = await GetPage(reviews, page);
 
-            return Ok(reviews);
+            return Ok(new MovieReviewPageDto
+            {
+                Items = result.Items,
+                NextCursor = result.NextCursor,
+                TotalCount = await reviews.CountAsync()
+            });
+        }
+
+        [Authorize]
+        [HttpGet("mine")]
+        [EndpointSummary("Get the current user's review of a movie. 204 when they have not reviewed it")]
+        public async Task<ActionResult<ReviewDto?>> GetMyReview(int tmdbId)
+        {
+            var userId = User.GetUserId();
+
+            return Ok(await ToDtos(_context.Reviews.Where(r => r.Movie.TmdbId == tmdbId && r.UserId == userId)).FirstOrDefaultAsync());
         }
 
         [HttpGet("/api/users/{userId:int}/reviews")]
-        [EndpointSummary("Get reviews by a user")]
-        public async Task<ActionResult<List<ReviewDto>>> GetReviewsByUser(int userId)
+        [EndpointSummary("Get reviews by a user, newest first, one page at a time")]
+        public async Task<ActionResult<PageDto<ReviewDto>>> GetReviewsByUser(int userId, [FromQuery] PageQuery page)
         {
-            var reviews = await ToDtos(_context.Reviews.Where(r => r.UserId == userId))
+            return Ok(await GetPage(_context.Reviews.Where(r => r.UserId == userId), page));
+        }
+
+        private async Task<PageDto<ReviewDto>> GetPage(IQueryable<Review> reviews, PageQuery page)
+        {
+            if (page.After is PageCursor after)
+            {
+                var at = after.At;
+                var id = after.Id;
+                reviews = reviews.Where(r => r.CreatedAt < at || (r.CreatedAt == at && r.Id < id));
+            }
+
+            var rows = await ToDtos(reviews)
                 .OrderByDescending(r => r.CreatedAt)
+                .ThenByDescending(r => r.Id)
+                .Take(page.Limit + 1)
                 .ToListAsync();
 
-            return Ok(reviews);
+            return PageDto.From(rows, page.Limit, r => new PageCursor(r.CreatedAt, r.Id));
         }
 
         [HttpGet("/api/reviews/{id:int}")]
@@ -79,13 +111,15 @@ namespace backend.Features.Reviews
                 return Conflict("User has already reviewed this movie.");
             }
 
+            var now = DateTime.UtcNow;
             var review = new Review
             {
                 UserId = userId,
                 MovieId = movie.Id,
                 Text = dto.Text,
                 ContainsSpoilers = dto.ContainsSpoilers,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = now,
+                ActivityAt = now
             };
 
             _context.Reviews.Add(review);

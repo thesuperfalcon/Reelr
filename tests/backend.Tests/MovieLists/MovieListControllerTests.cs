@@ -105,7 +105,7 @@ public class MovieListControllerTests : IClassFixture<ReelrApiFactory>
         await CreateListAsync(alice.Client, "Alice 2", isPublic: false);
         await CreateListAsync(bob.Client, "Bob 1");
 
-        var lists = await alice.Client.GetFromJsonAsync<List<MovieListSummaryDto>>("/api/lists");
+        var lists = await alice.Client.GetItemsAsync<MovieListSummaryDto>("/api/lists");
 
         Assert.NotNull(lists);
         Assert.Equal(["Alice 2", "Alice 1"], lists.Select(l => l.Name));
@@ -121,9 +121,9 @@ public class MovieListControllerTests : IClassFixture<ReelrApiFactory>
         await CreateListAsync(other.Client, "Not theirs");
         var url = $"/api/users/{owner.Id}/lists";
 
-        var asOwner = await owner.Client.GetFromJsonAsync<List<MovieListSummaryDto>>(url);
-        var asOther = await other.Client.GetFromJsonAsync<List<MovieListSummaryDto>>(url);
-        var anonymous = await _factory.CreateClient().GetFromJsonAsync<List<MovieListSummaryDto>>(url);
+        var asOwner = await owner.Client.GetItemsAsync<MovieListSummaryDto>(url);
+        var asOther = await other.Client.GetItemsAsync<MovieListSummaryDto>(url);
+        var anonymous = await _factory.CreateClient().GetItemsAsync<MovieListSummaryDto>(url);
 
         Assert.Equal(["Secret", "Public one"], asOwner!.Select(l => l.Name));
         Assert.Equal(["Public one"], asOther!.Select(l => l.Name));
@@ -315,7 +315,7 @@ public class MovieListControllerTests : IClassFixture<ReelrApiFactory>
         var response = await owner.Client.PostAsJsonAsync($"/api/lists/{list.Id}/movies", new AddMovieToListDto { TmdbId = tmdbId });
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        var movies = await owner.Client.GetFromJsonAsync<List<MovieListItemDto>>($"/api/lists/{list.Id}/movies");
+        var movies = await owner.Client.GetItemsAsync<MovieListItemDto>($"/api/lists/{list.Id}/movies");
         var movie = Assert.Single(movies!);
         Assert.Equal(tmdbId, movie.TmdbId);
         Assert.Equal("The Matrix", movie.Title);
@@ -389,7 +389,7 @@ public class MovieListControllerTests : IClassFixture<ReelrApiFactory>
         var response = await owner.Client.DeleteAsync($"/api/lists/{list.Id}/movies/{removeId}");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        var movies = await owner.Client.GetFromJsonAsync<List<MovieListItemDto>>($"/api/lists/{list.Id}/movies");
+        var movies = await owner.Client.GetItemsAsync<MovieListItemDto>($"/api/lists/{list.Id}/movies");
         Assert.Equal([keepId], movies!.Select(m => m.TmdbId));
     }
 
@@ -416,7 +416,7 @@ public class MovieListControllerTests : IClassFixture<ReelrApiFactory>
         var response = await other.Client.DeleteAsync($"/api/lists/{list.Id}/movies/{tmdbId}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        var movies = await owner.Client.GetFromJsonAsync<List<MovieListItemDto>>($"/api/lists/{list.Id}/movies");
+        var movies = await owner.Client.GetItemsAsync<MovieListItemDto>($"/api/lists/{list.Id}/movies");
         Assert.Single(movies!);
     }
 }

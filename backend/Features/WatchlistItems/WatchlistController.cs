@@ -1,6 +1,7 @@
 using backend.Data;
 using backend.Features.Auth;
 using backend.Features.Movies;
+using backend.Features.Paging;
 using backend.Features.Users;
 using backend.Features.WatchlistItems.DTOs;
 using Microsoft.AspNetCore.Authorization;
@@ -77,18 +78,30 @@ namespace backend.Features.WatchlistItems
         }
 
         [HttpGet]
-        [EndpointSummary("Get the current user's watchlist")]
-        public async Task<ActionResult<List<WatchlistEntryDto>>> GetWatchlist()
+        [EndpointSummary("Get the current user's watchlist, newest first, one page at a time")]
+        public async Task<ActionResult<PageDto<WatchlistEntryDto>>> GetWatchlist([FromQuery] PageQuery page)
         {
             var userId = User.GetUserId();
 
-            return Ok(await GetEntries(userId));
+            return Ok(await GetEntries(userId, page));
+        }
+
+        [HttpGet("{tmdbId:int}")]
+        [EndpointSummary("Get whether a movie is on the current user's watchlist")]
+        public async Task<ActionResult<WatchlistStateDto>> GetWatchlistState(int tmdbId)
+        {
+            var userId = User.GetUserId();
+
+            return Ok(new WatchlistStateDto
+            {
+                OnWatchlist = await _context.WatchlistItems.AnyAsync(w => w.UserId == userId && w.Movie.TmdbId == tmdbId)
+            });
         }
 
         [AllowAnonymous]
         [HttpGet("/api/users/{userId:int}/watchlist")]
         [EndpointSummary("Get a user's watchlist, if their watchlist visibility allows the caller to see it")]
-        public async Task<ActionResult<List<WatchlistEntryDto>>> GetUserWatchlist(int userId)
+        public async Task<ActionResult<PageDto<WatchlistEntryDto>>> GetUserWatchlist(int userId, [FromQuery] PageQuery page)
         {
             var viewerId = User.FindUserId();
 
@@ -98,20 +111,38 @@ namespace backend.Features.WatchlistItems
                 return NotFound();
             }
 
-            return Ok(await GetEntries(userId));
+            return Ok(await GetEntries(userId, page));
         }
 
-        private Task<List<WatchlistEntryDto>> GetEntries(int userId) =>
-            _context.WatchlistItems
-                .Where(w => w.UserId == userId)
+        private async Task<PageDto<WatchlistEntryDto>> GetEntries(int userId, PageQuery page)
+        {
+            var items = _context.WatchlistItems.Where(w => w.UserId == userId);
+
+            if (page.After is PageCursor after)
+            {
+                var at = after.At;
+                var id = after.Id;
+                items = items.Where(w => w.AddedAt < at || (w.AddedAt == at && w.MovieId < id));
+            }
+
+            var rows = await items
                 .OrderByDescending(w => w.AddedAt)
-                .Select(w => new WatchlistEntryDto
+                .ThenByDescending(w => w.MovieId)
+                .Take(page.Limit + 1)
+                .Select(w => new
                 {
-                    TmdbId = w.Movie.TmdbId,
-                    Title = w.Movie.Title,
-                    PosterUrl = w.Movie.PosterUrl,
-                    AddedAt = w.AddedAt
+                    w.MovieId,
+                    Entry = new WatchlistEntryDto
+                    {
+                        TmdbId = w.Movie.TmdbId,
+                        Title = w.Movie.Title,
+                        PosterUrl = w.Movie.PosterUrl,
+                        AddedAt = w.AddedAt
+                    }
                 })
                 .ToListAsync();
+
+            return PageDto.From(rows, page.Limit, r => new PageCursor(r.Entry.AddedAt, r.MovieId), r => r.Entry);
+        }
     }
 }

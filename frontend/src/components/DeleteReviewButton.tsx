@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useDeleteReview } from "../lib/queries";
+import { useReturnFocus } from "../lib/focus";
 
 interface DeleteReviewButtonProps {
   reviewId: number;
@@ -11,10 +12,12 @@ interface DeleteReviewButtonProps {
 export function DeleteReviewButton({ reviewId, onDeleted, className = "" }: DeleteReviewButtonProps) {
   const [confirming, setConfirming] = useState(false);
   const remove = useDeleteReview();
+  const triggerRef = useReturnFocus(confirming);
 
   if (!confirming) {
     return (
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setConfirming(true)}
         className={`text-sm text-haze underline underline-offset-4 transition hover:text-alarm ${className}`}
@@ -37,6 +40,7 @@ export function DeleteReviewButton({ reviewId, onDeleted, className = "" }: Dele
       </button>
       <button
         type="button"
+        autoFocus
         onClick={() => setConfirming(false)}
         disabled={remove.isPending}
         className="text-haze underline underline-offset-4 hover:text-screen"

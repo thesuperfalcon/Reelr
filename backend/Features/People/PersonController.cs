@@ -1,7 +1,10 @@
+using System.ComponentModel.DataAnnotations;
+using backend.Features.Auth;
 using backend.Features.Movies;
 using backend.Features.Movies.DTOs;
 using backend.Features.People.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace backend.Features.People;
 
@@ -25,19 +28,8 @@ public class PersonController : ControllerBase
             return BadRequest("personId must be a positive integer.");
         }
 
-        TmdbPersonDetailsDto? person;
-
-        try
-        {
-            person = await _tmdbService.GetPerson(personId);
-        }
-        catch (HttpRequestException ex)
-        {
-            return StatusCode(
-                StatusCodes.Status502BadGateway,
-                $"Could not fetch data from TMDB: {ex.Message}"
-            );
-        }
+        // A TMDB failure becomes a 502 or 503 in TmdbExceptionHandler.
+        var person = await _tmdbService.GetPerson(personId);
 
         if (person == null)
         {
@@ -48,8 +40,10 @@ public class PersonController : ControllerBase
     }
 
     [HttpGet("search")]
+    [EnableRateLimiting(RateLimitPolicies.Search)]
     [EndpointSummary("Search people")]
-    public async Task<ActionResult<TmdbPersonSearchResultDto>> SearchPeople([FromQuery] string query)
+    public async Task<ActionResult<TmdbPersonSearchResultDto>> SearchPeople(
+        [FromQuery, MaxLength(TmdbService.MaxQueryLength)] string query)
     {
         if (string.IsNullOrWhiteSpace(query))
         {

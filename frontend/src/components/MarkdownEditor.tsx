@@ -133,7 +133,7 @@ export function MarkdownEditor({ id, value, onChange, maxLength, placeholder, hi
   const modifier = isMac ? "⌘" : "Ctrl+";
 
   return (
-    <div className="mt-2 rounded-sm bg-salon ring-1 ring-white/15 focus-within:ring-2 focus-within:ring-projector">
+    <div className="mt-2 rounded-sm bg-salon ring-1 ring-edge focus-within:ring-2 focus-within:ring-projector">
       <div className="flex items-center gap-1 border-b border-white/10 px-2 py-1.5">
         <div role="toolbar" aria-label="Formatting" aria-controls={id} className="flex items-center gap-0.5">
           {actions.map((action) => {
@@ -182,7 +182,7 @@ export function MarkdownEditor({ id, value, onChange, maxLength, placeholder, hi
         placeholder={placeholder}
         aria-describedby={`${counterId}${hint ? ` ${hintId}` : ""}`}
         hidden={preview}
-        className="block max-h-[50vh] min-h-40 w-full resize-y bg-transparent px-3 py-2 text-screen placeholder:text-haze/60 focus:outline-none"
+        className="block max-h-[50vh] min-h-40 w-full resize-y bg-transparent px-3 py-2 text-screen placeholder:text-haze focus:outline-none"
       />
       {preview && (
         <div className="max-h-[50vh] min-h-40 overflow-y-auto px-3 py-2">

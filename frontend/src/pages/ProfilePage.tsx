@@ -1,4 +1,4 @@
-import type { UseQueryResult } from "@tanstack/react-query";
+import type { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query";
 import { useState } from "react";
 import {
     Link,
@@ -8,10 +8,12 @@ import {
     useSearchParams,
 } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { useToggleBlock } from "../lib/moderation";
 import { DeleteReviewButton } from "../components/DeleteReviewButton";
 import { DiaryEntryDialog } from "../components/DiaryEntryDialog";
 import { ListCard } from "../components/ListCard";
 import { ListFormDialog } from "../components/ListFormDialog";
+import { LoadMore } from "../components/LoadMore";
 import { Poster } from "../components/Poster";
 import { ReviewReactions } from "../components/ReviewReactions";
 import { ReviewText } from "../components/ReviewText";
@@ -21,6 +23,7 @@ import { ErrorMessage, Loading } from "../components/Status";
 import { UserAvatar, UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
 import {
+    pageItems,
     useDiary,
     useFollowList,
     useToggleFollow,
@@ -34,11 +37,15 @@ import {
 import { tmdbImage } from "../lib/tmdb";
 import type {
     DiaryEntry,
+    Page,
     SearchMovie,
     UserProfile,
     WatchlistEntry,
 } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { moveBetweenTabs } from "../lib/tabs";
+import { usePageTitle } from "../lib/title";
+import { useReturnFocus } from "../lib/focus";
 
 type Tab =
     | "diary"
@@ -169,7 +176,7 @@ function Diary({
     diary,
 }: {
     owner: Owner;
-    diary: UseQueryResult<DiaryEntry[]>;
+    diary: UseInfiniteQueryResult<InfiniteData<Page<DiaryEntry>>>;
 }) {
     if (diary.isPending) {
         return <Loading label="Loading diary" />;
@@ -181,7 +188,9 @@ function Diary({
         );
     }
 
-    if (diary.data.length === 0) {
+    const entries = pageItems(diary.data);
+
+    if (entries.length === 0) {
         return (
             <EmptyState owner={owner}>
                 {owner.own
@@ -193,11 +202,11 @@ function Diary({
 
     return (
         <div className="mt-8 space-y-10">
-            {groupByMonth(diary.data).map((group) => (
+            {groupByMonth(entries).map((group) => (
                 <section key={group.month} aria-label={group.month}>
-                    <h3 className="marquee text-2xl text-projector">
+                    <h2 className="marquee text-2xl text-projector">
                         {group.month}
-                    </h3>
+                    </h2>
                     <ol className="mt-3 divide-y divide-white/5">
                         {group.entries.map((entry) => {
                             const date = new Date(entry.watchedAt);
@@ -223,6 +232,7 @@ function Diary({
                                         to={`/movie/${entry.tmdbId}`}
                                         className="shrink-0 rounded-sm"
                                         tabIndex={-1}
+                                        aria-hidden="true"
                                     >
                                         {poster ? (
                                             <img
@@ -261,7 +271,7 @@ function Diary({
                                         {entry.hasReview && (
                                             <Link
                                                 to="?tab=reviews"
-                                                className="text-haze hover:text-screen"
+                                                className="-m-1 inline-flex size-6 items-center justify-center text-haze hover:text-screen"
                                                 aria-label="Reviewed. Show reviews"
                                                 title="Reviewed"
                                             >
@@ -297,6 +307,7 @@ function Diary({
                     </ol>
                 </section>
             ))}
+            <LoadMore query={diary} what="diary entries" />
         </div>
     );
 }
@@ -323,7 +334,9 @@ function Reviews({ owner }: { owner: Owner }) {
         );
     }
 
-    if (reviews.data.length === 0) {
+    const items = pageItems(reviews.data);
+
+    if (items.length === 0) {
         return (
             <EmptyState owner={owner}>
                 {owner.own
@@ -334,84 +347,88 @@ function Reviews({ owner }: { owner: Owner }) {
     }
 
     return (
-        <ol className="mt-4 divide-y divide-white/5">
-            {reviews.data.map((review) => {
-                const poster = tmdbImage(review.posterUrl, "w185");
-                return (
-                    <li key={review.id} className="flex gap-4 py-6">
-                        <Link
-                            to={`/movie/${review.tmdbId}`}
-                            className="shrink-0 self-start rounded-sm"
-                            tabIndex={-1}
-                        >
-                            {poster ? (
-                                <img
-                                    src={poster}
-                                    alt=""
-                                    loading="lazy"
-                                    className="aspect-[2/3] w-16 rounded-sm object-cover"
-                                />
-                            ) : (
-                                <div
-                                    className="aspect-[2/3] w-16 rounded-sm bg-row"
-                                    aria-hidden="true"
-                                />
-                            )}
-                        </Link>
-
-                        <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                <Link
-                                    to={`/movie/${review.tmdbId}`}
-                                    className="font-medium hover:text-projector"
-                                >
-                                    {review.title}
-                                </Link>
-                                {review.score !== null && (
-                                    <Stars
-                                        score={review.score}
-                                        className="h-3.5"
-                                    />
-                                )}
-                                <Link
-                                    to={`/review/${review.id}`}
-                                    className="text-sm text-haze hover:text-screen hover:underline"
-                                    title="Open review"
-                                >
-                                    <time dateTime={review.createdAt}>
-                                        {reviewDateFormat.format(
-                                            new Date(review.createdAt),
-                                        )}
-                                    </time>
-                                </Link>
-                                {review.updatedAt && (
-                                    <span className="text-sm text-haze">
-                                        (edited)
-                                    </span>
-                                )}
-                                {review.containsSpoilers && <SpoilerTag />}
-                                {owner.own && (
-                                    <DeleteReviewButton
-                                        reviewId={review.id}
-                                        className="ml-auto"
-                                    />
-                                )}
-                            </div>
-                            <SpoilerGate
-                                active={review.containsSpoilers && !owner.own}
-                                className="mt-2"
+        <>
+            <ol className="mt-4 divide-y divide-white/5">
+                {items.map((review) => {
+                    const poster = tmdbImage(review.posterUrl, "w185");
+                    return (
+                        <li key={review.id} className="flex gap-4 py-6">
+                            <Link
+                                to={`/movie/${review.tmdbId}`}
+                                className="shrink-0 self-start rounded-sm"
+                                tabIndex={-1}
+                                aria-hidden="true"
                             >
-                                <ReviewText
-                                    text={review.text}
+                                {poster ? (
+                                    <img
+                                        src={poster}
+                                        alt=""
+                                        loading="lazy"
+                                        className="aspect-[2/3] w-16 rounded-sm object-cover"
+                                    />
+                                ) : (
+                                    <div
+                                        className="aspect-[2/3] w-16 rounded-sm bg-row"
+                                        aria-hidden="true"
+                                    />
+                                )}
+                            </Link>
+
+                            <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    <Link
+                                        to={`/movie/${review.tmdbId}`}
+                                        className="font-medium hover:text-projector"
+                                    >
+                                        {review.title}
+                                    </Link>
+                                    {review.score !== null && (
+                                        <Stars
+                                            score={review.score}
+                                            className="h-3.5"
+                                        />
+                                    )}
+                                    <Link
+                                        to={`/review/${review.id}`}
+                                        className="text-sm text-haze hover:text-screen hover:underline"
+                                        title="Open review"
+                                    >
+                                        <time dateTime={review.createdAt}>
+                                            {reviewDateFormat.format(
+                                                new Date(review.createdAt),
+                                            )}
+                                        </time>
+                                    </Link>
+                                    {review.updatedAt && (
+                                        <span className="text-sm text-haze">
+                                            (edited)
+                                        </span>
+                                    )}
+                                    {review.containsSpoilers && <SpoilerTag />}
+                                    {owner.own && (
+                                        <DeleteReviewButton
+                                            reviewId={review.id}
+                                            className="ml-auto"
+                                        />
+                                    )}
+                                </div>
+                                <SpoilerGate
+                                    active={review.containsSpoilers && !owner.own}
                                     className="mt-2"
-                                />
-                            </SpoilerGate>
-                            <ReviewReactions review={review} className="mt-3" />
-                        </div>
-                    </li>
-                );
-            })}
-        </ol>
+                                >
+                                    <ReviewText
+                                        text={review.text}
+                                        className="mt-2"
+                                    />
+                                </SpoilerGate>
+                                <ReviewReactions review={review} className="mt-3" />
+                            </div>
+                        </li>
+                    );
+                })}
+            </ol>
+            <LoadMore query={reviews} what="reviews" />
+        </>
     );
 }
 
@@ -427,7 +444,7 @@ function Lists({ owner }: { owner: Owner }) {
         content = (
             <ErrorMessage error={lists.error} retry={() => lists.refetch()} />
         );
-    } else if (lists.data.length === 0) {
+    } else if (pageItems(lists.data).length === 0) {
         content = (
             <p className="py-10 text-haze">
                 {owner.own
@@ -437,13 +454,16 @@ function Lists({ owner }: { owner: Owner }) {
         );
     } else {
         content = (
-            <ul className="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
-                {lists.data.map((list) => (
-                    <li key={list.id}>
-                        <ListCard list={list} />
-                    </li>
-                ))}
-            </ul>
+            <>
+                <ul className="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
+                    {pageItems(lists.data).map((list) => (
+                        <li key={list.id}>
+                            <ListCard list={list} />
+                        </li>
+                    ))}
+                </ul>
+                <LoadMore query={lists} what="lists" />
+            </>
         );
     }
 
@@ -488,7 +508,7 @@ function Watchlist({
     watchlist,
 }: {
     owner: Owner;
-    watchlist: UseQueryResult<WatchlistEntry[]>;
+    watchlist: UseInfiniteQueryResult<InfiniteData<Page<WatchlistEntry>>>;
 }) {
     if (watchlist.isPending) {
         return <Loading label="Loading watchlist" />;
@@ -503,7 +523,9 @@ function Watchlist({
         );
     }
 
-    if (watchlist.data.length === 0) {
+    const entries = pageItems(watchlist.data);
+
+    if (entries.length === 0) {
         return (
             <EmptyState owner={owner}>
                 {owner.own
@@ -514,14 +536,17 @@ function Watchlist({
     }
 
     return (
-        <ul className="mt-8 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:gap-4">
-            {watchlist.data.map((entry) => (
-                <li key={entry.tmdbId}>
-                    <Poster movie={asSearchMovie(entry)} size="w342" />
-                    <p className="mt-2 truncate text-sm">{entry.title}</p>
-                </li>
-            ))}
-        </ul>
+        <>
+            <ul className="mt-8 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:gap-4">
+                {entries.map((entry) => (
+                    <li key={entry.tmdbId}>
+                        <Poster movie={asSearchMovie(entry)} size="w342" />
+                        <p className="mt-2 truncate text-sm">{entry.title}</p>
+                    </li>
+                ))}
+            </ul>
+            <LoadMore query={watchlist} what="films" />
+        </>
     );
 }
 
@@ -555,7 +580,9 @@ function FollowList({
         );
     }
 
-    if (follows.data.length === 0) {
+    const people = pageItems(follows.data);
+
+    if (people.length === 0) {
         const subject = owner.own ? "you" : owner.name;
         return (
             <p className="py-10 text-haze">
@@ -569,13 +596,66 @@ function FollowList({
     }
 
     return (
-        <ul className="mt-8 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
-            {follows.data.map((person) => (
-                <li key={person.id}>
-                    <UserLink user={person} />
-                </li>
-            ))}
-        </ul>
+        <>
+            <ul className="mt-8 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+                {people.map((person) => (
+                    <li key={person.id}>
+                        <UserLink user={person} />
+                    </li>
+                ))}
+            </ul>
+            <LoadMore query={follows} what="people" />
+        </>
+    );
+}
+
+// Blocking asks once first. A blocked member cannot follow you, comment on or like your reviews,
+// and you stop seeing their reviews, comments and community activity.
+function BlockButton({ profile }: { profile: UserProfile }) {
+    const toggle = useToggleBlock(profile.id);
+    const [confirming, setConfirming] = useState(false);
+    const triggerRef = useReturnFocus(confirming);
+    const blocked = profile.isBlocked;
+
+    if (confirming) {
+        return (
+            <div className="max-w-xs text-sm">
+                <p className="text-haze">
+                    Block {profile.userName}? You stop following each other, and they can no longer comment on or like
+                    your reviews.
+                </p>
+                <div className="mt-2 flex gap-3">
+                    <button
+                        type="button"
+                        onClick={() => toggle.mutate(false, { onSuccess: () => setConfirming(false) })}
+                        disabled={toggle.isPending}
+                        className="font-medium text-alarm underline underline-offset-4 disabled:opacity-50"
+                    >
+                        {toggle.isPending ? "Blocking…" : "Block"}
+                    </button>
+                    <button
+                        type="button"
+                        autoFocus
+                        onClick={() => setConfirming(false)}
+                        className="text-haze underline underline-offset-4 hover:text-screen"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <button
+            ref={triggerRef}
+            type="button"
+            onClick={() => (blocked ? toggle.mutate(true) : setConfirming(true))}
+            disabled={toggle.isPending}
+            className="inline-flex h-9 items-center rounded-sm px-3 text-sm font-medium text-haze ring-1 ring-white/15 transition hover:text-alarm disabled:opacity-50"
+        >
+            {blocked ? "Unblock" : "Block"}
+        </button>
     );
 }
 
@@ -629,6 +709,7 @@ function isTab(value: string | null, tabs: Tab[]): value is Tab {
 function ProfileView({ userId, own }: { userId: number; own: boolean }) {
     const { user } = useAuth();
     const profile = useUserProfile(userId);
+    usePageTitle(own ? "Your profile" : profile.data?.userName);
     const [params, setParams] = useSearchParams();
 
     if (profile.error instanceof ApiError && profile.error.status === 404) {
@@ -639,7 +720,10 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
     const owner: Owner = { id: userId, name, own };
 
     const tabs: { id: Tab; label: string; count?: number }[] = [
-        { id: "diary", label: "Diary" },
+        // Assumed visible until the profile loads, so most pages do not flicker from Reviews to Diary.
+        ...(own || (profile.data?.canSeeDiary ?? true)
+            ? [{ id: "diary" as const, label: "Diary" }]
+            : []),
         { id: "reviews", label: "Reviews" },
         { id: "lists", label: "Lists" },
         ...(own || profile.data?.canSeeWatchlist
@@ -662,7 +746,7 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
         tabs.map((t) => t.id),
     )
         ? requested
-        : "diary";
+        : tabs[0].id;
 
     return (
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
@@ -689,11 +773,14 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                     </Link>
                 )}
                 {!own && user && profile.data && (
-                    <div className="sm:ml-auto">
-                        <FollowButton
-                            profile={profile.data}
-                            currentUserId={user.id}
-                        />
+                    <div className="flex flex-wrap items-start gap-3 sm:ml-auto">
+                        {!profile.data.isBlocked && (
+                            <FollowButton
+                                profile={profile.data}
+                                currentUserId={user.id}
+                            />
+                        )}
+                        <BlockButton profile={profile.data} />
                     </div>
                 )}
             </header>
@@ -708,6 +795,7 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
             <div
                 role="tablist"
                 aria-label="Profile sections"
+                onKeyDown={moveBetweenTabs}
                 className="mt-10 flex gap-6 overflow-x-auto overflow-y-hidden border-b border-white/5 scrollbar-none [&::-webkit-scrollbar]:hidden"
             >
                 {tabs.map(({ id, label, count }) => (
@@ -717,7 +805,8 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                         role="tab"
                         id={`tab-${id}`}
                         aria-selected={tab === id}
-                        aria-controls={`panel-${id}`}
+                        aria-controls={tab === id ? `panel-${id}` : undefined}
+                        tabIndex={tab === id ? 0 : -1}
                         onClick={() =>
                             setParams(id === "diary" ? {} : { tab: id }, {
                                 replace: true,

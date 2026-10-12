@@ -1,15 +1,19 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { ReportButton } from "../components/ReportButton";
 import { LockIcon } from "../components/ListCard";
 import { ListFormDialog } from "../components/ListFormDialog";
+import { LoadMore } from "../components/LoadMore";
 import { Poster } from "../components/Poster";
 import { ErrorMessage, Loading } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
-import { useDeleteMovieList, useDiary, useMovieList, useMovieListMovies, useToggleListMovie } from "../lib/queries";
+import { pageItems, useDeleteMovieList, useMovieList, useMovieListMovies, useToggleListMovie, useWatchedFilms } from "../lib/queries";
 import type { MovieList, MovieListItem, SearchMovie } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { usePageTitle } from "../lib/title";
+import { useReturnFocus } from "../lib/focus";
 
 const dateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric" });
 
@@ -96,17 +100,17 @@ function MovieGrid({
   );
 }
 
-// Only mounted for logged-in visitors, since the diary needs a token.
+// Only mounted for logged-in visitors, since the watched films need a token.
 function WatchedMovieGrid(props: { list: MovieList; movies: MovieListItem[]; owner: boolean }) {
-  const diary = useDiary();
-  const watched = new Set((diary.data ?? []).map((entry) => entry.tmdbId));
-  const seen = props.movies.filter((movie) => watched.has(movie.tmdbId)).length;
+  const watchedFilms = useWatchedFilms();
+  const watched = watchedFilms.data ?? new Set<number>();
+  const { list } = props;
 
   return (
     <>
-      {diary.isSuccess && props.movies.length > 0 && (
+      {list.watchedCount !== null && list.movieCount > 0 && (
         <p className="mt-6 text-sm text-haze">
-          You have watched <span className="font-semibold text-screen">{seen}</span> of {props.movies.length}.
+          You have watched <span className="font-semibold text-screen">{list.watchedCount}</span> of {list.movieCount}.
         </p>
       )}
       <MovieGrid {...props} watched={watched} />
@@ -119,6 +123,7 @@ function OwnerActions({ list }: { list: MovieList }) {
   const remove = useDeleteMovieList();
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const deleteRef = useReturnFocus(confirmDelete);
 
   return (
     <div className="mt-6">
@@ -146,6 +151,7 @@ function OwnerActions({ list }: { list: MovieList }) {
             </button>
             <button
               type="button"
+              autoFocus
               onClick={() => setConfirmDelete(false)}
               disabled={remove.isPending}
               className="text-haze underline underline-offset-4 hover:text-screen"
@@ -155,6 +161,7 @@ function OwnerActions({ list }: { list: MovieList }) {
           </span>
         ) : (
           <button
+            ref={deleteRef}
             type="button"
             onClick={() => setConfirmDelete(true)}
             className="text-haze underline underline-offset-4 transition hover:text-alarm"
@@ -177,6 +184,7 @@ export function ListPage() {
   const listId = Number(useParams().listId);
   const { user } = useAuth();
   const details = useMovieList(listId);
+  usePageTitle(details.data?.name);
   const movies = useMovieListMovies(listId);
 
   if (!Number.isInteger(listId) || listId <= 0 || (details.error instanceof ApiError && details.error.status === 404)) {
@@ -231,16 +239,26 @@ export function ListPage() {
           )}
         </p>
         {owner && <OwnerActions list={list} />}
+        {user && !owner && (
+          <p className="mt-4 text-sm">
+            <ReportButton targetType="List" targetId={list.id} what="this list" />
+          </p>
+        )}
       </header>
 
       {movies.isPending ? (
         <Loading label="Loading films" />
       ) : movies.isError ? (
         <ErrorMessage error={movies.error} retry={() => movies.refetch()} />
-      ) : user ? (
-        <WatchedMovieGrid list={list} movies={movies.data} owner={owner} />
       ) : (
-        <MovieGrid list={list} movies={movies.data} owner={false} watched={new Set()} />
+        <>
+          {user ? (
+            <WatchedMovieGrid list={list} movies={pageItems(movies.data)} owner={owner} />
+          ) : (
+            <MovieGrid list={list} movies={pageItems(movies.data)} owner={false} watched={new Set()} />
+          )}
+          <LoadMore query={movies} what="films" />
+        </>
       )}
     </article>
   );

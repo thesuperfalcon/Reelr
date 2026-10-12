@@ -29,7 +29,7 @@ export function WatchedOnField({ value, onChange }: { value: string; onChange: (
         required
         // An emptied field falls back to today rather than leaving no date.
         onChange={(event) => onChange(event.target.value || today())}
-        className="h-9 rounded-sm bg-salon px-3 text-sm text-screen ring-1 ring-white/15 [color-scheme:dark] focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
+        className="h-9 rounded-sm bg-salon px-3 text-sm text-screen ring-1 ring-edge [color-scheme:dark] focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
       />
       {shortcuts.map(({ label, day }) => (
         <button

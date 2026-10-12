@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { Link, NavLink, Outlet, ScrollRestoration, useNavigate, useSearchParams } from "react-router";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate, useNavigation, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { useSettings } from "../lib/queries";
 
@@ -27,7 +27,7 @@ function SearchBox() {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Search films, people, members"
-        className="w-full rounded-sm bg-row px-3 py-2 text-sm text-screen placeholder:text-haze/70 focus:bg-row-raised focus:outline-2 focus:outline-projector"
+        className="w-full rounded-sm bg-row px-3 py-2 text-sm text-screen ring-1 ring-edge placeholder:text-haze focus:bg-row-raised focus:outline-2 focus:outline-projector"
       />
     </form>
   );
@@ -42,11 +42,83 @@ function UserIcon() {
   );
 }
 
+// Pages are loaded the first time they are opened. A thin bar shows while that takes a moment.
+function PageLoadingBar() {
+  const loading = useNavigation().state === "loading";
+
+  return (
+    <div
+      aria-hidden="true"
+      className={`fixed inset-x-0 top-0 z-50 h-0.5 bg-projector transition-opacity duration-300 ${
+        loading ? "opacity-100 delay-150" : "opacity-0"
+      }`}
+    />
+  );
+}
+
+// Tells the user when their sign-in ended while the page was open, so unsaved work is not lost without
+// warning. Review text in the rating dialog is kept as a draft, so it is still there after logging in again.
+function SessionBanner() {
+  const { sessionNotice, dismissSessionNotice } = useAuth();
+  const location = useLocation();
+
+  const onLoginPage = location.pathname === "/login";
+
+  if (!sessionNotice) {
+    return null;
+  }
+
+  return (
+    <div role="status" className="border-b border-projector/30 bg-row">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 text-sm sm:px-6">
+        <p className="text-screen">
+          Your login has ended. Log in again to keep going; unsaved review text is kept.
+        </p>
+        <div className="flex items-center gap-4 sm:ml-auto">
+          {!onLoginPage && (
+            <Link
+              to="/login"
+              state={{ from: location.pathname + location.search }}
+              onClick={dismissSessionNotice}
+              className="font-medium text-projector underline underline-offset-4"
+            >
+              Log in again
+            </Link>
+          )}
+          <button type="button" onClick={dismissSessionNotice} className="text-haze hover:text-screen">
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const navLinkClass =({ isActive }: { isActive: boolean }) =>
   `text-sm font-medium transition-colors hover:text-screen ${isActive ? "text-screen" : "text-haze"}`;
 
+// After a move to another page, focus goes to the main content, so screen readers start reading the new page
+// there and keyboard users continue from it instead of from the link they used (WCAG 2.4.3). Changes within a
+// page, such as another tab in its query string, keep focus where it is.
+function useFocusOnNavigation() {
+  const { pathname } = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const firstPage = useRef(true);
+
+  useEffect(() => {
+    if (firstPage.current) {
+      firstPage.current = false;
+      return;
+    }
+    mainRef.current?.focus({ preventScroll: true });
+  }, [pathname]);
+
+  return mainRef;
+}
+
 export function Layout() {
   const { user, logout } = useAuth();
+  const mainRef = useFocusOnNavigation();
   // Shares the cached settings with the settings page, so a new picture shows here as soon as it is saved.
   const settings = useSettings(user !== null);
   const profileImageUrl = user ? settings.data?.profileImageUrl : null;
@@ -54,6 +126,14 @@ export function Layout() {
   return (
     <div className="flex min-h-dvh flex-col">
       <ScrollRestoration />
+      {/* The first thing a keyboard user reaches, to jump past the header (WCAG 2.4.1). */}
+      <a
+        href="#main"
+        className="sr-only rounded-sm bg-projector px-4 py-2 font-semibold text-salon focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
+      >
+        Skip to content
+      </a>
+      <PageLoadingBar />
       <header className="border-b border-white/5">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-3 px-4 py-4 sm:px-6">
           <Link to="/" className="marquee text-3xl text-projector">
@@ -107,6 +187,11 @@ export function Layout() {
                     </>
                   )}
                 </NavLink>
+                {settings.data?.isAdmin && (
+                  <NavLink to="/admin" className={navLinkClass}>
+                    Moderation
+                  </NavLink>
+                )}
                 <NavLink to="/settings" className={navLinkClass}>
                   Settings
                 </NavLink>
@@ -134,12 +219,22 @@ export function Layout() {
           </div>
         </div>
       </header>
+      <SessionBanner />
 
-      <main className="flex-1">
+      {/* Focused in code only (skip link, page changes), so it needs no visible focus ring. */}
+      <main id="main" ref={mainRef} tabIndex={-1} className="flex-1 outline-none">
         <Outlet />
       </main>
 
-      <footer className="mx-auto w-full max-w-6xl px-4 py-10 text-xs text-haze/70 sm:px-6">
+      <footer className="mx-auto w-full max-w-6xl px-4 py-10 text-xs text-haze sm:px-6">
+        <nav aria-label="Legal" className="mb-3 flex gap-4">
+          <Link to="/privacy" className="hover:text-screen">
+            Privacy
+          </Link>
+          <Link to="/terms" className="hover:text-screen">
+            Terms
+          </Link>
+        </nav>
         Film data and images from TMDB. Reelr is not endorsed or certified by TMDB.
       </footer>
     </div>

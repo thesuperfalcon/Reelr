@@ -157,7 +157,16 @@
           "name": "Delete User",
           "request": {
             "method": "DELETE",
-            "header": [],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"P@ssw0rd!\"\n}"
+            },
             "url": {
               "raw": "{{baseUrl}}/api/users/{{userId}}",
               "host": [
@@ -169,7 +178,7 @@
                 "{{userId}}"
               ]
             },
-            "description": "Delete the current user's account. Only the account owner can delete it."
+            "description": "Delete the current user's account. Only the account owner can delete it, and the current password is required. Wrong passwords count towards the login lockout."
           },
           "response": []
         },

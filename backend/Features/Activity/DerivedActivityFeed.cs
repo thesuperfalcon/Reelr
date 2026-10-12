@@ -40,18 +40,19 @@ namespace backend.Features.Activity
             var followed = Followed(viewerId);
 
             // Everything the people you follow do, as long as it is public or shared with followers.
-            // Your own activity is all yours to see, private lists and watchlist included.
+            // Your own activity is all yours to see, private lists, diary and watchlist included.
+            // The viewer follows these users, so UserVisibility's rules come down to "not private".
             var sources = new[]
             {
                 (ActivityTypes.Watched, WatchedRank, Watched(_context.DiaryEntries.Where(d =>
-                    followed.Contains(d.UserId) || (includeOwn && d.UserId == viewerId)))),
+                    (followed.Contains(d.UserId) && d.User.DiaryVisibility != DiaryVisibility.Private)
+                    || (includeOwn && d.UserId == viewerId)))),
                 (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r =>
                     followed.Contains(r.UserId) || (includeOwn && r.UserId == viewerId)))),
                 (ActivityTypes.ListCreated, ListCreatedRank, ListsCreated(_context.MovieLists.Where(l =>
                     (l.IsPublic && followed.Contains(l.UserId)) || (includeOwn && l.UserId == viewerId)))),
                 (ActivityTypes.ListAdded, ListAddedRank, ListItemsAdded(_context.MovieListItems.Where(i =>
                     (i.MovieList.IsPublic && followed.Contains(i.MovieList.UserId)) || (includeOwn && i.MovieList.UserId == viewerId)))),
-                // The viewer follows these users, so UserVisibility.CanSeeWatchlist comes down to "not private".
                 (ActivityTypes.WatchlistAdded, WatchlistAddedRank, WatchlistAdds(_context.WatchlistItems.Where(w =>
                     (followed.Contains(w.UserId) && w.User.WatchlistVisibility != WatchlistVisibility.Private)
                     || (includeOwn && w.UserId == viewerId))))
@@ -63,17 +64,20 @@ namespace backend.Features.Activity
         public Task<ActivityPageDto> GetCommunityAsync(int? viewerId, ActivityCursor? before, int limit, IReadOnlySet<string>? types = null)
         {
             var since = DateTime.UtcNow.AddDays(-_options.CommunityDays);
-            var backdatedDays = _options.BackdatedDays;
+            var blocked = _context.BlockedBy(viewerId);
 
             // Only what is meant for everyone: fresh logs, reviews and public lists that hold films.
             // Back-dated logs stay out so back-filling an old diary does not flood the feed.
             var sources = new[]
             {
                 (ActivityTypes.Watched, WatchedRank, Watched(_context.DiaryEntries.Where(d =>
-                    d.UserId != viewerId && d.LoggedAt <= d.WatchedAt.AddDays(backdatedDays)))),
-                (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r => r.UserId != viewerId))),
+                    d.UserId != viewerId
+                    && !blocked.Contains(d.UserId)
+                    && d.User.DiaryVisibility == DiaryVisibility.Public
+                    && !d.IsBackdated))),
+                (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r => r.UserId != viewerId && !blocked.Contains(r.UserId)))),
                 (ActivityTypes.ListCreated, ListCreatedRank, ListsCreated(_context.MovieLists.Where(l =>
-                    l.IsPublic && l.UserId != viewerId && l.Items.Any())))
+                    l.IsPublic && l.UserId != viewerId && !blocked.Contains(l.UserId) && l.Items.Any())))
             };
 
             return BuildPageAsync(Only(sources, types), since, before, limit);
@@ -83,7 +87,8 @@ namespace backend.Features.Activity
         {
             var since = DateTime.UtcNow.AddDays(-_options.FollowingDays);
             var followed = Followed(viewerId);
-            var entries = _context.DiaryEntries.Where(d => followed.Contains(d.UserId) && d.LoggedAt >= since);
+            var entries = _context.DiaryEntries.Where(d =>
+                followed.Contains(d.UserId) && d.User.DiaryVisibility != DiaryVisibility.Private && d.LoggedAt >= since);
 
             // First the films, each placed by its newest log, then every log of those films to find who saw them.
             var films = await entries
@@ -174,7 +179,7 @@ namespace backend.Features.Activity
                 Type = ActivityTypes.Reviewed,
                 Rank = ReviewedRank,
                 Key = r.Id,
-                OccurredAt = r.DiaryEntry != null ? r.DiaryEntry.LoggedAt : r.CreatedAt,
+                OccurredAt = r.ActivityAt,
                 ActorId = r.UserId,
                 ActorName = r.User.UserName,
                 ActorAvatar = r.User.ProfileImageUrl,

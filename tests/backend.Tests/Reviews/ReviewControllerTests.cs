@@ -124,7 +124,7 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
         var logged = await user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/diary",
             new LogDiaryEntryDto { Score = 4, Review = "Worth it", WatchedOn = new DateOnly(2022, 9, 9) });
         logged.EnsureSuccessStatusCode();
-        var id = Assert.Single((await _factory.CreateClient().GetFromJsonAsync<List<ReviewDto>>(ReviewsUrl(tmdbId)))!).Id;
+        var id = Assert.Single((await _factory.CreateClient().GetItemsAsync<ReviewDto>(ReviewsUrl(tmdbId)))!).Id;
 
         var review = await _factory.CreateClient().GetFromJsonAsync<ReviewDto>($"/api/reviews/{id}");
 
@@ -166,7 +166,7 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
         await CreateReviewAsync(alice.Client, tmdbId, "Meh");
         await CreateReviewAsync(bob.Client, tmdbId, "Masterpiece");
 
-        var reviews = await _factory.CreateClient().GetFromJsonAsync<List<ReviewDto>>(ReviewsUrl(tmdbId));
+        var reviews = await _factory.CreateClient().GetItemsAsync<ReviewDto>(ReviewsUrl(tmdbId));
 
         Assert.NotNull(reviews);
         Assert.Equal(["Masterpiece", "Meh"], reviews.Select(r => r.Text));
@@ -177,7 +177,7 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
     [Fact]
     public async Task GetReviews_NoReviews_ReturnsEmptyList()
     {
-        var reviews = await _factory.CreateClient().GetFromJsonAsync<List<ReviewDto>>(ReviewsUrl(6006));
+        var reviews = await _factory.CreateClient().GetItemsAsync<ReviewDto>(ReviewsUrl(6006));
 
         Assert.NotNull(reviews);
         Assert.Empty(reviews);
@@ -194,7 +194,7 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
         await CreateReviewAsync(alice.Client, secondId, "Alice on two");
         await CreateReviewAsync(bob.Client, firstId, "Bob on one");
 
-        var reviews = await _factory.CreateClient().GetFromJsonAsync<List<ReviewDto>>($"/api/users/{alice.Id}/reviews");
+        var reviews = await _factory.CreateClient().GetItemsAsync<ReviewDto>($"/api/users/{alice.Id}/reviews");
 
         Assert.NotNull(reviews);
         Assert.Equal(["Alice on two", "Alice on one"], reviews.Select(r => r.Text));
@@ -232,7 +232,7 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
         var response = await other.Client.PutAsJsonAsync($"/api/reviews/{review.Id}", new UpdateReviewDto { Text = "Hijacked" });
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        var reviews = await owner.Client.GetFromJsonAsync<List<ReviewDto>>(ReviewsUrl(tmdbId));
+        var reviews = await owner.Client.GetItemsAsync<ReviewDto>(ReviewsUrl(tmdbId));
         Assert.Equal("Original", Assert.Single(reviews!).Text);
     }
 
@@ -288,7 +288,7 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
         (await user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/diary",
             new LogDiaryEntryDto { Review = "He was dead all along" })).EnsureSuccessStatusCode();
 
-        var review = Assert.Single((await _factory.CreateClient().GetFromJsonAsync<List<ReviewDto>>(ReviewsUrl(tmdbId)))!);
+        var review = Assert.Single((await _factory.CreateClient().GetItemsAsync<ReviewDto>(ReviewsUrl(tmdbId)))!);
         Assert.True(review.ContainsSpoilers);
         Assert.Equal("He was dead all along", review.Text);
     }
@@ -305,7 +305,7 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
         var response = await user.Client.DeleteAsync($"/api/reviews/{review.Id}");
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        var reviews = await user.Client.GetFromJsonAsync<List<ReviewDto>>(ReviewsUrl(tmdbId));
+        var reviews = await user.Client.GetItemsAsync<ReviewDto>(ReviewsUrl(tmdbId));
         Assert.Empty(reviews!);
     }
 
@@ -320,7 +320,7 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
         var response = await other.Client.DeleteAsync($"/api/reviews/{review.Id}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        var reviews = await owner.Client.GetFromJsonAsync<List<ReviewDto>>(ReviewsUrl(tmdbId));
+        var reviews = await owner.Client.GetItemsAsync<ReviewDto>(ReviewsUrl(tmdbId));
         Assert.Single(reviews!);
     }
 }

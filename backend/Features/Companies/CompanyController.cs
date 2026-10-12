@@ -1,6 +1,9 @@
+using System.ComponentModel.DataAnnotations;
+using backend.Features.Auth;
 using backend.Features.Movies;
 using backend.Features.Movies.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace backend.Features.Companies;
 
@@ -16,8 +19,10 @@ public class CompanyController : ControllerBase
     }
 
     [HttpGet("search")]
+    [EnableRateLimiting(RateLimitPolicies.Search)]
     [EndpointSummary("Search companies")]
-    public async Task<ActionResult<TmdbCompanySearchResultDto>> SearchCompanies([FromQuery] string query)
+    public async Task<ActionResult<TmdbCompanySearchResultDto>> SearchCompanies(
+        [FromQuery, MaxLength(TmdbService.MaxQueryLength)] string query)
     {
         if (string.IsNullOrWhiteSpace(query))
         {

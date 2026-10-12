@@ -77,7 +77,7 @@ export function ListFormDialog({ current, onSaved, onClose }: ListFormDialogProp
             maxLength={NAME_MAX}
             required
             autoFocus
-            className="mt-2 block w-full rounded-sm bg-salon px-3 py-2 text-screen ring-1 ring-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
+            className="mt-2 block w-full rounded-sm bg-salon px-3 py-2 text-screen ring-1 ring-edge focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
             placeholder="Best of the year"
           />
         </div>
@@ -97,7 +97,7 @@ export function ListFormDialog({ current, onSaved, onClose }: ListFormDialogProp
             onChange={(event) => setDescription(event.target.value)}
             maxLength={DESCRIPTION_MAX}
             rows={4}
-            className="mt-2 block w-full resize-y rounded-sm bg-salon px-3 py-2 text-screen ring-1 ring-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
+            className="mt-2 block w-full resize-y rounded-sm bg-salon px-3 py-2 text-screen ring-1 ring-edge focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
           />
         </div>
 
