@@ -16,7 +16,17 @@ public class OpenRetryInterceptor : DbConnectionInterceptor
         {
             NumberOfTries = 6,
             DeltaTime = TimeSpan.FromSeconds(2),
-            MaxTimeInterval = TimeSpan.FromSeconds(20)
+            MaxTimeInterval = TimeSpan.FromSeconds(20),
+            // Not the factory's default list: that includes 4060 ("cannot open database"), which is how EF finds
+            // out that a database does not exist yet, so the migrations could no longer create one.
+            TransientErrors =
+            [
+                40613, // database not currently available (paused serverless database waking up)
+                40197, // service error, e.g. during an upgrade or failover
+                40501, // service busy
+                49918, 49919, 49920, // not enough resources
+                10928, 10929 // resource limits reached
+            ]
         });
 
     public override InterceptionResult ConnectionOpening(
