@@ -6,6 +6,7 @@ import type { DiaryEntry } from "../lib/types";
 import { StatusToggle } from "./RatingDialog";
 import { StarInput } from "./Stars";
 import { WatchedOnField } from "./WatchedOnField";
+import { useReturnFocus } from "../lib/focus";
 
 interface DiaryEntryDialogProps {
   entry: DiaryEntry;
@@ -25,6 +26,7 @@ export function DiaryEntryDialog({ entry, onClose }: DiaryEntryDialogProps) {
   const [liked, setLiked] = useState<boolean | null>(entry.liked);
   const [rewatched, setRewatched] = useState(entry.rewatched);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const confirmDeleteRef = useReturnFocus(confirmDelete);
   const update = useUpdateDiaryEntry();
   const remove = useDeleteDiaryEntry();
   const busy = update.isPending || remove.isPending;
@@ -157,6 +159,7 @@ export function DiaryEntryDialog({ entry, onClose }: DiaryEntryDialogProps) {
               </button>
               <button
                 type="button"
+                autoFocus
                 onClick={() => setConfirmDelete(false)}
                 disabled={busy}
                 className="text-haze underline underline-offset-4 hover:text-screen"
@@ -167,6 +170,7 @@ export function DiaryEntryDialog({ entry, onClose }: DiaryEntryDialogProps) {
           ) : (
             <button
               type="button"
+              ref={confirmDeleteRef}
               onClick={() => setConfirmDelete(true)}
               disabled={busy}
               className="text-sm text-haze underline underline-offset-4 transition hover:text-alarm disabled:opacity-50"

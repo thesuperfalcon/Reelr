@@ -45,6 +45,7 @@ import type {
 import { NotFoundPage } from "./NotFoundPage";
 import { moveBetweenTabs } from "../lib/tabs";
 import { usePageTitle } from "../lib/title";
+import { useReturnFocus } from "../lib/focus";
 
 type Tab =
     | "diary"
@@ -613,6 +614,7 @@ function FollowList({
 function BlockButton({ profile }: { profile: UserProfile }) {
     const toggle = useToggleBlock(profile.id);
     const [confirming, setConfirming] = useState(false);
+    const triggerRef = useReturnFocus(confirming);
     const blocked = profile.isBlocked;
 
     if (confirming) {
@@ -633,6 +635,7 @@ function BlockButton({ profile }: { profile: UserProfile }) {
                     </button>
                     <button
                         type="button"
+                        autoFocus
                         onClick={() => setConfirming(false)}
                         className="text-haze underline underline-offset-4 hover:text-screen"
                     >
@@ -645,6 +648,7 @@ function BlockButton({ profile }: { profile: UserProfile }) {
 
     return (
         <button
+            ref={triggerRef}
             type="button"
             onClick={() => (blocked ? toggle.mutate(true) : setConfirming(true))}
             disabled={toggle.isPending}

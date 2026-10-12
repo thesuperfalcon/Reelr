@@ -16,6 +16,7 @@ import { FormError } from "./Form";
 import { LoadMore } from "./LoadMore";
 import { ErrorMessage, Loading } from "./Status";
 import { UserLink } from "./UserAvatar";
+import { useReturnFocus } from "../lib/focus";
 
 const textareaClass =
   "mt-2 block w-full resize-y rounded-sm bg-row px-3 py-2.5 text-screen ring-1 ring-edge focus:bg-row-raised focus:outline-2 focus:outline-projector";
@@ -27,6 +28,7 @@ function CommentForm({
   error,
   onSubmit,
   onCancel,
+  autoFocus = false,
 }: {
   initial?: string;
   submitLabel: string;
@@ -34,6 +36,8 @@ function CommentForm({
   error: unknown;
   onSubmit: (text: string) => void;
   onCancel?: () => void;
+  /** Focus the text box at once, as when an edit form replaces the comment. */
+  autoFocus?: boolean;
 }) {
   const id = useId();
   const [text, setText] = useState(initial);
@@ -56,6 +60,7 @@ function CommentForm({
         value={text}
         onChange={(event) => setText(event.target.value)}
         maxLength={COMMENT_MAX_LENGTH}
+        autoFocus={autoFocus}
         rows={3}
         placeholder="Add a comment"
         className={textareaClass}
@@ -92,6 +97,8 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
   const [confirming, setConfirming] = useState(false);
   const update = useUpdateComment(comment.reviewId);
   const remove = useDeleteComment(comment.reviewId);
+  const editRef = useReturnFocus(editing);
+  const deleteRef = useReturnFocus(confirming);
   const own = user?.id === comment.userId;
   const canDelete = own || user?.id === reviewAuthorId;
   const created = new Date(comment.createdAt);
@@ -122,6 +129,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
                 </button>
                 <button
                   type="button"
+                  autoFocus
                   onClick={() => setConfirming(false)}
                   className="text-haze underline underline-offset-4 hover:text-screen"
                 >
@@ -132,6 +140,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
               <>
                 {own && (
                   <button
+                    ref={editRef}
                     type="button"
                     onClick={() => setEditing(true)}
                     className="text-haze underline underline-offset-4 hover:text-screen"
@@ -141,6 +150,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
                 )}
                 {canDelete && (
                   <button
+                    ref={deleteRef}
                     type="button"
                     onClick={() => setConfirming(true)}
                     className="text-haze underline underline-offset-4 hover:text-alarm"
@@ -163,6 +173,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
           error={update.error}
           onSubmit={(text) => update.mutate({ id: comment.id, text }, { onSuccess: () => setEditing(false) })}
           onCancel={() => setEditing(false)}
+          autoFocus
         />
       ) : (
         <p className="mt-2 whitespace-pre-line break-words">{comment.text}</p>
