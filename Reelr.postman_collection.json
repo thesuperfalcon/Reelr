@@ -125,35 +125,6 @@
           "response": []
         },
         {
-          "name": "Update User",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"username\": \"newUsername\",\n  \"profileImageUrl\": \"https://example.com/avatar.png\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/users/{{userId}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "users",
-                "{{userId}}"
-              ]
-            },
-            "description": "Update the current user's profile. Only the account owner can update it. Requires {{authToken}} (run Auth/Login first)."
-          },
-          "response": []
-        },
-        {
           "name": "Delete User",
           "request": {
             "method": "DELETE",
@@ -235,13 +206,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}",
+              "raw": "{{baseUrl}}/api/movies/{{tmdbId}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Movie",
+                "movies",
                 "{{tmdbId}}"
               ]
             },
@@ -255,13 +226,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Movie/search?query={{searchQuery}}&page=1",
+              "raw": "{{baseUrl}}/api/movies/search?query={{searchQuery}}&page=1",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Movie",
+                "movies",
                 "search"
               ],
               "query": [
@@ -305,13 +276,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Movie/search/all?query={{searchQuery}}",
+              "raw": "{{baseUrl}}/api/movies/search/all?query={{searchQuery}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Movie",
+                "movies",
                 "search",
                 "all"
               ],
@@ -332,13 +303,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Movie/trending",
+              "raw": "{{baseUrl}}/api/movies/trending",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Movie",
+                "movies",
                 "trending"
               ]
             },
@@ -352,13 +323,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Movie/popular",
+              "raw": "{{baseUrl}}/api/movies/popular",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Movie",
+                "movies",
                 "popular"
               ]
             },
@@ -372,13 +343,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}/recommended",
+              "raw": "{{baseUrl}}/api/movies/{{tmdbId}}/recommended",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Movie",
+                "movies",
                 "{{tmdbId}}",
                 "recommended"
               ]
@@ -393,13 +364,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}/similar",
+              "raw": "{{baseUrl}}/api/movies/{{tmdbId}}/similar",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Movie",
+                "movies",
                 "{{tmdbId}}",
                 "similar"
               ]
@@ -414,13 +385,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}/credits",
+              "raw": "{{baseUrl}}/api/movies/{{tmdbId}}/credits",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Movie",
+                "movies",
                 "{{tmdbId}}",
                 "credits"
               ]
@@ -435,13 +406,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Movie/{{tmdbId}}/details",
+              "raw": "{{baseUrl}}/api/movies/{{tmdbId}}/details",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Movie",
+                "movies",
                 "{{tmdbId}}",
                 "details"
               ]
@@ -1101,13 +1072,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Company/search?query={{searchQuery}}",
+              "raw": "{{baseUrl}}/api/companies/search?query={{searchQuery}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Company",
+                "companies",
                 "search"
               ],
               "query": [
@@ -1132,13 +1103,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/Person/search?query={{searchQuery}}",
+              "raw": "{{baseUrl}}/api/people/search?query={{searchQuery}}",
               "host": [
                 "{{baseUrl}}"
               ],
               "path": [
                 "api",
-                "Person",
+                "people",
                 "search"
               ],
               "query": [
