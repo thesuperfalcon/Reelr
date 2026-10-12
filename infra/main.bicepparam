@@ -14,6 +14,7 @@ param adminUserIds = map(filter(split(readEnvironmentVariable('REELR_ADMIN_USER_
 param demoUserIds = map(filter(split(readEnvironmentVariable('REELR_DEMO_USER_IDS', ''), ','), id => !empty(trim(id))), id => trim(id))
 param inviteOnly = bool(readEnvironmentVariable('REELR_INVITE_ONLY', 'true'))
 param alertEmail = readEnvironmentVariable('REELR_ALERT_EMAIL', '')
+param customDomain = readEnvironmentVariable('REELR_CUSTOM_DOMAIN', '')
 
 param emailUserName = readEnvironmentVariable('REELR_EMAIL_USER', '')
 param emailFromAddress = readEnvironmentVariable('REELR_EMAIL_FROM', '')

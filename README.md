@@ -214,6 +214,8 @@ After that, `.github/workflows/deploy.yml` deploys every commit on `main` that p
 
 **Backups and alerts.** Azure SQL keeps point-in-time backups for 7 days. A restore goes to a new database next to the live one (`az sql db restore -g rg-reelr -s <server> -n reelr --dest-name reelr-restored --time <UTC time>`); point the connection strings at it, or copy back what was lost, then delete it. This was tried on 2026-10-12: the copy had the same accounts and migrations as the live database. With `-AlertEmail` (and the variable `REELR_ALERT_EMAIL` for the Deploy workflow), Azure Monitor emails that address when the backend answers with more than 5 server errors in 15 minutes or restarts more than twice in 30 minutes.
 
+**Own domain.** The beta runs at https://reelr.tintinfalk.dev (DNS at Cloudflare, "DNS only"): a CNAME to the app's default address and a TXT record `asuid.<name>` with the environment's custom domain verification id. With `-CustomDomain` (and the variable `REELR_CUSTOM_DOMAIN`), the template binds it with a free managed certificate that Azure renews, and account emails link to it.
+
 Everything scales to zero when unused, so the first visit after a quiet spell takes up to a minute while the backend starts and the database resumes. For a demo, open the site a minute early, or deploy with `backendMinReplicas = 1`.
 
 ## Before going live
