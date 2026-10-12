@@ -1,0 +1,35 @@
+# Adds a fake TMDB to the local stack for the end-to-end tests in e2e/. Start with:
+#   docker compose -p reelr-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+# The project name keeps its database apart from the everyday local stack. Mailpit's API (port 8025) is where
+# the tests read the confirmation emails.
+services:
+  fake-tmdb:
+    image: node:24-alpine
+    command: ["node", "/app/server.mjs"]
+    volumes:
+      - ./e2e/fake-tmdb:/app:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/3/configuration"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    environment:
+      Tmdb__BaseUrl: http://fake-tmdb:8080/3/
+      TMDB_READ_ACCESS_TOKEN: e2e-fake-token
+      ForwardedHeaders__KnownNetworks__0: "172.31.0.0/24"
+      # Every test signs up and logs in from the same address, so the per-address auth limits are lifted.
+      RateLimiting__Register__PermitLimit: "1000"
+      RateLimiting__Login__PermitLimit: "1000"
+      RateLimiting__AccountEmail__PermitLimit: "1000"
+    depends_on:
+      fake-tmdb:
+        condition: service_healthy
+
+# Its own subnet, so it can exist next to the everyday stack's network.
+networks:
+  default:
+    ipam:
+      config: !override
+        - subnet: 172.31.0.0/24
