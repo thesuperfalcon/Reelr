@@ -1,4 +1,5 @@
 using backend.Features.Auth.DTOs;
+using backend.Features.Invites;
 using backend.Features.Users;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -21,6 +22,7 @@ public class AuthController : ControllerBase
     private readonly SecurityStamps _securityStamps;
     private readonly SecurityLog _securityLog;
     private readonly RefreshTokens _refreshTokens;
+    private readonly InviteCodes _inviteCodes;
 
     public AuthController(
         UserManager<User> userManager,
@@ -30,7 +32,8 @@ public class AuthController : ControllerBase
         AccountEmails accountEmails,
         SecurityStamps securityStamps,
         SecurityLog securityLog,
-        RefreshTokens refreshTokens)
+        RefreshTokens refreshTokens,
+        InviteCodes inviteCodes)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -40,6 +43,7 @@ public class AuthController : ControllerBase
         _securityStamps = securityStamps;
         _securityLog = securityLog;
         _refreshTokens = refreshTokens;
+        _inviteCodes = inviteCodes;
     }
 
     [HttpPost("register")]
@@ -68,6 +72,23 @@ public class AuthController : ControllerBase
             return IdentityProblem(passwordErrors);
         }
 
+        // While registration is invite only, the invite is claimed and the account created together: if the
+        // account is not created (taken name or email), the transaction is rolled back and the code still works.
+        await using var transaction = _inviteCodes.Required ? await _inviteCodes.BeginTransactionAsync() : null;
+        int? inviteId = null;
+
+        if (_inviteCodes.Required)
+        {
+            inviteId = await _inviteCodes.ClaimAsync(dto.InviteCode);
+
+            if (inviteId == null)
+            {
+                _securityLog.InviteRefused();
+                ModelState.AddModelError(nameof(dto.InviteCode), "This invite code is not valid or has already been used.");
+                return ValidationProblem(ModelState);
+            }
+        }
+
         var result = await _userManager.CreateAsync(user, dto.Password);
 
         if (!result.Succeeded)
@@ -89,6 +110,12 @@ public class AuthController : ControllerBase
             _securityLog.RegisteredWithTakenEmail();
 
             return Accepted(new { message = CheckYourEmail });
+        }
+
+        if (transaction != null)
+        {
+            await _inviteCodes.SetUserAsync(inviteId!.Value, user.Id);
+            await transaction.CommitAsync();
         }
 
         await _accountEmails.SendConfirmationAsync(user);
