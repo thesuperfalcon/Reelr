@@ -2,6 +2,7 @@ using backend.Data;
 using backend.Features.Activity;
 using backend.Features.Auth;
 using backend.Features.Diary;
+using backend.Features.Invites;
 using backend.Features.Email;
 using backend.Features.Moderation;
 using backend.Features.Movies;
@@ -153,6 +154,7 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<RefreshTokens>();
 builder.Services.AddScoped<MovieCatalog>();
 builder.Services.AddScoped<JournalService>();
+builder.Services.AddScoped<InviteCodes>();
 
 // Activity feed. "Activity:Implementation" picks how the feed is computed; only "Derived" exists so far.
 builder.Services.AddMemoryCache();
