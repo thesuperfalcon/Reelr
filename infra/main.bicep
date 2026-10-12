@@ -47,6 +47,9 @@ param inviteOnly bool = true
 @description('Address that gets an email when the backend fails. Empty turns the alerts off.')
 param alertEmail string = ''
 
+@description('The site\'s own domain, e.g. reelr.example.com, whose DNS already points at the app. Empty uses the default Container Apps address only.')
+param customDomain string = ''
+
 @description('False creates only the base resources, so the Key Vault secrets and database users can be set up before the apps start.')
 param deployApps bool = true
 
@@ -78,6 +81,7 @@ module resources 'resources.bicep' = {
     adminUserIds: adminUserIds
     demoUserIds: demoUserIds
     alertEmail: alertEmail
+    customDomain: customDomain
     inviteOnly: inviteOnly
     deployApps: deployApps
   }
