@@ -81,6 +81,15 @@ $env:REELR_ADMIN_OBJECT_ID = $me.id
 $env:REELR_ADMIN_LOGIN = $me.upn
 $env:REELR_EMAIL_USER = $EmailUserName
 $env:REELR_EMAIL_FROM = $EmailFromAddress
+# Without -ImageTag, keep what the backend runs now (deployed by CI), so a rerun never goes back to placeholders.
+if (-not $ImageTag) {
+    $current = az containerapp show --resource-group rg-reelr --name backend `
+        --query 'properties.template.containers[0].image' -o tsv 2>$null
+    if ($LASTEXITCODE -eq 0 -and $current -match '/reelr-backend:(.+)$') {
+        $ImageTag = $Matches[1]
+        Write-Host "Keeping image tag $ImageTag"
+    }
+}
 $env:REELR_IMAGE_TAG = $ImageTag
 
 Write-Host '1/4 Base resources'
