@@ -184,12 +184,17 @@ builder.Services.AddSingleton<TmdbCache>();
 builder.Services.AddExceptionHandler<TmdbExceptionHandler>();
 builder.Services.AddExceptionHandler<UniqueConflictExceptionHandler>();
 
+// Overridable so the end-to-end tests can point the app at a fake TMDB. Paths are relative ("movie/123"),
+// so the address must end in "/" or they would replace its last segment ("/3").
+var tmdbBaseUrl = builder.Configuration["Tmdb:BaseUrl"];
+tmdbBaseUrl = string.IsNullOrWhiteSpace(tmdbBaseUrl) ? "https://api.themoviedb.org/3/" : tmdbBaseUrl.Trim();
+if (!tmdbBaseUrl.EndsWith('/'))
+{
+    tmdbBaseUrl += "/";
+}
+
 var tmdbResilience = builder.Services
-    .AddHttpClient<TmdbService>(client =>
-    {
-        // Overridable so the end-to-end tests can point the app at a fake TMDB.
-        client.BaseAddress = new Uri(builder.Configuration["Tmdb:BaseUrl"] ?? "https://api.themoviedb.org/3/");
-    })
+    .AddHttpClient<TmdbService>(client => client.BaseAddress = new Uri(tmdbBaseUrl))
     .AddStandardResilienceHandler(options =>
     {
         // TMDB usually answers well within a second; the library defaults (10 s per attempt, 30 s in total) are too long.
