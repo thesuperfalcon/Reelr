@@ -20,6 +20,9 @@ namespace backend.Features.Settings.DTOs
 
         // Whether the user may open the moderation page.
         public bool IsAdmin { get; set; }
+
+        // A shared demo account: the account itself cannot be changed or deleted (see DemoAccounts).
+        public bool IsDemo { get; set; }
     }
 
     // Returned after a change. Token is set when the username changed, since a rename revokes the old token.

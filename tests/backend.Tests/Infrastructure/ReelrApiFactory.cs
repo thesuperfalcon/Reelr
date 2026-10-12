@@ -47,6 +47,12 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
     // False runs the TMDB client with the defaults in Program.cs, as in production.
     protected virtual bool OverrideTmdbResilience => true;
 
+    // Registration is open in most tests. InviteTests turns invite-only on; TestUsers then makes an invite for
+    // every user it registers.
+    protected virtual bool InviteOnly => false;
+
+    public bool RequiresInvite => InviteOnly;
+
     /// <summary>
     /// Runs code against the test database directly, for setup the API cannot do yet or for checking stored values.
     /// </summary>
@@ -70,6 +76,7 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("Activity:CommunityCacheSeconds", "0");
         // MovieRefresherTests calls the refresh itself; the background run would change films under other tests.
         builder.UseSetting("MovieRefresh:Enabled", "false");
+        builder.UseSetting("Registration:InviteOnly", InviteOnly.ToString());
         // Every test registers and logs in from the same address, so the auth limits are lifted.
         // AuthRateLimitTests sets low limits to check the limiter itself.
         builder.UseSetting("RateLimiting:Login:PermitLimit", AuthPermitLimit.ToString());

@@ -131,6 +131,10 @@ jobs:
           REELR_ADMIN_LOGIN: ${{ vars.REELR_ADMIN_LOGIN }}
           REELR_EMAIL_USER: ${{ vars.REELR_EMAIL_USER }}
           REELR_EMAIL_FROM: ${{ vars.REELR_EMAIL_FROM }}
+          REELR_ADMIN_USER_IDS: ${{ vars.REELR_ADMIN_USER_IDS }}
+          REELR_DEMO_USER_IDS: ${{ vars.REELR_DEMO_USER_IDS }}
+          # Unset means invite only.
+          REELR_INVITE_ONLY: ${{ vars.REELR_INVITE_ONLY || 'true' }}
           REELR_IMAGE_TAG: ${{ env.SHA }}
           REELR_DEPLOY_APPS: "true"
         run: |

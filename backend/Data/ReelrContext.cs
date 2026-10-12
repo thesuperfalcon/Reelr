@@ -1,5 +1,6 @@
 using backend.Features.Auth;
 using backend.Features.Diary;
+using backend.Features.Invites;
 using backend.Features.Moderation;
 using backend.Features.MovieLists;
 using backend.Features.Movies;
@@ -57,6 +58,8 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<Invite> Invites => Set<Invite>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -74,6 +77,15 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
             token.HasIndex(t => t.TokenHash).IsUnique();
             token.HasIndex(t => t.FamilyId);
             token.HasIndex(t => new { t.UserId, t.ExpiresAt });
+        });
+
+        // Invite: found by its hash. Deleting the account that used it keeps the invite as used.
+        modelBuilder.Entity<Invite>(invite =>
+        {
+            invite.HasOne(i => i.UsedBy).WithMany().HasForeignKey(i => i.UsedById).OnDelete(DeleteBehavior.SetNull);
+            invite.Property(i => i.CodeHash).HasMaxLength(Invite.HashLength).IsFixedLength().IsUnicode(false);
+            invite.Property(i => i.Note).HasMaxLength(Invite.NoteMaxLength);
+            invite.HasIndex(i => i.CodeHash).IsUnique();
         });
 
         // UserAvatar: one per user, removed with the user.

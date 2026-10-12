@@ -24,6 +24,7 @@ namespace backend.Features.Settings
         private readonly TokenService _tokenService;
         private readonly SecurityStamps _securityStamps;
         private readonly AdminAccess _adminAccess;
+        private readonly DemoAccounts _demoAccounts;
         private readonly SecurityLog _securityLog;
         private readonly RefreshTokens _refreshTokens;
 
@@ -34,6 +35,7 @@ namespace backend.Features.Settings
             TokenService tokenService,
             SecurityStamps securityStamps,
             AdminAccess adminAccess,
+            DemoAccounts demoAccounts,
             SecurityLog securityLog,
             RefreshTokens refreshTokens)
         {
@@ -43,6 +45,7 @@ namespace backend.Features.Settings
             _tokenService = tokenService;
             _securityStamps = securityStamps;
             _adminAccess = adminAccess;
+            _demoAccounts = demoAccounts;
             _securityLog = securityLog;
             _refreshTokens = refreshTokens;
         }
@@ -72,6 +75,12 @@ namespace backend.Features.Settings
 
             if (!string.IsNullOrEmpty(userName) && userName != user.UserName)
             {
+                // The privacy settings may change, the name may not (see DemoAccounts).
+                if (_demoAccounts.IsDemo(user.Id))
+                {
+                    return Problem(statusCode: StatusCodes.Status403Forbidden, title: DemoAccounts.NotAllowed);
+                }
+
                 var renamed = await _userManager.SetUserNameAsync(user, userName);
 
                 if (!renamed.Succeeded)
@@ -124,6 +133,7 @@ namespace backend.Features.Settings
         }
 
         [HttpPost("password")]
+        [NotForDemoAccounts]
         [EndpointSummary("Change the current user's password. Signs out every other device and returns a new token for this one")]
         public async Task<ActionResult<TokenDto>> ChangePassword(ChangePasswordDto dto)
         {
@@ -197,6 +207,7 @@ namespace backend.Features.Settings
         }
 
         [HttpPost("logout-everywhere")]
+        [NotForDemoAccounts]
         [EndpointSummary("Sign out on every device, including this one")]
         public async Task<IActionResult> LogoutEverywhere()
         {
@@ -215,6 +226,7 @@ namespace backend.Features.Settings
         }
 
         [HttpPut("avatar")]
+        [NotForDemoAccounts]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(AvatarImage.MaxBytes + 64 * 1024)]
         [EndpointSummary("Upload a profile picture (JPEG, PNG or WebP, at most 1 MB)")]
@@ -268,6 +280,7 @@ namespace backend.Features.Settings
         }
 
         [HttpDelete("avatar")]
+        [NotForDemoAccounts]
         [EndpointSummary("Remove the current user's profile picture")]
         public async Task<ActionResult<UserSettingsDto>> RemoveAvatar()
         {
@@ -297,6 +310,7 @@ namespace backend.Features.Settings
         private T ToDto<T>(User user, T dto) where T : UserSettingsDto
         {
             dto.IsAdmin = _adminAccess.IsAdmin(user.Id);
+            dto.IsDemo = _demoAccounts.IsDemo(user.Id);
             dto.UserName = user.UserName ?? string.Empty;
             dto.Email = user.Email ?? string.Empty;
             dto.ProfileImageUrl = user.ProfileImageUrl;

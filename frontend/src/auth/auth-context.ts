@@ -7,6 +7,8 @@ export interface RegisterInput {
   password: string;
   /** The user is at least 13 and accepts the terms and privacy policy. */
   acceptTerms: boolean;
+  /** The one-time code from an invite. Needed while registration is invite only. */
+  inviteCode?: string;
 }
 
 /** "expired": the sign-in ended while the page was open, e.g. a password change on another device. */
