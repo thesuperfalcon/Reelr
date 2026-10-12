@@ -21,7 +21,9 @@ public class TokenService
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             // No email: the page keeps the token in memory, where any script on the page could read it.
-            new(ClaimTypes.Name, user.UserName ?? string.Empty),
+            // The short standard name, which the page reads to show who is logged in. ClaimTypes.Name would be
+            // written as its long URI.
+            new(JwtRegisteredClaimNames.Name, user.UserName ?? string.Empty),
             // Checked on every request, so changing the stamp revokes the token (see SecurityStamps).
             new(SecurityStamps.ClaimType, user.SecurityStamp ?? string.Empty)
         };

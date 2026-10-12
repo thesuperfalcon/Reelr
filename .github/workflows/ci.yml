@@ -97,3 +97,101 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  e2e:
+    name: End-to-end (Playwright)
+    runs-on: ubuntu-latest
+    # No "needs": it runs next to the other jobs, so a push waits for the slowest job only.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The stack reads its secrets from .env. The password comes in through env and printf, so bash never
+      # expands it, and single quotes stop Compose from reading "$" in it. docker-compose.e2e.yml sets the
+      # fake TMDB token.
+      - name: Write the stack's settings
+        env:
+          SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
+        run: |
+          {
+            printf "MSSQL_SA_PASSWORD='%s'\n" "$SA_PASSWORD"
+            printf "ConnectionStrings__ReelrContext='Server=db;Database=Reelr;User Id=sa;Password=%s;TrustServerCertificate=True;'\n" "$SA_PASSWORD"
+            printf "Jwt__Key='%s'\n" "$(openssl rand -base64 48)"
+          } > .env
+
+      # The images are built here with the GitHub Actions layer cache, so unchanged layers (restore, npm ci) are
+      # reused between runs. They get the names Compose gives them in the reelr-e2e project, so "up" finds them.
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          load: true
+          tags: reelr-e2e-backend:latest
+          cache-from: type=gha,scope=e2e-backend
+          cache-to: type=gha,scope=e2e-backend,mode=max
+
+      - name: Build the frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          load: true
+          tags: reelr-e2e-frontend:latest
+          cache-from: type=gha,scope=e2e-frontend
+          cache-to: type=gha,scope=e2e-frontend,mode=max
+
+      - name: Start the stack
+        run: docker compose -p reelr-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --no-build --wait
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install
+        working-directory: e2e
+        run: npm ci
+
+      # The browser download is cached per Playwright version; its system libraries are installed every run.
+      - name: Read the Playwright version
+        id: playwright
+        working-directory: e2e
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        id: browsers
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      - name: Install the browser
+        working-directory: e2e
+        run: |
+          if [ "${{ steps.browsers.outputs.cache-hit }}" = "true" ]; then
+            npx playwright install-deps chromium
+          else
+            npx playwright install --with-deps chromium
+          fi
+
+      - name: Test
+        working-directory: e2e
+        run: npx playwright test
+
+      - name: Upload the report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+
+      - name: Show the stack's logs
+        if: failure()
+        run: docker compose -p reelr-e2e -f docker-compose.yml -f docker-compose.e2e.yml logs --no-color
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose -p reelr-e2e -f docker-compose.yml -f docker-compose.e2e.yml down -v

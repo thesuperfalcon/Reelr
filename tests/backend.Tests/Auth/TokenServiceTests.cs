@@ -26,7 +26,8 @@ public class TokenServiceTests
         var token = new JwtSecurityTokenHandler().ReadJwtToken(CreateService(ValidSettings()).CreateToken(TestUser));
 
         Assert.Equal("42", token.Subject);
-        Assert.Contains(token.Claims, c => c.Value == "neo");
+        // The page shows the username from the "name" claim.
+        Assert.Equal("neo", token.Claims.Single(c => c.Type == JwtRegisteredClaimNames.Name).Value);
         Assert.Equal("stamp-1", token.Claims.Single(c => c.Type == SecurityStamps.ClaimType).Value);
         // The token lives in the browser, so it carries no email address.
         Assert.DoesNotContain(token.Claims, c => c.Type == JwtRegisteredClaimNames.Email || c.Value == "neo@test.local");

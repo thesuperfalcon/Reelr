@@ -168,7 +168,19 @@ By default the tests use `.\SQLEXPRESS`. To use another server, set `REELR_TEST_
 $env:REELR_TEST_SQLSERVER = "Server=(localdb)\MSSQLLocalDB;Trusted_Connection=True;TrustServerCertificate=True;"
 ```
 
-CI runs the same tests on every push and pull request to `main` and `develop`, against SQL Server in a container. It also lints and builds the frontend.
+### End-to-end tests
+
+`e2e/` holds Playwright tests that use the real site the way a member would: sign up, confirm the email from Mailpit, log a film with a review, follow someone and delete the account. They run against the Docker stack with a fake TMDB (`e2e/fake-tmdb`), so they need no TMDB account:
+
+```bash
+docker compose -p reelr-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+cd e2e && npm ci && npx playwright install chromium && npx playwright test
+docker compose -p reelr-e2e -f docker-compose.yml -f docker-compose.e2e.yml down -v
+```
+
+The `reelr-e2e` project name keeps its database apart from the everyday Docker stack. Stop the everyday stack first, since both use the same ports.
+
+CI runs the backend tests on every push and pull request to `main` and `develop`, against SQL Server in a container. It also lints and builds the frontend, and runs the end-to-end tests against the Docker stack.
 
 ## API
 
