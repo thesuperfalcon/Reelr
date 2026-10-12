@@ -41,7 +41,7 @@ export function StatusToggle({
       aria-pressed={pressed}
       onClick={onToggle}
       className={`inline-flex h-9 items-center gap-2 rounded-sm px-3 text-sm font-medium ring-1 transition ${
-        pressed ? "bg-row-raised text-screen ring-white/30" : "text-haze ring-white/15 hover:text-screen"
+        pressed ? "bg-row-raised text-screen ring-rule/30" : "text-haze ring-rule/15 hover:text-screen"
       }`}
     >
       {children}
@@ -148,7 +148,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
       onClose={onClose}
       // A click on the backdrop lands on the dialog element itself.
       onClick={(event) => event.target === event.currentTarget && onClose()}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(36rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-white/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(36rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-rule/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
     >
       <form
         method="dialog"
@@ -173,7 +173,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
           </div>
         </div>
 
-        <div className="mt-6 border-t border-white/5 pt-6 text-center">
+        <div className="mt-6 border-t border-rule/5 pt-6 text-center">
           <p id={labelId} className="text-sm text-haze">
             Your rating
           </p>
@@ -185,7 +185,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
           </p>
         </div>
 
-        <div className="mt-4 border-t border-white/5 pt-6 text-center">
+        <div className="mt-4 border-t border-rule/5 pt-6 text-center">
           <p id={statusLabelId} className="text-sm text-haze">
             Status
           </p>
@@ -202,7 +202,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
           </div>
         </div>
 
-        <div role="group" aria-labelledby={dateLabelId} className="mt-4 border-t border-white/5 pt-6 text-center">
+        <div role="group" aria-labelledby={dateLabelId} className="mt-4 border-t border-rule/5 pt-6 text-center">
           <p id={dateLabelId} className="text-sm text-haze">
             Watched on
           </p>
@@ -211,7 +211,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
           </div>
         </div>
 
-        <div className="mt-4 border-t border-white/5 pt-6">
+        <div className="mt-4 border-t border-rule/5 pt-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <label htmlFor={reviewId} className="text-sm text-haze">
               {currentReview ? "Your review" : "Review (optional)"}
@@ -322,7 +322,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
             <button
               type="button"
               onClick={onClose}
-              className="rounded-sm px-4 py-2 text-sm font-medium text-haze ring-1 ring-white/15 transition hover:text-screen"
+              className="rounded-sm px-4 py-2 text-sm font-medium text-haze ring-1 ring-rule/15 transition hover:text-screen"
             >
               Cancel
             </button>

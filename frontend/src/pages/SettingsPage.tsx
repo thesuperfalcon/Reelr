@@ -17,13 +17,14 @@ import {
   useUploadAvatar,
 } from "../lib/queries";
 import type { DiaryVisibility, UserSettings, UserSettingsUpdate, UserSummary, WatchlistVisibility } from "../lib/types";
+import { themes, useTheme } from "../lib/theme";
 import { usePageTitle } from "../lib/title";
 import { useReturnFocus } from "../lib/focus";
 
 const buttonClass =
   "rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-60";
 const quietButtonClass =
-  "rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-white/15 transition hover:bg-row disabled:opacity-50";
+  "rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row disabled:opacity-50";
 
 // A new picture waits here until Save; "remove" likewise.
 type PictureChange = { kind: "none" } | { kind: "upload"; image: Blob; preview: string } | { kind: "remove" };
@@ -65,7 +66,7 @@ function changedSettings(draft: Draft, settings: UserSettings): UserSettingsUpda
 
 function Section({ id, title, description, children }: { id: string; title: string; description?: string; children: ReactNode }) {
   return (
-    <section aria-labelledby={id} className="grid gap-4 border-t border-white/5 py-10 md:grid-cols-[16rem_1fr] md:gap-10">
+    <section aria-labelledby={id} className="grid gap-4 border-t border-rule/5 py-10 md:grid-cols-[16rem_1fr] md:gap-10">
       <div>
         <h2 id={id} className="marquee text-2xl">
           {title}
@@ -380,7 +381,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
       </Section>
 
       {/* Stays in view while scrolling, so the unsaved state is always visible. */}
-      <div className="sticky bottom-0 -mx-4 border-t border-white/10 bg-salon/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
+      <div className="sticky bottom-0 -mx-4 border-t border-rule/10 bg-salon/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
         {blocker.state === "blocked" ? (
           <div role="alertdialog" aria-label="Unsaved changes" className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <p className="text-sm">You have unsaved changes. Leave without saving?</p>
@@ -418,6 +419,45 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
         )}
       </div>
     </form>
+  );
+}
+
+// Takes effect at once and is kept in this browser, so it sits outside the form and its Save button.
+function AppearanceSection() {
+  const [theme, setTheme] = useTheme();
+
+  return (
+    <Section id="settings-appearance" title="Appearance" description="Changes the look straight away. Kept in this browser only.">
+      <fieldset>
+        <legend className="text-sm font-medium">Theme</legend>
+        <div className="mt-3 space-y-3">
+          {themes.map((option) => (
+            <label key={option.value} className="flex items-start gap-3 text-sm">
+              <input
+                type="radio"
+                name="theme"
+                value={option.value}
+                checked={theme === option.value}
+                onChange={() => setTheme(option.value)}
+                className="mt-0.5 size-4 accent-projector"
+              />
+              <span
+                aria-hidden="true"
+                className="mt-0.5 flex h-5 w-8 shrink-0 items-center justify-center gap-0.5 rounded-sm ring-1 ring-rule/20"
+                style={{ background: option.background }}
+              >
+                <span className="size-1.5 rounded-full" style={{ background: option.text }} />
+                <span className="size-1.5 rounded-full" style={{ background: option.accent }} />
+              </span>
+              <span>
+                <span className="font-medium">{option.label}</span>
+                <span className="block text-haze">{option.description}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    </Section>
   );
 }
 
@@ -627,6 +667,7 @@ export function SettingsPage() {
         ) : (
           <>
             <SettingsForm settings={settings.data} />
+            <AppearanceSection />
             <BlockedSection />
             <DataExportSection />
             {!settings.data.isDemo && (

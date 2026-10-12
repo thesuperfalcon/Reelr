@@ -10,12 +10,87 @@
   --color-alarm: #e8766b;
   /* Outline of form fields: at least 3:1 against every background colour above (WCAG 1.4.11). */
   --color-edge: #857a87;
+  /* Hairlines and quiet outlines, used at low opacity. */
+  --color-rule: #ffffff;
 
   --font-marquee: "Big Shoulders Display", "Arial Narrow", sans-serif;
   --font-sans: "Instrument Sans", system-ui, sans-serif;
 }
 
+/* Salon above is the default look. The others are chosen in Settings (src/lib/theme.ts), which sets
+   data-theme on <html>. Each one keeps text, muted text, accents, errors and field outlines at the same
+   contrast as Salon against its own backgrounds. */
 @layer base {
+  :root {
+    --marquee-weight: 800;
+  }
+
+  /* Light and editorial, like a newspaper's film pages. */
+  :root[data-theme="broadsheet"] {
+    color-scheme: light;
+    --color-salon: #f3efe6;
+    --color-row: #e9e3d6;
+    --color-row-raised: #ddd5c4;
+    --color-screen: #161616;
+    --color-haze: #4a4640;
+    --color-projector: #9b1c14;
+    --color-alarm: #b03a00;
+    --color-edge: #6f685d;
+    --color-rule: #161616;
+    --font-marquee: "Newsreader", Georgia, serif;
+    --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+    --marquee-weight: 600;
+  }
+
+  /* Near black and poster first, with one bright accent. */
+  :root[data-theme="marquee"] {
+    --color-salon: #0c0c0e;
+    --color-row: #17171b;
+    --color-row-raised: #24242a;
+    --color-screen: #f5f5f2;
+    --color-haze: #a3a3ab;
+    --color-projector: #c8f031;
+    --color-alarm: #ff7a6b;
+    --color-edge: #6e6e78;
+    --color-rule: #ffffff;
+    --font-marquee: "Anton", "Arial Narrow", sans-serif;
+    --font-sans: "Manrope", system-ui, sans-serif;
+    --marquee-weight: 400;
+  }
+
+  /* A light, loud eighties video shop. */
+  :root[data-theme="video-store"] {
+    color-scheme: light;
+    --color-salon: #fff3d4;
+    --color-row: #ffffff;
+    --color-row-raised: #ffe9b0;
+    --color-screen: #1b1d4a;
+    --color-haze: #4a4c7a;
+    --color-projector: #b8195a;
+    --color-alarm: #a8350a;
+    --color-edge: #1b1d4a;
+    --color-rule: #1b1d4a;
+    --font-marquee: "Bungee", "Arial Black", sans-serif;
+    --font-sans: "Rubik", system-ui, sans-serif;
+    --marquee-weight: 400;
+  }
+
+  /* Black and white film noir. Red is the only colour, so errors are amber. */
+  :root[data-theme="noir"] {
+    --color-salon: #0a0a0a;
+    --color-row: #161616;
+    --color-row-raised: #232323;
+    --color-screen: #f2efe8;
+    --color-haze: #a8a8a8;
+    --color-projector: #ef5a4c;
+    --color-alarm: #ffb020;
+    --color-edge: #7a7a7a;
+    --color-rule: #ffffff;
+    --font-marquee: "DM Serif Display", Georgia, serif;
+    --font-sans: "Libre Franklin", system-ui, sans-serif;
+    --marquee-weight: 400;
+  }
+
   html {
     color-scheme: dark;
   }
@@ -79,14 +154,14 @@
     }
 
     & hr {
-      @apply border-white/10;
+      @apply border-rule/10;
     }
   }
 }
 
 @utility marquee {
   font-family: var(--font-marquee);
-  font-weight: 800;
+  font-weight: var(--marquee-weight);
   line-height: 0.92;
   letter-spacing: 0.01em;
   text-wrap: balance;

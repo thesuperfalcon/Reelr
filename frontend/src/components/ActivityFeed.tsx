@@ -30,7 +30,7 @@ export function ActivityFeed({ kind, empty }: ActivityFeedProps) {
 
   return (
     <div>
-      <ul className="divide-y divide-white/5">
+      <ul className="divide-y divide-rule/5">
         {items.map((item) => (
           <ActivityItem key={item.id} item={item} />
         ))}

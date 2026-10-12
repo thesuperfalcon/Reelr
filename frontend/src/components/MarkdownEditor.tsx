@@ -134,7 +134,7 @@ export function MarkdownEditor({ id, value, onChange, maxLength, placeholder, hi
 
   return (
     <div className="mt-2 rounded-sm bg-salon ring-1 ring-edge focus-within:ring-2 focus-within:ring-projector">
-      <div className="flex items-center gap-1 border-b border-white/10 px-2 py-1.5">
+      <div className="flex items-center gap-1 border-b border-rule/10 px-2 py-1.5">
         <div role="toolbar" aria-label="Formatting" aria-controls={id} className="flex items-center gap-0.5">
           {actions.map((action) => {
             const title = action.shortcut ? `${action.label} (${modifier}${action.shortcut.toUpperCase()})` : action.label;
@@ -190,7 +190,7 @@ export function MarkdownEditor({ id, value, onChange, maxLength, placeholder, hi
         </div>
       )}
 
-      <div className="flex items-start justify-between gap-4 border-t border-white/10 px-3 py-1.5 text-xs text-haze">
+      <div className="flex items-start justify-between gap-4 border-t border-rule/10 px-3 py-1.5 text-xs text-haze">
         <p id={hintId}>{hint}</p>
         <p id={counterId} className={`shrink-0 tabular-nums ${nearLimit ? "text-alarm" : ""}`}>
           {value.length.toLocaleString("en")} / {maxLength.toLocaleString("en")}

@@ -54,7 +54,7 @@ export function LoadMore({ query, what }: LoadMoreProps) {
         type="button"
         onClick={() => fetchNextPage()}
         disabled={isFetchingNextPage}
-        className="rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-white/15 transition hover:bg-row disabled:opacity-50"
+        className="rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row disabled:opacity-50"
       >
         {isFetchingNextPage ? "Loading…" : "Load more"}
       </button>

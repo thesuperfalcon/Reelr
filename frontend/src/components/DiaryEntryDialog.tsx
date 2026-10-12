@@ -60,7 +60,7 @@ export function DiaryEntryDialog({ entry, onClose }: DiaryEntryDialogProps) {
       onClose={onClose}
       // A click on the backdrop lands on the dialog element itself.
       onClick={(event) => event.target === event.currentTarget && onClose()}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(28rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-white/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(28rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-rule/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
     >
       <form
         method="dialog"
@@ -84,7 +84,7 @@ export function DiaryEntryDialog({ entry, onClose }: DiaryEntryDialogProps) {
           </div>
         </div>
 
-        <div role="group" aria-labelledby={dateLabelId} className="mt-6 border-t border-white/5 pt-6 text-center">
+        <div role="group" aria-labelledby={dateLabelId} className="mt-6 border-t border-rule/5 pt-6 text-center">
           <p id={dateLabelId} className="text-sm text-haze">
             Watched on
           </p>
@@ -93,7 +93,7 @@ export function DiaryEntryDialog({ entry, onClose }: DiaryEntryDialogProps) {
           </div>
         </div>
 
-        <div className="mt-4 border-t border-white/5 pt-6 text-center">
+        <div className="mt-4 border-t border-rule/5 pt-6 text-center">
           <p id={ratingLabelId} className="text-sm text-haze">
             Rating for this viewing
           </p>
@@ -116,7 +116,7 @@ export function DiaryEntryDialog({ entry, onClose }: DiaryEntryDialogProps) {
           </p>
         </div>
 
-        <div className="mt-4 border-t border-white/5 pt-6 text-center">
+        <div className="mt-4 border-t border-rule/5 pt-6 text-center">
           <p id={statusLabelId} className="text-sm text-haze">
             Status
           </p>
@@ -182,7 +182,7 @@ export function DiaryEntryDialog({ entry, onClose }: DiaryEntryDialogProps) {
             <button
               type="button"
               onClick={onClose}
-              className="rounded-sm px-4 py-2 text-sm font-medium text-haze ring-1 ring-white/15 transition hover:text-screen"
+              className="rounded-sm px-4 py-2 text-sm font-medium text-haze ring-1 ring-rule/15 transition hover:text-screen"
             >
               Cancel
             </button>
