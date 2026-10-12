@@ -44,6 +44,7 @@ import type {
     WatchlistEntry,
 } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { DiaryStats } from "../components/DiaryStats";
 import { usePageTitle } from "../lib/title";
 import { useReturnFocus } from "../lib/focus";
 
@@ -806,6 +807,11 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                     error={profile.error}
                     retry={() => profile.refetch()}
                 />
+            )}
+
+            {/* Made from the diary, so shown to whoever may see the diary. */}
+            {(own || profile.data?.canSeeDiary) && (
+                <DiaryStats userId={userId} own={own} />
             )}
 
             <Tabs
