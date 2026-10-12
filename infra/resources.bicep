@@ -12,6 +12,7 @@ param emailFromAddress string
 param adminUserIds array
 param demoUserIds array
 param inviteOnly bool
+param alertEmail string
 param deployApps bool
 
 // Short, stable suffix for names that must be unique across Azure (SQL server, Key Vault).
@@ -363,6 +364,109 @@ resource migrateJob 'Microsoft.App/jobs@2024-03-01' = if (deployApps) {
         }
       ]
     }
+  }
+}
+
+// ---------- Alerts ----------
+// An email when the backend answers with server errors or keeps restarting (failed liveness checks).
+// Off without an address. Each alert costs about 0.10 USD a month.
+
+var alertsOn = deployApps && !empty(alertEmail)
+
+resource alertEmails 'Microsoft.Insights/actionGroups@2023-01-01' = if (alertsOn) {
+  name: 'ag-reelr'
+  location: 'Global'
+  tags: tags
+  properties: {
+    groupShortName: 'reelr'
+    enabled: true
+    emailReceivers: [
+      {
+        name: 'owner'
+        emailAddress: alertEmail
+        useCommonAlertSchema: true
+      }
+    ]
+  }
+}
+
+resource serverErrorAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (alertsOn) {
+  name: 'reelr-backend-5xx'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'The backend answered with more than 5 server errors (5xx) in 15 minutes.'
+    severity: 2
+    enabled: true
+    scopes: [
+      backend.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          criterionType: 'StaticThresholdCriterion'
+          name: 'ServerErrors'
+          metricNamespace: 'Microsoft.App/containerApps'
+          metricName: 'Requests'
+          dimensions: [
+            {
+              name: 'statusCodeCategory'
+              operator: 'Include'
+              values: [
+                '5xx'
+              ]
+            }
+          ]
+          operator: 'GreaterThan'
+          threshold: 5
+          timeAggregation: 'Total'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertEmails.id
+      }
+    ]
+  }
+}
+
+// The liveness probe restarts a backend that stops answering /health/live.
+resource restartAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (alertsOn) {
+  name: 'reelr-backend-restarts'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'The backend restarted more than twice in 30 minutes, e.g. because its health check failed.'
+    severity: 2
+    enabled: true
+    scopes: [
+      backend.id
+    ]
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT30M'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          criterionType: 'StaticThresholdCriterion'
+          name: 'Restarts'
+          metricNamespace: 'Microsoft.App/containerApps'
+          metricName: 'RestartCount'
+          operator: 'GreaterThan'
+          threshold: 2
+          timeAggregation: 'Total'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertEmails.id
+      }
+    ]
   }
 }
 

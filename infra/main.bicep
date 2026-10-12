@@ -44,6 +44,9 @@ param demoUserIds array = []
 @description('True lets only people with an invite code register. False opens registration, e.g. to create the first admin account.')
 param inviteOnly bool = true
 
+@description('Address that gets an email when the backend fails. Empty turns the alerts off.')
+param alertEmail string = ''
+
 @description('False creates only the base resources, so the Key Vault secrets and database users can be set up before the apps start.')
 param deployApps bool = true
 
@@ -74,6 +77,7 @@ module resources 'resources.bicep' = {
     emailFromAddress: emailFromAddress
     adminUserIds: adminUserIds
     demoUserIds: demoUserIds
+    alertEmail: alertEmail
     inviteOnly: inviteOnly
     deployApps: deployApps
   }

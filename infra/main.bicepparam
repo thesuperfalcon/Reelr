@@ -13,6 +13,7 @@ param deployApps = bool(readEnvironmentVariable('REELR_DEPLOY_APPS', 'true'))
 param adminUserIds = map(filter(split(readEnvironmentVariable('REELR_ADMIN_USER_IDS', ''), ','), id => !empty(trim(id))), id => trim(id))
 param demoUserIds = map(filter(split(readEnvironmentVariable('REELR_DEMO_USER_IDS', ''), ','), id => !empty(trim(id))), id => trim(id))
 param inviteOnly = bool(readEnvironmentVariable('REELR_INVITE_ONLY', 'true'))
+param alertEmail = readEnvironmentVariable('REELR_ALERT_EMAIL', '')
 
 param emailUserName = readEnvironmentVariable('REELR_EMAIL_USER', '')
 param emailFromAddress = readEnvironmentVariable('REELR_EMAIL_FROM', '')
