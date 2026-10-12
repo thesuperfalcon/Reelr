@@ -17,6 +17,7 @@ import {
   useUploadAvatar,
 } from "../lib/queries";
 import type { DiaryVisibility, UserSettings, UserSettingsUpdate, UserSummary, WatchlistVisibility } from "../lib/types";
+import { themes, useTheme } from "../lib/theme";
 import { usePageTitle } from "../lib/title";
 import { useReturnFocus } from "../lib/focus";
 
@@ -411,6 +412,45 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
   );
 }
 
+// Takes effect at once and is kept in this browser, so it sits outside the form and its Save button.
+function AppearanceSection() {
+  const [theme, setTheme] = useTheme();
+
+  return (
+    <Section id="settings-appearance" title="Appearance" description="Changes the look straight away. Kept in this browser only.">
+      <fieldset>
+        <legend className="text-sm font-medium">Theme</legend>
+        <div className="mt-3 space-y-3">
+          {themes.map((option) => (
+            <label key={option.value} className="flex items-start gap-3 text-sm">
+              <input
+                type="radio"
+                name="theme"
+                value={option.value}
+                checked={theme === option.value}
+                onChange={() => setTheme(option.value)}
+                className="mt-0.5 size-4 accent-projector"
+              />
+              <span
+                aria-hidden="true"
+                className="mt-0.5 flex h-5 w-8 shrink-0 items-center justify-center gap-0.5 rounded-sm ring-1 ring-rule/20"
+                style={{ background: option.background }}
+              >
+                <span className="size-1.5 rounded-full" style={{ background: option.text }} />
+                <span className="size-1.5 rounded-full" style={{ background: option.accent }} />
+              </span>
+              <span>
+                <span className="font-medium">{option.label}</span>
+                <span className="block text-haze">{option.description}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+    </Section>
+  );
+}
+
 function BlockedSection() {
   const blocked = useBlockedUsers();
 
@@ -617,6 +657,7 @@ export function SettingsPage() {
         ) : (
           <>
             <SettingsForm settings={settings.data} />
+            <AppearanceSection />
             <BlockedSection />
             <DataExportSection />
             <LogoutEverywhereSection />
