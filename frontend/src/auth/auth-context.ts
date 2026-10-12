@@ -9,8 +9,8 @@ export interface RegisterInput {
   acceptTerms: boolean;
 }
 
-/** "expiring": the session ends in a few minutes. "expired": it ended, or the API refused the token. */
-export type SessionNotice = "expiring" | "expired" | null;
+/** "expired": the sign-in ended while the page was open, e.g. a password change on another device. */
+export type SessionNotice = "expired" | null;
 
 export interface AuthContextValue {
   user: CurrentUser | null;

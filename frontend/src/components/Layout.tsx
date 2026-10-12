@@ -56,16 +56,15 @@ function PageLoadingBar() {
   );
 }
 
-// Tells the user before and after their login runs out, so unsaved work is not lost without warning.
-// Review text in the rating dialog is kept as a draft, so it is still there after logging in again.
+// Tells the user when their sign-in ended while the page was open, so unsaved work is not lost without
+// warning. Review text in the rating dialog is kept as a draft, so it is still there after logging in again.
 function SessionBanner() {
-  const { sessionNotice, dismissSessionNotice, logout } = useAuth();
+  const { sessionNotice, dismissSessionNotice } = useAuth();
   const location = useLocation();
 
   const onLoginPage = location.pathname === "/login";
 
-  // On the login page only the "has run out" message is useful; it explains why the user landed there.
-  if (!sessionNotice || (onLoginPage && sessionNotice === "expiring")) {
+  if (!sessionNotice) {
     return null;
   }
 
@@ -73,17 +72,14 @@ function SessionBanner() {
     <div role="status" className="border-b border-projector/30 bg-row">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 text-sm sm:px-6">
         <p className="text-screen">
-          {sessionNotice === "expiring"
-            ? "Your login runs out in a few minutes. Save what you are working on, then log in again."
-            : "Your login has run out. Log in again to keep going; unsaved review text is kept."}
+          Your login has ended. Log in again to keep going; unsaved review text is kept.
         </p>
         <div className="flex items-center gap-4 sm:ml-auto">
           {!onLoginPage && (
             <Link
               to="/login"
               state={{ from: location.pathname + location.search }}
-              // A login that is about to run out is ended first, so the login page shows its form.
-              onClick={sessionNotice === "expiring" ? logout : dismissSessionNotice}
+              onClick={dismissSessionNotice}
               className="font-medium text-projector underline underline-offset-4"
             >
               Log in again
