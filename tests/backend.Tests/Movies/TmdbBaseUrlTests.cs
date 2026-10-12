@@ -28,7 +28,7 @@ public class TmdbBaseUrlTests : IClassFixture<TmdbBaseUrlWithoutSlashApiFactory>
     {
         var tmdbId = _factory.Tmdb.AddMovie(4242, "Slashless");
 
-        var response = await _factory.CreateClient().GetAsync($"/api/movie/{tmdbId}");
+        var response = await _factory.CreateClient().GetAsync($"/api/movies/{tmdbId}");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var request = Assert.Single(_factory.Tmdb.Requests);
