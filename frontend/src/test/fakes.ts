@@ -3,7 +3,7 @@ import { vi } from "vitest";
 // A JWT with the claims AuthProvider reads. The signature is never checked in the browser.
 export function fakeToken(id: number, username: string, expiresInSeconds = 900): string {
   const encode = (value: object) => btoa(JSON.stringify(value)).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
-  return `${encode({ alg: "HS256" })}.${encode({ sub: String(id), unique_name: username, exp: Math.floor(Date.now() / 1000) + expiresInSeconds })}.signature`;
+  return `${encode({ alg: "HS256" })}.${encode({ sub: String(id), name: username, exp: Math.floor(Date.now() / 1000) + expiresInSeconds })}.signature`;
 }
 
 export function json(body: unknown, status = 200): Response {
