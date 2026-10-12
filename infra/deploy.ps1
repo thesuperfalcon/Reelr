@@ -27,6 +27,15 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Only errors from az, no warnings or notices on stderr.
+$env:AZURE_CORE_ONLY_SHOW_ERRORS = 'true'
+
+# Runs an az command that may fail without that being an error, e.g. checking whether something exists.
+# Windows PowerShell turns redirected stderr into a terminating error under "Stop", so this runs under "Continue".
+function Invoke-AzQuietly([scriptblock] $command) {
+    $ErrorActionPreference = 'Continue'
+    & $command 2>$null
+}
 $template = Join-Path $PSScriptRoot 'main.bicep'
 $parameters = Join-Path $PSScriptRoot 'main.bicepparam'
 
@@ -45,7 +54,7 @@ function Set-SecretFromText([string] $vault, [string] $name, [string] $value) {
         [System.IO.File]::WriteAllText($file, $value)
         # A new role assignment can take a minute to apply.
         for ($try = 1; ; $try++) {
-            az keyvault secret set --vault-name $vault --name $name --file $file --encoding utf-8 --output none 2>$null
+            Invoke-AzQuietly { az keyvault secret set --vault-name $vault --name $name --file $file --encoding utf-8 --output none }
             if ($LASTEXITCODE -eq 0) { break }
             if ($try -ge 10) { throw "Could not write secret $name to $vault." }
             Write-Host "  waiting for Key Vault access..."
@@ -58,7 +67,7 @@ function Set-SecretFromText([string] $vault, [string] $name, [string] $value) {
 }
 
 function Set-SecretIfMissing([string] $vault, [string] $name, [scriptblock] $getValue) {
-    $exists = az keyvault secret list --vault-name $vault --query "[?name=='$name'] | length(@)" -o tsv 2>$null
+    $exists = Invoke-AzQuietly { az keyvault secret list --vault-name $vault --query "[?name=='$name'] | length(@)" -o tsv }
     if ($exists -eq '1' -and -not $ResetSecrets) {
         Write-Host "  $name already set"
         return
@@ -83,8 +92,10 @@ $env:REELR_EMAIL_USER = $EmailUserName
 $env:REELR_EMAIL_FROM = $EmailFromAddress
 # Without -ImageTag, keep what the backend runs now (deployed by CI), so a rerun never goes back to placeholders.
 if (-not $ImageTag) {
-    $current = az containerapp show --resource-group rg-reelr --name backend `
-        --query 'properties.template.containers[0].image' -o tsv 2>$null
+    $current = Invoke-AzQuietly {
+        az containerapp show --resource-group rg-reelr --name backend `
+            --query 'properties.template.containers[0].image' -o tsv
+    }
     if ($LASTEXITCODE -eq 0 -and $current -match '/reelr-backend:(.+)$') {
         $ImageTag = $Matches[1]
         Write-Host "Keeping image tag $ImageTag"

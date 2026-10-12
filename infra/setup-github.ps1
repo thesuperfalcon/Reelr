@@ -17,6 +17,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$env:AZURE_CORE_ONLY_SHOW_ERRORS = 'true'
 $name = 'reelr-github-deploy'
 
 az account set --subscription $Subscription
