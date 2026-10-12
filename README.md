@@ -184,7 +184,7 @@ CI runs the backend tests on every push and pull request to `main` and `develop`
 
 ## API
 
-Swagger UI is available at `/swagger` in Development. A Postman collection and environment are in the repository root: `Reelr.postman_collection.json` and `Reelr.postman_environment.json`.
+Swagger UI is available at `/swagger` in Development. A Postman collection and environment are in the repository root: `Reelr.postman_collection.json` and `Reelr.postman_environment.json`. Set the environment's `password` variable in Postman before you register or log in; it is empty in the repository.
 
 ## Attribution
 

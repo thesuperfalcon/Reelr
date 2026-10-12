@@ -35,7 +35,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"exampleUser\",\n  \"email\": \"user@example.com\",\n  \"password\": \"P@ssw0rd!\"\n}"
+              "raw": "{\n  \"username\": \"exampleUser\",\n  \"email\": \"user@example.com\",\n  \"password\": \"{{password}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/register",
@@ -80,7 +80,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"userInput\": \"user@example.com\",\n  \"password\": \"P@ssw0rd!\"\n}"
+              "raw": "{\n  \"userInput\": \"user@example.com\",\n  \"password\": \"{{password}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
@@ -165,7 +165,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"password\": \"P@ssw0rd!\"\n}"
+              "raw": "{\n  \"password\": \"{{password}}\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/users/{{userId}}",
