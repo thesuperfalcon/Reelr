@@ -23,6 +23,7 @@ public class AuthController : ControllerBase
     private readonly SecurityLog _securityLog;
     private readonly RefreshTokens _refreshTokens;
     private readonly InviteCodes _inviteCodes;
+    private readonly DemoAccounts _demoAccounts;
 
     public AuthController(
         UserManager<User> userManager,
@@ -33,7 +34,8 @@ public class AuthController : ControllerBase
         SecurityStamps securityStamps,
         SecurityLog securityLog,
         RefreshTokens refreshTokens,
-        InviteCodes inviteCodes)
+        InviteCodes inviteCodes,
+        DemoAccounts demoAccounts)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -44,6 +46,7 @@ public class AuthController : ControllerBase
         _securityLog = securityLog;
         _refreshTokens = refreshTokens;
         _inviteCodes = inviteCodes;
+        _demoAccounts = demoAccounts;
     }
 
     [HttpPost("register")]
@@ -174,7 +177,8 @@ public class AuthController : ControllerBase
     {
         var user = await _userManager.FindByEmailAsync(dto.Email);
 
-        if (user != null)
+        // A demo account's password stays as it is (see DemoAccounts); the answer is the same as for anyone.
+        if (user != null && !_demoAccounts.IsDemo(user.Id))
         {
             await _accountEmails.SendPasswordResetAsync(user);
             _securityLog.PasswordResetRequested(user.Id);
@@ -190,7 +194,7 @@ public class AuthController : ControllerBase
     {
         var user = await _userManager.FindByIdAsync(dto.UserId!.Value.ToString());
 
-        if (user == null)
+        if (user == null || _demoAccounts.IsDemo(user.Id))
         {
             return InvalidLink();
         }

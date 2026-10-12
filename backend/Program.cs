@@ -124,6 +124,9 @@ builder.Services.AddSingleton<SecurityLog>();
 // Admins are configured by user id under "Admin:UserIds" (see AdminAccess).
 var adminAccess = new AdminAccess(builder.Configuration);
 builder.Services.AddSingleton(adminAccess);
+
+// Shared demo accounts are configured by user id under "Demo:UserIds" (see DemoAccounts).
+builder.Services.AddSingleton<DemoAccounts>();
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(AdminAccess.Policy, policy => policy
         .RequireAuthenticatedUser()
