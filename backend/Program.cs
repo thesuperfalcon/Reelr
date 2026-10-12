@@ -187,7 +187,8 @@ builder.Services.AddExceptionHandler<UniqueConflictExceptionHandler>();
 var tmdbResilience = builder.Services
     .AddHttpClient<TmdbService>(client =>
     {
-        client.BaseAddress = new Uri("https://api.themoviedb.org/3/");
+        // Overridable so the end-to-end tests can point the app at a fake TMDB.
+        client.BaseAddress = new Uri(builder.Configuration["Tmdb:BaseUrl"] ?? "https://api.themoviedb.org/3/");
     })
     .AddStandardResilienceHandler(options =>
     {
