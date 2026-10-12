@@ -58,7 +58,7 @@ function WatchlistButton({ tmdbId, title }: { tmdbId: number; title: string | nu
       aria-label={label}
       aria-pressed={onWatchlist}
       title={label}
-      className="inline-flex size-9 items-center justify-center rounded-sm text-projector ring-1 ring-white/15 transition hover:bg-row disabled:opacity-50"
+      className="inline-flex size-9 items-center justify-center rounded-sm text-projector ring-1 ring-rule/15 transition hover:bg-row disabled:opacity-50"
     >
       <svg viewBox="0 0 24 24" fill={onWatchlist ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="size-5" aria-hidden="true">
         <path d="M6 3h12v18l-6-4-6 4z" />
@@ -79,7 +79,7 @@ function AddToListButton({ movie }: { movie: MovieDetails }) {
         aria-label={label}
         title={label}
         aria-haspopup="dialog"
-        className="inline-flex size-9 items-center justify-center rounded-sm text-screen ring-1 ring-white/15 transition hover:bg-row"
+        className="inline-flex size-9 items-center justify-center rounded-sm text-screen ring-1 ring-rule/15 transition hover:bg-row"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-5" aria-hidden="true">
           <path d="M4 6h11M4 12h11M4 18h7M18 15v6M15 18h6" />
@@ -113,7 +113,7 @@ function RateButton({ movie }: { movie: MovieDetails }) {
         aria-label={label}
         title={label}
         aria-haspopup="dialog"
-        className="inline-flex h-9 items-center gap-2 rounded-sm px-3 text-sm font-medium text-screen ring-1 ring-white/15 transition hover:bg-row disabled:opacity-50"
+        className="inline-flex h-9 items-center gap-2 rounded-sm px-3 text-sm font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row disabled:opacity-50"
       >
         {score === null ? (
           <>
@@ -272,7 +272,7 @@ function Reviews({ tmdbId }: { tmdbId: number }) {
         <p className="py-6 text-haze">No reviews yet.</p>
       ) : (
         <>
-          <ul className="mt-2 divide-y divide-white/5">
+          <ul className="mt-2 divide-y divide-rule/5">
             {ordered.map((review) => (
               <ReviewItem key={review.id} review={review} own={review === own} />
             ))}
@@ -348,7 +348,7 @@ export function MoviePage() {
         <div className="grid gap-8 md:grid-cols-[16rem_1fr] md:gap-12">
           <div className="w-36 sm:w-48 md:w-full">
             {poster ? (
-              <img src={poster} alt={`Poster for ${movie.title}`} className="aspect-[2/3] w-full rounded-sm object-cover ring-1 ring-white/10" />
+              <img src={poster} alt={`Poster for ${movie.title}`} className="aspect-[2/3] w-full rounded-sm object-cover ring-1 ring-rule/10" />
             ) : (
               <div className="aspect-[2/3] w-full rounded-sm bg-row" aria-hidden="true" />
             )}

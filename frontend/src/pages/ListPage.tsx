@@ -81,7 +81,7 @@ function MovieGrid({
                     disabled={removing}
                     aria-label={`Remove ${movie.title} from ${list.name}`}
                     title="Remove from list"
-                    className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-salon/80 text-screen ring-1 ring-white/20 transition hover:bg-alarm hover:text-salon"
+                    className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-salon/80 text-screen ring-1 ring-rule/20 transition hover:bg-alarm hover:text-salon"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="size-3.5" aria-hidden="true">
                       <path d="M6 6l12 12M18 6L6 18" />
@@ -132,7 +132,7 @@ function OwnerActions({ list }: { list: MovieList }) {
           type="button"
           onClick={() => setEditing(true)}
           aria-haspopup="dialog"
-          className="inline-flex h-9 items-center rounded-sm px-3 font-medium text-screen ring-1 ring-white/15 transition hover:bg-row"
+          className="inline-flex h-9 items-center rounded-sm px-3 font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row"
         >
           Edit list
         </button>

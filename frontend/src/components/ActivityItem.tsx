@@ -22,7 +22,7 @@ export function SmallPoster({ movie }: { movie: ActivityMovie }) {
   return (
     <Link to={`/movie/${movie.tmdbId}`} className="block w-12 shrink-0 rounded-sm sm:w-14" tabIndex={-1} aria-hidden="true" title={movie.title}>
       {poster ? (
-        <img src={poster} alt="" loading="lazy" className="aspect-[2/3] w-full rounded-sm object-cover ring-1 ring-white/10" />
+        <img src={poster} alt="" loading="lazy" className="aspect-[2/3] w-full rounded-sm object-cover ring-1 ring-rule/10" />
       ) : (
         <div className="aspect-[2/3] w-full rounded-sm bg-row" aria-hidden="true" />
       )}

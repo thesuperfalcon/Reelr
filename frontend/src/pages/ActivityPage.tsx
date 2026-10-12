@@ -67,7 +67,7 @@ export function ActivityPage() {
           </>
         ) : (
           <>
-            <div role="tablist" aria-label="Activity feeds" className="mt-6 flex gap-6 border-b border-white/5">
+            <div role="tablist" aria-label="Activity feeds" className="mt-6 flex gap-6 border-b border-rule/5">
               {feedTabs.map(({ id, label }) => (
                 <button
                   key={id}

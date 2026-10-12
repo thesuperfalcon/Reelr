@@ -38,7 +38,7 @@ export function WatchedOnField({ value, onChange }: { value: string; onChange: (
           aria-pressed={value === day}
           onClick={() => onChange(day)}
           className={`h-9 rounded-sm px-3 text-sm font-medium ring-1 transition ${
-            value === day ? "bg-row-raised text-screen ring-white/30" : "text-haze ring-white/15 hover:text-screen"
+            value === day ? "bg-row-raised text-screen ring-rule/30" : "text-haze ring-rule/15 hover:text-screen"
           }`}
         >
           {label}

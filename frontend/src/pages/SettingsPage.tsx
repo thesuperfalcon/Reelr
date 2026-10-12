@@ -23,7 +23,7 @@ import { useReturnFocus } from "../lib/focus";
 const buttonClass =
   "rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-60";
 const quietButtonClass =
-  "rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-white/15 transition hover:bg-row disabled:opacity-50";
+  "rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row disabled:opacity-50";
 
 // A new picture waits here until Save; "remove" likewise.
 type PictureChange = { kind: "none" } | { kind: "upload"; image: Blob; preview: string } | { kind: "remove" };
@@ -65,7 +65,7 @@ function changedSettings(draft: Draft, settings: UserSettings): UserSettingsUpda
 
 function Section({ id, title, description, children }: { id: string; title: string; description?: string; children: ReactNode }) {
   return (
-    <section aria-labelledby={id} className="grid gap-4 border-t border-white/5 py-10 md:grid-cols-[16rem_1fr] md:gap-10">
+    <section aria-labelledby={id} className="grid gap-4 border-t border-rule/5 py-10 md:grid-cols-[16rem_1fr] md:gap-10">
       <div>
         <h2 id={id} className="marquee text-2xl">
           {title}
@@ -370,7 +370,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
       </Section>
 
       {/* Stays in view while scrolling, so the unsaved state is always visible. */}
-      <div className="sticky bottom-0 -mx-4 border-t border-white/10 bg-salon/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
+      <div className="sticky bottom-0 -mx-4 border-t border-rule/10 bg-salon/95 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6">
         {blocker.state === "blocked" ? (
           <div role="alertdialog" aria-label="Unsaved changes" className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <p className="text-sm">You have unsaved changes. Leave without saving?</p>

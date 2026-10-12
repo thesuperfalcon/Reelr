@@ -20,7 +20,7 @@ export function Poster({ movie, size = "w342", className = "", priority = false 
       className={`group block rounded-sm outline-offset-4 ${className}`}
       aria-label={year ? `${title} (${year})` : title}
     >
-      <div className="aspect-[2/3] overflow-hidden rounded-sm bg-row ring-1 ring-white/5 transition group-hover:ring-2 group-hover:ring-projector">
+      <div className="aspect-[2/3] overflow-hidden rounded-sm bg-row ring-1 ring-rule/5 transition group-hover:ring-2 group-hover:ring-projector">
         {src ? (
           <img
             src={src}

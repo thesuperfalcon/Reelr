@@ -24,7 +24,7 @@ function ReportedItemCard({ item }: { item: ReportedItem }) {
   const link = itemLink(item);
 
   return (
-    <li className="border-t border-white/5 py-6">
+    <li className="border-t border-rule/5 py-6">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
         <span className="rounded-sm bg-row px-2 py-0.5 font-medium">{typeLabel[item.targetType]}</span>
         <span className="text-alarm">
@@ -61,7 +61,7 @@ function ReportedItemCard({ item }: { item: ReportedItem }) {
       {item.notes.length > 0 && (
         <ul className="mt-4 space-y-1 text-sm">
           {item.notes.map((note, index) => (
-            <li key={index} className="border-l-2 border-white/10 pl-3 text-haze">
+            <li key={index} className="border-l-2 border-rule/10 pl-3 text-haze">
               {note}
             </li>
           ))}
@@ -84,7 +84,7 @@ function ReportedItemCard({ item }: { item: ReportedItem }) {
           type="button"
           onClick={() => resolve.mutate({ targetType: item.targetType, targetId: item.targetId, outcome: "Dismissed" })}
           disabled={resolve.isPending}
-          className="rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-white/15 transition hover:bg-row disabled:opacity-60"
+          className="rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row disabled:opacity-60"
         >
           Dismiss
         </button>

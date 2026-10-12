@@ -89,7 +89,7 @@ function ReportDialog({
       aria-labelledby={titleId}
       onClose={onClose}
       onClick={(event) => event.target === event.currentTarget && onClose()}
-      className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-white/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
+      className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-rule/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
     >
       <form
         method="dialog"

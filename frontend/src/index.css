@@ -10,6 +10,8 @@
   --color-alarm: #e8766b;
   /* Outline of form fields: at least 3:1 against every background colour above (WCAG 1.4.11). */
   --color-edge: #857a87;
+  /* Hairlines and quiet outlines, used at low opacity. */
+  --color-rule: #ffffff;
 
   --font-marquee: "Big Shoulders Display", "Arial Narrow", sans-serif;
   --font-sans: "Instrument Sans", system-ui, sans-serif;
@@ -79,7 +81,7 @@
     }
 
     & hr {
-      @apply border-white/10;
+      @apply border-rule/10;
     }
   }
 }

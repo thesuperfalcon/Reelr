@@ -99,7 +99,7 @@ function ExternalLinks({ person }: { person: PersonDetails }) {
             href={link.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block rounded-sm px-3 py-1.5 font-medium text-screen ring-1 ring-white/15 transition hover:bg-row"
+            className="inline-block rounded-sm px-3 py-1.5 font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row"
           >
             {link.label}
           </a>
@@ -271,7 +271,7 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
         role="tablist"
         aria-label="Departments"
         onKeyDown={moveBetweenTabs}
-        className="mt-6 flex gap-6 overflow-x-auto overflow-y-hidden border-b border-white/5 [&::-webkit-scrollbar]:hidden"
+        className="mt-6 flex gap-6 overflow-x-auto overflow-y-hidden border-b border-rule/5 [&::-webkit-scrollbar]:hidden"
       >
         {departments.map(({ name, count }) => (
           <button
@@ -363,7 +363,7 @@ export function PersonPage() {
       <div className="grid gap-8 md:grid-cols-[16rem_1fr] md:gap-12">
         <div className="w-36 sm:w-48 md:w-full">
           {photo ? (
-            <img src={photo} alt={`Photo of ${person.name}`} className="aspect-[2/3] w-full rounded-sm object-cover ring-1 ring-white/10" />
+            <img src={photo} alt={`Photo of ${person.name}`} className="aspect-[2/3] w-full rounded-sm object-cover ring-1 ring-rule/10" />
           ) : (
             <div className="aspect-[2/3] w-full rounded-sm bg-row" aria-hidden="true" />
           )}
