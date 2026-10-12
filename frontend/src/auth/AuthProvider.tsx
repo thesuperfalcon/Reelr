@@ -5,10 +5,10 @@ import { Loading } from "../components/Status";
 import type { CurrentUser } from "../lib/types";
 import { AuthContext, type AuthContextValue, type RegisterInput, type SessionNotice } from "./auth-context";
 
-// The backend writes ClaimTypes.Name as "unique_name" in the JWT.
+// The claims the backend puts in the access token.
 interface TokenPayload {
   sub?: string;
-  unique_name?: string;
+  name?: string;
   exp?: number;
 }
 
@@ -36,7 +36,7 @@ function userFromToken(token: string | null): CurrentUser | null {
     return null;
   }
 
-  return { id: Number(payload.sub), username: payload.unique_name ?? "" };
+  return { id: Number(payload.sub), username: payload.name ?? "" };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
