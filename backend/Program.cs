@@ -51,7 +51,25 @@ builder.Services.AddControllers();
 // Unhandled exceptions and empty error responses (e.g. 401, 404, 429) get an RFC 7807 problem body.
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = CorrelationId.AddToProblem);
 
-builder.Services.AddOpenApi();
+// The OpenAPI document, built in. In Development it is at /openapi/v1.json and Swagger UI shows it at /swagger.
+builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
+{
+    document.Components ??= new OpenApiComponents();
+    document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+    document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+    {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        Description = "An access token, e.g. from /auth/login (no need to type the 'Bearer ' prefix)."
+    };
+    document.Security ??= [];
+    document.Security.Add(new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
+    });
+    return Task.CompletedTask;
+}));
 
 builder.Services.AddDbContext<ReelrContext>(options =>
     options.UseSqlServer(
@@ -205,25 +223,6 @@ if (tmdbResilienceOverrides.Exists())
     tmdbResilience.Configure(tmdbResilienceOverrides);
 }
 
-// Swagger
-builder.Services.AddSwaggerGen(options =>
-{
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "Bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Enter a JWT, e.g. from /auth/login (no need to type 'Bearer ' prefix)."
-    });
-
-    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
-    {
-        [new OpenApiSecuritySchemeReference("Bearer", document)] = []
-    });
-});
-
 var app = builder.Build();
 
 // Apply pending migrations at startup, e.g. when running in Docker.
@@ -250,9 +249,7 @@ app.UseStatusCodePages();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Reelr API"));
 }
 else
 {
