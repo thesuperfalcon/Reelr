@@ -133,6 +133,7 @@ jobs:
           REELR_EMAIL_FROM: ${{ vars.REELR_EMAIL_FROM }}
           REELR_ADMIN_USER_IDS: ${{ vars.REELR_ADMIN_USER_IDS }}
           REELR_DEMO_USER_IDS: ${{ vars.REELR_DEMO_USER_IDS }}
+          REELR_ALERT_EMAIL: ${{ vars.REELR_ALERT_EMAIL }}
           # Unset means invite only.
           REELR_INVITE_ONLY: ${{ vars.REELR_INVITE_ONLY || 'true' }}
           REELR_IMAGE_TAG: ${{ env.SHA }}
