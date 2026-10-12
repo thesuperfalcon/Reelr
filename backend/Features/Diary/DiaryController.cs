@@ -97,11 +97,6 @@ namespace backend.Features.Diary
         [EndpointSummary("Save rating, status and review for a movie and log it as one diary entry")]
         public async Task<ActionResult<DiaryEntryDto>> LogEntry(int tmdbId, LogDiaryEntryDto dto)
         {
-            if (dto.Score is decimal score && !JournalService.IsHalfStep(score))
-            {
-                return BadRequest("Score must be in increments of 0.5.");
-            }
-
             if (dto.WatchedOn is DateOnly watchedOn && JournalService.ValidateWatchedOn(watchedOn) is string dateError)
             {
                 return BadRequest(dateError);
@@ -138,11 +133,6 @@ namespace backend.Features.Diary
         [EndpointSummary("Edit one of the current user's diary entries")]
         public async Task<ActionResult<DiaryEntryDto>> UpdateEntry(int entryId, UpdateDiaryEntryDto dto)
         {
-            if (dto.Rating is decimal score && !JournalService.IsHalfStep(score))
-            {
-                return BadRequest("Rating must be in increments of 0.5.");
-            }
-
             var watchedOn = dto.WatchedOn!.Value;
 
             if (JournalService.ValidateWatchedOn(watchedOn) is string dateError)

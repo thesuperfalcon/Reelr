@@ -304,7 +304,7 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
             .HasIndex(i => new { i.MovieListId, i.AddedAt });
     }
 
-    // A score from half a star to five stars in half steps, the same rule as JournalService.IsHalfStep.
+    // A score from half a star to five stars in half steps, the same rule as HalfStarsAttribute.
     private static string HalfStars(string column) =>
         $"{column} >= 0.5 AND {column} <= 5 AND {column} * 2 = FLOOR({column} * 2)";
 }

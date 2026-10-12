@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using backend.Features.Ratings;
 
 namespace backend.Features.Diary.DTOs
 {
@@ -9,7 +10,7 @@ namespace backend.Features.Diary.DTOs
         public DateOnly? WatchedOn { get; set; }
 
         // Null logs the viewing without a rating.
-        [Range(typeof(decimal), "0.5", "5")]
+        [HalfStars]
         public decimal? Rating { get; set; }
 
         public bool? Liked { get; set; }

@@ -50,11 +50,6 @@ namespace backend.Features.Ratings
         [EndpointSummary("Rate a movie")]
         public async Task<ActionResult<RatingDto>> CreateRating(int tmdbId, CreateRatingDto dto)
         {
-            if (!JournalService.IsHalfStep(dto.Score))
-            {
-                return BadRequest("Score must be in increments of 0.5.");
-            }
-
             var userId = User.GetUserId();
 
             var movie = await _movieCatalog.GetOrCreateAsync(tmdbId);
@@ -83,11 +78,6 @@ namespace backend.Features.Ratings
         [EndpointSummary("Update the current user's rating for a movie")]
         public async Task<ActionResult<RatingDto>> UpdateRating(int tmdbId, UpdateRatingDto dto)
         {
-            if (!JournalService.IsHalfStep(dto.Score))
-            {
-                return BadRequest("Score must be in increments of 0.5.");
-            }
-
             var userId = User.GetUserId();
 
             var rating = await _context.Ratings
