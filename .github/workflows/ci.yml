@@ -44,9 +44,9 @@ jobs:
       REELR_TEST_SQLSERVER: "Server=localhost,1433;User Id=sa;Password=${{ secrets.MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           dotnet-version: 10.0.x
 
@@ -81,7 +81,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: backend-test-results
           path: TestResults
@@ -95,9 +95,9 @@ jobs:
         working-directory: frontend
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -121,7 +121,7 @@ jobs:
     # No "needs": it runs next to the other jobs, so a push waits for the slowest job only.
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # The stack reads its secrets from .env. The password comes in through env and printf, so bash never
       # expands it, and single quotes stop Compose from reading "$" in it. docker-compose.e2e.yml sets the
@@ -138,10 +138,10 @@ jobs:
 
       # The images are built here with the GitHub Actions layer cache, so unchanged layers (restore, npm ci) are
       # reused between runs. They get the names Compose gives them in the reelr-e2e project, so "up" finds them.
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build the backend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./backend
           load: true
@@ -152,7 +152,7 @@ jobs:
       # The "migrate" service: the migrations bundle stage of the backend Dockerfile. It shares the backend's
       # build stages, so its cache scope reuses the restore and publish layers.
       - name: Build the migrations image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./backend
           target: migrations
@@ -164,7 +164,7 @@ jobs:
           cache-to: type=gha,scope=e2e-migrate,mode=max
 
       - name: Build the frontend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./frontend
           load: true
@@ -175,7 +175,7 @@ jobs:
       - name: Start the stack
         run: docker compose -p reelr-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --no-build --wait
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: npm
@@ -191,7 +191,7 @@ jobs:
         working-directory: e2e
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         id: browsers
         with:
           path: ~/.cache/ms-playwright
@@ -212,7 +212,7 @@ jobs:
 
       - name: Upload the report
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-report
           path: |
