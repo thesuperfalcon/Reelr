@@ -180,7 +180,7 @@ docker compose -p reelr-e2e -f docker-compose.yml -f docker-compose.e2e.yml down
 
 The `reelr-e2e` project name keeps its database apart from the everyday Docker stack. Stop the everyday stack first, since both use the same ports.
 
-CI runs the backend tests on every push and pull request to `main` and `develop`, against SQL Server in a container. It also lints, tests and builds the frontend, and then runs the end-to-end tests against the Docker stack.
+CI runs the backend tests on every push and pull request to `main` and `develop`, against SQL Server in a container. It also lints and builds the frontend, and runs the end-to-end tests against the Docker stack.
 
 ## API
 
