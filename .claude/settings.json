@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build *)",
+      "Bash(dotnet test *)",
+      "Bash(npm run lint)",
+      "Bash(npm run build)",
+      "Bash(git fetch *)",
+      "Bash(dotnet ef migrations has-pending-model-changes *)",
+      "Bash(dotnet ef migrations list *)",
+      "mcp__Claude_Browser__get_page_text",
+      "mcp__Claude_Browser__find",
+      "mcp__Claude_Browser__read_console_messages",
+      "mcp__Claude_Browser__read_network_requests",
+      "mcp__Claude_Browser__read_page",
+      "mcp__Claude_Browser__preview_logs"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/eslint-file.mjs\"",
+            "timeout": 60,
+            "statusMessage": "Linting frontend file..."
+          }
+        ]
+      }
+    ]
+  }
+}
