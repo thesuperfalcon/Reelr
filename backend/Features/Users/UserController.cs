@@ -172,63 +172,6 @@ namespace backend.Features.Users
         }
 
         [Authorize]
-        [HttpPut("{id:int}")]
-        [EndpointSummary("Update the current user's profile")]
-        public async Task<ActionResult<UserProfileDto>> UpdateUser(int id, UpdateUserDto dto)
-        {
-            var userId = User.GetUserId();
-
-            if (userId != id)
-            {
-                return Forbid();
-            }
-
-            var user = await _userManager.FindByIdAsync(id.ToString());
-
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            if (!string.IsNullOrWhiteSpace(dto.Username) && dto.Username != user.UserName)
-            {
-                var setNameResult = await _userManager.SetUserNameAsync(user, dto.Username);
-
-                if (!setNameResult.Succeeded)
-                {
-                    foreach (var error in setNameResult.Errors)
-                    {
-                        ModelState.AddModelError(error.Code, error.Description);
-                    }
-
-                    return ValidationProblem(ModelState);
-                }
-
-                // The rename changed the security stamp and so revoked the caller's token. PATCH /api/settings
-                // returns a new token; this older endpoint does not, so the caller has to log in again.
-                _securityStamps.Forget(user.Id);
-                _securityLog.UsernameChanged(user.Id);
-            }
-
-            var followerCount = await _context.Set<Follow>().CountAsync(f => f.FollowedId == id);
-            var followingCount = await _context.Set<Follow>().CountAsync(f => f.FollowerId == id);
-
-            return Ok(new UserProfileDto
-            {
-                Id = user.Id,
-                UserName = user.UserName ?? string.Empty,
-                ProfileImageUrl = user.ProfileImageUrl,
-                FollowerCount = followerCount,
-                FollowingCount = followingCount,
-                WatchlistVisibility = user.WatchlistVisibility,
-                DiaryVisibility = user.DiaryVisibility,
-                // Only the owner can update a profile, and owners always see their own watchlist and diary.
-                CanSeeWatchlist = true,
-                CanSeeDiary = true
-            });
-        }
-
-        [Authorize]
         [HttpDelete("{id:int}")]
         [EndpointSummary("Delete the current user's account (requires the current password)")]
         public async Task<IActionResult> DeleteUser(int id, DeleteUserDto dto)

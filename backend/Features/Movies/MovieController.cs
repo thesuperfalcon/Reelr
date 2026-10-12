@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace backend.Features.Movies;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/movies")]
 public class MovieController : ControllerBase
 {
     private readonly TmdbService _tmdbService;

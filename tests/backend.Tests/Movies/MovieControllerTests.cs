@@ -29,7 +29,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
     {
         var tmdbId = _factory.Tmdb.AddMovie(10001, "The Matrix");
 
-        var movie = await _client.GetFromJsonAsync<TmdbMovieDto>($"/api/movie/{tmdbId}");
+        var movie = await _client.GetFromJsonAsync<TmdbMovieDto>($"/api/movies/{tmdbId}");
 
         Assert.Equal(tmdbId, movie!.Id);
         Assert.Equal("The Matrix", movie.Title);
@@ -41,7 +41,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
     {
         var tmdbId = _factory.Tmdb.AddMovie(10002, "Authorized");
 
-        await _client.GetAsync($"/api/movie/{tmdbId}");
+        await _client.GetAsync($"/api/movies/{tmdbId}");
 
         var request = _factory.Tmdb.Requests.Last(r => r.RequestUri!.AbsolutePath.EndsWith($"/movie/{tmdbId}"));
         Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
@@ -51,7 +51,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
     [Fact]
     public async Task GetMovie_UnknownMovie_Returns404()
     {
-        var response = await _client.GetAsync("/api/movie/10999");
+        var response = await _client.GetAsync("/api/movies/10999");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -63,7 +63,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
     {
         _factory.Tmdb.SetResponse("search/movie", SearchResult("Alien", "Aliens"));
 
-        var result = await _client.GetFromJsonAsync<TmdbSearchResultDto>("/api/movie/search?query=alien%20isolation&page=2");
+        var result = await _client.GetFromJsonAsync<TmdbSearchResultDto>("/api/movies/search?query=alien%20isolation&page=2");
 
         Assert.Equal(["Alien", "Aliens"], result!.Results.Select(m => m.Title));
         var request = _factory.Tmdb.RequestsTo("search/movie").Last();
@@ -76,7 +76,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
     {
         _factory.Tmdb.SetResponse("discover/movie", SearchResult("Filtered"));
 
-        var result = await _client.GetFromJsonAsync<TmdbSearchResultDto>("/api/movie/search?castId=11&crewId=22&studioId=33&genreId=44&page=3");
+        var result = await _client.GetFromJsonAsync<TmdbSearchResultDto>("/api/movies/search?castId=11&crewId=22&studioId=33&genreId=44&page=3");
 
         Assert.Equal("Filtered", Assert.Single(result!.Results).Title);
         var query = _factory.Tmdb.RequestsTo("discover/movie").Last().Query;
@@ -92,7 +92,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
     {
         _factory.Tmdb.SetResponse("discover/movie", SearchResult("Genre only"));
 
-        await _client.GetAsync("/api/movie/search?genreId=878");
+        await _client.GetAsync("/api/movies/search?genreId=878");
 
         var query = _factory.Tmdb.RequestsTo("discover/movie").Last().Query;
         Assert.Contains("with_genres=878", query);
@@ -107,7 +107,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
         _factory.Tmdb.SetResponse("search/movie", SearchResult("By title"));
         var discoverRequestsBefore = _factory.Tmdb.RequestsTo("discover/movie").Count();
 
-        var result = await _client.GetFromJsonAsync<TmdbSearchResultDto>("/api/movie/search?query=title&genreId=1");
+        var result = await _client.GetFromJsonAsync<TmdbSearchResultDto>("/api/movies/search?query=title&genreId=1");
 
         Assert.Equal("By title", Assert.Single(result!.Results).Title);
         Assert.Equal(discoverRequestsBefore, _factory.Tmdb.RequestsTo("discover/movie").Count());
@@ -116,7 +116,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
     [Fact]
     public async Task SearchMovies_WithoutQueryOrFilters_Returns400()
     {
-        var response = await _client.GetAsync("/api/movie/search");
+        var response = await _client.GetAsync("/api/movies/search");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -139,7 +139,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
             ]
         });
 
-        var result = await _client.GetFromJsonAsync<MovieSearchResultDto>("/api/movie/search/all?query=matrix");
+        var result = await _client.GetFromJsonAsync<MovieSearchResultDto>("/api/movies/search/all?query=matrix");
 
         Assert.Equal(["Carrie-Anne", "Keanu"], result!.Cast.Select(p => p.Name));
         Assert.Equal(["Lana", "Bill"], result.Crew.Select(p => p.Name));
@@ -153,14 +153,14 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
         _factory.Tmdb.SetResponse("search/person", new TmdbPersonSearchResultDto());
         _factory.Tmdb.SetResponse("search/company", new TmdbCompanySearchResultDto());
 
-        var result = await _client.GetFromJsonAsync<MovieSearchResultDto>("/api/movie/search/all?query=the%20matrix");
+        var result = await _client.GetFromJsonAsync<MovieSearchResultDto>("/api/movies/search/all?query=the%20matrix");
 
         Assert.Equal(["The Matrix", "The Matrix Reloaded", "The Matrix Resurrections"], result!.Movies.Select(m => m.Title));
     }
 
     [Theory]
-    [InlineData("/api/movie/search/all?query=")]
-    [InlineData("/api/movie/search/all?query=%20%20")]
+    [InlineData("/api/movies/search/all?query=")]
+    [InlineData("/api/movies/search/all?query=%20%20")]
     public async Task SearchAll_EmptyQuery_Returns400(string url)
     {
         var response = await _client.GetAsync(url);
@@ -177,7 +177,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
     {
         _factory.Tmdb.SetResponse(tmdbPath, SearchResult($"{endpoint} one", $"{endpoint} two"));
 
-        var result = await _client.GetFromJsonAsync<TmdbSearchResultDto>($"/api/movie/{endpoint}");
+        var result = await _client.GetFromJsonAsync<TmdbSearchResultDto>($"/api/movies/{endpoint}");
 
         Assert.Equal([$"{endpoint} one", $"{endpoint} two"], result!.Results.Select(m => m.Title));
     }
@@ -189,7 +189,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
     {
         _factory.Tmdb.SetResponse($"movie/10003/{tmdbSuffix}", SearchResult("Related"));
 
-        var result = await _client.GetFromJsonAsync<TmdbSearchResultDto>($"/api/movie/10003/{endpoint}");
+        var result = await _client.GetFromJsonAsync<TmdbSearchResultDto>($"/api/movies/10003/{endpoint}");
 
         Assert.Equal("Related", Assert.Single(result!.Results).Title);
     }
@@ -201,7 +201,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
     [InlineData("details")]
     public async Task MovieSubresources_UnknownMovie_Returns404(string endpoint)
     {
-        var response = await _client.GetAsync($"/api/movie/10998/{endpoint}");
+        var response = await _client.GetAsync($"/api/movies/10998/{endpoint}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -212,7 +212,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
     [InlineData("details")]
     public async Task MovieSubresources_NonPositiveId_Returns400(string endpoint)
     {
-        var response = await _client.GetAsync($"/api/movie/0/{endpoint}");
+        var response = await _client.GetAsync($"/api/movies/0/{endpoint}");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -228,7 +228,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
             Crew = [new() { Id = 2, Name = "Lana Wachowski", Job = "Director" }]
         });
 
-        var credits = await _client.GetFromJsonAsync<TmdbCreditsDto>("/api/movie/10004/credits");
+        var credits = await _client.GetFromJsonAsync<TmdbCreditsDto>("/api/movies/10004/credits");
 
         Assert.Equal("Neo", Assert.Single(credits!.Cast).Character);
         Assert.Equal("Director", Assert.Single(credits.Crew).Job);
@@ -254,7 +254,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
             Backdrops = [new() { FilePath = "/backdrop.jpg", Width = 1920, Height = 1080, AspectRatio = 1.778 }]
         });
 
-        var details = await _client.GetFromJsonAsync<MovieDetailsDto>($"/api/movie/{tmdbId}/details");
+        var details = await _client.GetFromJsonAsync<MovieDetailsDto>($"/api/movies/{tmdbId}/details");
 
         Assert.NotNull(details);
         Assert.Equal(tmdbId, details.Id);
@@ -279,7 +279,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
                 .ToList()
         });
 
-        var details = await _client.GetFromJsonAsync<MovieDetailsDto>($"/api/movie/{tmdbId}/details");
+        var details = await _client.GetFromJsonAsync<MovieDetailsDto>($"/api/movies/{tmdbId}/details");
 
         Assert.Equal(Enumerable.Range(0, 10), details!.Cast.Select(c => c.Order));
     }
@@ -300,7 +300,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
             ]
         });
 
-        var details = await _client.GetFromJsonAsync<MovieDetailsDto>($"/api/movie/{tmdbId}/details");
+        var details = await _client.GetFromJsonAsync<MovieDetailsDto>($"/api/movies/{tmdbId}/details");
 
         Assert.Equal(["Director", "Composer", "Writer"], details!.Crew.Select(c => c.Name));
     }
@@ -322,7 +322,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
             ]
         });
 
-        var details = await _client.GetFromJsonAsync<MovieDetailsDto>($"/api/movie/{tmdbId}/details");
+        var details = await _client.GetFromJsonAsync<MovieDetailsDto>($"/api/movies/{tmdbId}/details");
 
         Assert.Equal(
             ["trailer-official", "teaser-official", "trailer-unofficial", "teaser-unofficial"],
@@ -339,7 +339,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
             Posters = Enumerable.Range(1, 10).Select(i => new TmdbImageDto { FilePath = $"/poster{i}.jpg" }).ToList()
         });
 
-        var details = await _client.GetFromJsonAsync<MovieDetailsDto>($"/api/movie/{tmdbId}/details");
+        var details = await _client.GetFromJsonAsync<MovieDetailsDto>($"/api/movies/{tmdbId}/details");
 
         Assert.Equal(20, details!.Images.Count);
         Assert.Equal("/backdrop1.jpg", details.Images[0].FilePath);
@@ -354,7 +354,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
         _factory.Tmdb.SetResponse($"movie/{tmdbId}/videos", null, HttpStatusCode.InternalServerError);
         _factory.Tmdb.SetResponse($"movie/{tmdbId}/images", null, HttpStatusCode.InternalServerError);
 
-        var response = await _client.GetAsync($"/api/movie/{tmdbId}/details");
+        var response = await _client.GetAsync($"/api/movies/{tmdbId}/details");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var details = await response.Content.ReadFromJsonAsync<MovieDetailsDto>();
@@ -370,7 +370,7 @@ public class MovieControllerTests : IClassFixture<ReelrApiFactory>
     {
         _factory.Tmdb.SetResponse("movie/10011", null, HttpStatusCode.ServiceUnavailable);
 
-        var response = await _client.GetAsync("/api/movie/10011/details");
+        var response = await _client.GetAsync("/api/movies/10011/details");
 
         Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
     }

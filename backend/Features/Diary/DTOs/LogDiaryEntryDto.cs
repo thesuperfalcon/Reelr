@@ -1,11 +1,12 @@
 using System.ComponentModel.DataAnnotations;
+using backend.Features.Ratings;
 
 namespace backend.Features.Diary.DTOs
 {
     public class LogDiaryEntryDto
     {
         // Null leaves the current rating as it is.
-        [Range(typeof(decimal), "0.5", "5")]
+        [HalfStars]
         public decimal? Score { get; set; }
 
         public bool? Liked { get; set; }

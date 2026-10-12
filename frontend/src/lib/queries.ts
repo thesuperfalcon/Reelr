@@ -51,21 +51,21 @@ function usePagedQuery<TPage extends Page<unknown>>(queryKey: QueryKey, url: str
 export function useTrendingMovies() {
   return useQuery({
     queryKey: ["movies", "trending"],
-    queryFn: () => api<SearchResult>("/api/movie/trending"),
+    queryFn: () => api<SearchResult>("/api/movies/trending"),
   });
 }
 
 export function usePopularMovies() {
   return useQuery({
     queryKey: ["movies", "popular"],
-    queryFn: () => api<SearchResult>("/api/movie/popular"),
+    queryFn: () => api<SearchResult>("/api/movies/popular"),
   });
 }
 
 export function useMovieDetails(tmdbId: number) {
   return useQuery({
     queryKey: ["movies", tmdbId, "details"],
-    queryFn: () => api<MovieDetails>(`/api/movie/${tmdbId}/details`),
+    queryFn: () => api<MovieDetails>(`/api/movies/${tmdbId}/details`),
     enabled: Number.isInteger(tmdbId) && tmdbId > 0,
   });
 }
@@ -73,7 +73,7 @@ export function useMovieDetails(tmdbId: number) {
 export function useSimilarMovies(tmdbId: number) {
   return useQuery({
     queryKey: ["movies", tmdbId, "similar"],
-    queryFn: () => api<SearchResult>(`/api/movie/${tmdbId}/recommended`),
+    queryFn: () => api<SearchResult>(`/api/movies/${tmdbId}/recommended`),
     enabled: Number.isInteger(tmdbId) && tmdbId > 0,
   });
 }
@@ -82,7 +82,7 @@ export function useSearchAll(query: string) {
   const trimmed = query.trim();
   return useQuery({
     queryKey: ["search", trimmed],
-    queryFn: () => api<SearchAllResult>(`/api/movie/search/all?query=${encodeURIComponent(trimmed)}`),
+    queryFn: () => api<SearchAllResult>(`/api/movies/search/all?query=${encodeURIComponent(trimmed)}`),
     enabled: trimmed.length > 0,
   });
 }
@@ -139,7 +139,7 @@ export function useWatchedFilms(enabled = true) {
 export function usePersonDetails(personId: number) {
   return useQuery({
     queryKey: ["people", personId],
-    queryFn: () => api<PersonDetails>(`/api/person/${personId}`),
+    queryFn: () => api<PersonDetails>(`/api/people/${personId}`),
     enabled: Number.isInteger(personId) && personId > 0,
   });
 }

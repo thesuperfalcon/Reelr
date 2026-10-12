@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace backend.Features.People;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/people")]
 public class PersonController : ControllerBase
 {
     private readonly TmdbService _tmdbService;
