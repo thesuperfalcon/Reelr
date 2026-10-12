@@ -1,0 +1,36 @@
+# Weekly update pull requests against develop. Minor and patch updates are grouped per ecosystem, so a week
+# brings a handful of pull requests rather than one per package; major updates come one at a time.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: develop
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: nuget
+    directories: ["/backend", "/tests/backend.Tests"]
+    target-branch: develop
+    schedule:
+      interval: weekly
+    groups:
+      nuget-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directories: ["/frontend", "/e2e"]
+    target-branch: develop
+    schedule:
+      interval: weekly
+    groups:
+      npm-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directories: ["/backend", "/frontend"]
+    target-branch: develop
+    schedule:
+      interval: weekly

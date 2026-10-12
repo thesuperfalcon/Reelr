@@ -28,6 +28,8 @@ param(
     [string] $DemoUserIds = '',
     # Lets anyone register, e.g. to create the first admin account. Run again without it to close registration.
     [switch] $OpenRegistration,
+    # Gets an email when the backend fails. Keep it the same as the GitHub variable REELR_ALERT_EMAIL.
+    [string] $AlertEmail = '',
     [switch] $ResetSecrets
 )
 
@@ -97,7 +99,8 @@ $env:REELR_EMAIL_USER = $EmailUserName
 $env:REELR_EMAIL_FROM = $EmailFromAddress
 $env:REELR_ADMIN_USER_IDS = $AdminUserIds
 $env:REELR_DEMO_USER_IDS = $DemoUserIds
-$env:REELR_INVITE_ONLY = "$(-not $OpenRegistration)".ToLower()
+$env:REELR_ALERT_EMAIL = $AlertEmail
+$env:REELR_INVITE_ONLY ="$(-not $OpenRegistration)".ToLower()
 # Without -ImageTag, keep what the backend runs now (deployed by CI), so a rerun never goes back to placeholders.
 if (-not $ImageTag) {
     $current = Invoke-AzQuietly {
