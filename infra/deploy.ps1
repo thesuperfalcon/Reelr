@@ -23,6 +23,11 @@ param(
     [Parameter(Mandatory)] [string] $EmailFromAddress,
     # Empty runs placeholder images until CI has pushed the real ones.
     [string] $ImageTag = '',
+    # User ids, e.g. '1' or '1,4'. Keep them the same as the GitHub variables, which the Deploy workflow uses.
+    [string] $AdminUserIds = '',
+    [string] $DemoUserIds = '',
+    # Lets anyone register, e.g. to create the first admin account. Run again without it to close registration.
+    [switch] $OpenRegistration,
     [switch] $ResetSecrets
 )
 
@@ -90,6 +95,9 @@ $env:REELR_ADMIN_OBJECT_ID = $me.id
 $env:REELR_ADMIN_LOGIN = $me.upn
 $env:REELR_EMAIL_USER = $EmailUserName
 $env:REELR_EMAIL_FROM = $EmailFromAddress
+$env:REELR_ADMIN_USER_IDS = $AdminUserIds
+$env:REELR_DEMO_USER_IDS = $DemoUserIds
+$env:REELR_INVITE_ONLY = "$(-not $OpenRegistration)".ToLower()
 # Without -ImageTag, keep what the backend runs now (deployed by CI), so a rerun never goes back to placeholders.
 if (-not $ImageTag) {
     $current = Invoke-AzQuietly {

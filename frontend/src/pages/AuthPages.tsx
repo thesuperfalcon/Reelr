@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Link, Navigate, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { Field, FormError } from "../components/Form";
 import { clearEmailLink, confirmEmail, forgotPassword, readEmailLink, resendConfirmation, resetPassword } from "../lib/account";
@@ -200,6 +200,7 @@ function ResendForm({ initialEmail }: { initialEmail: string }) {
 export function RegisterPage() {
   usePageTitle("Create account");
   const { user, register } = useAuth();
+  const [searchParams] = useSearchParams();
   const [error, setError] = useState<unknown>(null);
   const [pending, setPending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -221,6 +222,7 @@ export function RegisterPage() {
         email,
         password: String(form.get("password")),
         acceptTerms: form.get("acceptTerms") === "on",
+        inviteCode: String(form.get("inviteCode")).trim() || undefined,
       });
       setSentTo(email);
     } catch (err) {
@@ -255,6 +257,17 @@ export function RegisterPage() {
       }
     >
       <form onSubmit={submit} className="mt-8 space-y-5">
+        {/* Filled in from the invite link (/register?invite=…); otherwise typed or pasted from the invite. */}
+        <Field
+          id="inviteCode"
+          label="Invite code"
+          autoComplete="off"
+          spellCheck={false}
+          required={false}
+          maxLength={64}
+          defaultValue={searchParams.get("invite") ?? ""}
+          hint="Reelr is invite only for now. The code is in the invite you were sent."
+        />
         <Field id="username" label="Username" autoComplete="username" minLength={3} maxLength={50} />
         <Field id="email" label="Email" type="email" autoComplete="email" />
         <Field id="password" label="Password" type="password" autoComplete="new-password" minLength={8} hint={passwordHint} />

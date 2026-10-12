@@ -189,7 +189,7 @@ export function Layout() {
                 </NavLink>
                 {settings.data?.isAdmin && (
                   <NavLink to="/admin" className={navLinkClass}>
-                    Moderation
+                    Admin
                   </NavLink>
                 )}
                 <NavLink to="/settings" className={navLinkClass}>

@@ -2,6 +2,7 @@ using backend.Data;
 using backend.Features.Activity;
 using backend.Features.Auth;
 using backend.Features.Diary;
+using backend.Features.Invites;
 using backend.Features.Email;
 using backend.Features.Moderation;
 using backend.Features.Movies;
@@ -123,6 +124,9 @@ builder.Services.AddSingleton<SecurityLog>();
 // Admins are configured by user id under "Admin:UserIds" (see AdminAccess).
 var adminAccess = new AdminAccess(builder.Configuration);
 builder.Services.AddSingleton(adminAccess);
+
+// Shared demo accounts are configured by user id under "Demo:UserIds" (see DemoAccounts).
+builder.Services.AddSingleton<DemoAccounts>();
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(AdminAccess.Policy, policy => policy
         .RequireAuthenticatedUser()
@@ -153,6 +157,7 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<RefreshTokens>();
 builder.Services.AddScoped<MovieCatalog>();
 builder.Services.AddScoped<JournalService>();
+builder.Services.AddScoped<InviteCodes>();
 
 // Activity feed. "Activity:Implementation" picks how the feed is computed; only "Derived" exists so far.
 builder.Services.AddMemoryCache();

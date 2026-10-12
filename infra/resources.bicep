@@ -10,6 +10,8 @@ param emailHost string
 param emailUserName string
 param emailFromAddress string
 param adminUserIds array
+param demoUserIds array
+param inviteOnly bool
 param deployApps bool
 
 // Short, stable suffix for names that must be unique across Azure (SQL server, Key Vault).
@@ -200,6 +202,11 @@ var adminSettings = [for (id, i) in adminUserIds: {
   value: string(id)
 }]
 
+var demoSettings = [for (id, i) in demoUserIds: {
+  name: 'Demo__UserIds__${i}'
+  value: string(id)
+}]
+
 resource backend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
   name: 'backend'
   location: location
@@ -265,7 +272,8 @@ resource backend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
             { name: 'ForwardedHeaders__KnownNetworks__1', value: '172.16.0.0/12' }
             { name: 'ForwardedHeaders__KnownNetworks__2', value: '192.168.0.0/16' }
             { name: 'ForwardedHeaders__KnownNetworks__3', value: '100.64.0.0/10' }
-          ], adminSettings)
+            { name: 'Registration__InviteOnly', value: string(inviteOnly) }
+          ], adminSettings, demoSettings)
         }
       ]
       // One replica at most: caches, rate limits and the film refresh job live in the process.

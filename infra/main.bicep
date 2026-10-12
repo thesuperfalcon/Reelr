@@ -38,6 +38,12 @@ param emailFromAddress string = ''
 @description('User ids that get admin access, e.g. [\'1\'].')
 param adminUserIds array = []
 
+@description('User ids of shared demo accounts, which cannot change or delete the account itself.')
+param demoUserIds array = []
+
+@description('True lets only people with an invite code register. False opens registration, e.g. to create the first admin account.')
+param inviteOnly bool = true
+
 @description('False creates only the base resources, so the Key Vault secrets and database users can be set up before the apps start.')
 param deployApps bool = true
 
@@ -67,6 +73,8 @@ module resources 'resources.bicep' = {
     emailUserName: emailUserName
     emailFromAddress: emailFromAddress
     adminUserIds: adminUserIds
+    demoUserIds: demoUserIds
+    inviteOnly: inviteOnly
     deployApps: deployApps
   }
 }

@@ -206,6 +206,12 @@ First-time setup, with the Azure CLI signed in and the .NET 10 SDK installed:
 
 After that, `.github/workflows/deploy.yml` deploys every commit on `main` that passes CI: it pushes the images to GitHub Container Registry, runs the migrations as a Container Apps job and rolls out the new images. The images must be public on GitHub so Azure can pull them.
 
+**Invites and demo accounts.** Registration is invite only: an admin makes a one-time code on the Admin page and sends its sign-up link (`/register?invite=…`). Demo accounts, listed under `Demo:UserIds`, can do everything a member does except change their name, password or picture, sign out other devices or delete the account, so a shared login for interviews stays as it was. To create the first accounts on an empty database:
+
+1. Run `deploy.ps1` with `-OpenRegistration` and register your own account and the demo account.
+2. Run it again with `-AdminUserIds '<your id>' -DemoUserIds '<demo id>'` and without `-OpenRegistration`, which closes registration.
+3. Set the same ids as the repository variables `REELR_ADMIN_USER_IDS` and `REELR_DEMO_USER_IDS`, so the Deploy workflow keeps them.
+
 Everything scales to zero when unused, so the first visit after a quiet spell takes up to a minute while the backend starts and the database resumes. For a demo, open the site a minute early, or deploy with `backendMinReplicas = 1`.
 
 ## Before going live

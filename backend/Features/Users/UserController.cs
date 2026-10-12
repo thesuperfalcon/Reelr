@@ -173,6 +173,7 @@ namespace backend.Features.Users
 
         [Authorize]
         [HttpDelete("{id:int}")]
+        [NotForDemoAccounts]
         [EndpointSummary("Delete the current user's account (requires the current password)")]
         public async Task<IActionResult> DeleteUser(int id, DeleteUserDto dto)
         {

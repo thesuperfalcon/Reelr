@@ -196,101 +196,111 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
 
   return (
     <form onSubmit={save}>
-      <Section id="settings-picture" title="Profile picture" description="Shown next to your name everywhere on Reelr.">
-        <div className="flex flex-wrap items-center gap-6">
-          <UserAvatar userName={draft.userName || settings.userName} imageUrl={shownPicture} className="size-24 text-5xl" />
-          <div className="flex flex-wrap gap-3">
-            <input
-              ref={fileInput}
-              id="avatar-file"
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/*"
-              onChange={choosePicture}
-              className="sr-only"
-              tabIndex={-1}
-              aria-hidden="true"
-            />
-            <button type="button" onClick={() => fileInput.current?.click()} disabled={saving} className={quietButtonClass}>
-              {shownPicture ? "Choose another picture" : "Choose picture"}
-            </button>
-            {shownPicture && (
-              <button type="button" onClick={() => setPicture({ kind: "remove" })} disabled={saving} className={quietButtonClass}>
-                Remove
-              </button>
-            )}
-            {picture.kind !== "none" && (
-              <button
-                type="button"
-                onClick={() => setPicture({ kind: "none" })}
-                disabled={saving}
-                className="text-sm font-medium text-haze underline underline-offset-4 hover:text-screen"
-              >
-                Keep current
-              </button>
-            )}
-          </div>
-        </div>
-        <p className="mt-3 text-xs text-haze">
-          JPEG, PNG or WebP. The picture is cropped to a square.
-          {picture.kind === "upload" && " The new picture is saved when you press Save."}
-          {picture.kind === "remove" && " The picture is removed when you press Save."}
+      {/* A shared demo account keeps its name, password and picture (DemoAccounts in the backend). */}
+      {settings.isDemo ? (
+        <p className="border-t border-white/5 py-10 text-sm text-haze">
+          This is a shared demo account, so its name, password and picture stay as they are. Everything else works as
+          for any member.
         </p>
-        <div className="mt-3">
-          <FormError error={pictureError} />
-        </div>
-      </Section>
+      ) : (
+        <>
+          <Section id="settings-picture" title="Profile picture" description="Shown next to your name everywhere on Reelr.">
+            <div className="flex flex-wrap items-center gap-6">
+              <UserAvatar userName={draft.userName || settings.userName} imageUrl={shownPicture} className="size-24 text-5xl" />
+              <div className="flex flex-wrap gap-3">
+                <input
+                  ref={fileInput}
+                  id="avatar-file"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/*"
+                  onChange={choosePicture}
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                />
+                <button type="button" onClick={() => fileInput.current?.click()} disabled={saving} className={quietButtonClass}>
+                  {shownPicture ? "Choose another picture" : "Choose picture"}
+                </button>
+                {shownPicture && (
+                  <button type="button" onClick={() => setPicture({ kind: "remove" })} disabled={saving} className={quietButtonClass}>
+                    Remove
+                  </button>
+                )}
+                {picture.kind !== "none" && (
+                  <button
+                    type="button"
+                    onClick={() => setPicture({ kind: "none" })}
+                    disabled={saving}
+                    className="text-sm font-medium text-haze underline underline-offset-4 hover:text-screen"
+                  >
+                    Keep current
+                  </button>
+                )}
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-haze">
+              JPEG, PNG or WebP. The picture is cropped to a square.
+              {picture.kind === "upload" && " The new picture is saved when you press Save."}
+              {picture.kind === "remove" && " The picture is removed when you press Save."}
+            </p>
+            <div className="mt-3">
+              <FormError error={pictureError} />
+            </div>
+          </Section>
 
-      <Section id="settings-account" title="Account">
-        <div className="space-y-5">
-          <Field
-            id="settings-username"
-            label="Username"
-            autoComplete="username"
-            minLength={3}
-            maxLength={50}
-            value={draft.userName}
-            onChange={(event) => edit("userName", event.target.value)}
-          />
-          <div>
-            <p className="text-sm font-medium">Email</p>
-            <p className="mt-1.5 text-haze">{settings.email}</p>
-          </div>
-        </div>
-      </Section>
+          <Section id="settings-account" title="Account">
+            <div className="space-y-5">
+              <Field
+                id="settings-username"
+                label="Username"
+                autoComplete="username"
+                minLength={3}
+                maxLength={50}
+                value={draft.userName}
+                onChange={(event) => edit("userName", event.target.value)}
+              />
+              <div>
+                <p className="text-sm font-medium">Email</p>
+                <p className="mt-1.5 text-haze">{settings.email}</p>
+              </div>
+            </div>
+          </Section>
 
-      <Section id="settings-password" title="Password" description="Leave these empty to keep your current password.">
-        <div className="space-y-5">
-          <Field
-            id="current-password"
-            label="Current password"
-            type="password"
-            autoComplete="current-password"
-            required={passwordTouched}
-            value={draft.currentPassword}
-            onChange={(event) => edit("currentPassword", event.target.value)}
-          />
-          <Field
-            id="new-password"
-            label="New password"
-            type="password"
-            autoComplete="new-password"
-            minLength={8}
-            required={passwordTouched}
-            hint="At least 8 characters, with an upper and lower case letter, a digit and a symbol."
-            value={draft.newPassword}
-            onChange={(event) => edit("newPassword", event.target.value)}
-          />
-          <Field
-            id="confirm-password"
-            label="Repeat new password"
-            type="password"
-            autoComplete="new-password"
-            required={passwordTouched}
-            value={draft.confirmPassword}
-            onChange={(event) => edit("confirmPassword", event.target.value)}
-          />
-        </div>
-      </Section>
+          <Section id="settings-password" title="Password" description="Leave these empty to keep your current password.">
+            <div className="space-y-5">
+              <Field
+                id="current-password"
+                label="Current password"
+                type="password"
+                autoComplete="current-password"
+                required={passwordTouched}
+                value={draft.currentPassword}
+                onChange={(event) => edit("currentPassword", event.target.value)}
+              />
+              <Field
+                id="new-password"
+                label="New password"
+                type="password"
+                autoComplete="new-password"
+                minLength={8}
+                required={passwordTouched}
+                hint="At least 8 characters, with an upper and lower case letter, a digit and a symbol."
+                value={draft.newPassword}
+                onChange={(event) => edit("newPassword", event.target.value)}
+              />
+              <Field
+                id="confirm-password"
+                label="Repeat new password"
+                type="password"
+                autoComplete="new-password"
+                required={passwordTouched}
+                value={draft.confirmPassword}
+                onChange={(event) => edit("confirmPassword", event.target.value)}
+              />
+            </div>
+          </Section>
+        </>
+      )}
 
       <Section id="settings-privacy" title="Privacy">
         <fieldset className="mb-8">
@@ -660,8 +670,12 @@ export function SettingsPage() {
             <AppearanceSection />
             <BlockedSection />
             <DataExportSection />
-            <LogoutEverywhereSection />
-            <DeleteAccountSection userName={settings.data.userName} />
+            {!settings.data.isDemo && (
+              <>
+                <LogoutEverywhereSection />
+                <DeleteAccountSection userName={settings.data.userName} />
+              </>
+            )}
           </>
         )}
       </div>
