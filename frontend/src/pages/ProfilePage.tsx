@@ -43,6 +43,7 @@ import type {
     WatchlistEntry,
 } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { moveBetweenTabs } from "../lib/tabs";
 import { usePageTitle } from "../lib/title";
 
 type Tab =
@@ -790,6 +791,7 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
             <div
                 role="tablist"
                 aria-label="Profile sections"
+                onKeyDown={moveBetweenTabs}
                 className="mt-10 flex gap-6 overflow-x-auto overflow-y-hidden border-b border-white/5 scrollbar-none [&::-webkit-scrollbar]:hidden"
             >
                 {tabs.map(({ id, label, count }) => (
@@ -799,7 +801,8 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                         role="tab"
                         id={`tab-${id}`}
                         aria-selected={tab === id}
-                        aria-controls={`panel-${id}`}
+                        aria-controls={tab === id ? `panel-${id}` : undefined}
+                        tabIndex={tab === id ? 0 : -1}
                         onClick={() =>
                             setParams(id === "diary" ? {} : { tab: id }, {
                                 replace: true,

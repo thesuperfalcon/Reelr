@@ -8,6 +8,7 @@ import { usePersonDetails, useWatchedFilms } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { PersonCredit, PersonDetails, SearchMovie } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
+import { moveBetweenTabs } from "../lib/tabs";
 import { usePageTitle } from "../lib/title";
 
 // TMDB dates are plain calendar days, so format them in UTC to avoid shifting a day.
@@ -269,6 +270,7 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
       <div
         role="tablist"
         aria-label="Departments"
+        onKeyDown={moveBetweenTabs}
         className="mt-6 flex gap-6 overflow-x-auto overflow-y-hidden border-b border-white/5 [&::-webkit-scrollbar]:hidden"
       >
         {departments.map(({ name, count }) => (
@@ -278,7 +280,8 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
             role="tab"
             id={tabId(name)}
             aria-selected={department === name}
-            aria-controls="filmography-panel"
+            aria-controls={department === name ? "filmography-panel" : undefined}
+            tabIndex={department === name ? 0 : -1}
             onClick={() => update({ dept: name })}
             className={`-mb-px shrink-0 border-b-2 pb-3 text-sm font-medium transition-colors ${
               department === name ? "border-projector text-screen" : "border-transparent text-haze hover:text-screen"
