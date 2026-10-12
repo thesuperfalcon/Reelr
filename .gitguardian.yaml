@@ -1,0 +1,7 @@
+version: 2
+
+secret:
+  # Passwords in these folders are made-up values for test accounts in throwaway databases.
+  ignored_paths:
+    - "tests/**"
+    - "e2e/tests/**"
