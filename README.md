@@ -98,7 +98,7 @@ Requires Docker Desktop.
 3. Open http://localhost:8080. The API is on http://localhost:5084, with Swagger at `/swagger`.
    Emails (sign-up confirmation, password reset) are caught by Mailpit at http://localhost:8025; none reach a real inbox.
 
-The database is migrated automatically on start-up. All ports are bound to `127.0.0.1`.
+A one-off `migrate` service applies the database migrations (an EF Core migrations bundle) before the backend starts; the app itself never changes the schema. All ports are bound to `127.0.0.1`.
 
 To make an account an admin (the moderation page), add its user id to `.env` and restart the backend:
 
