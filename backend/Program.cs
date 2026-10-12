@@ -77,8 +77,8 @@ builder.Services.AddDbContext<ReelrContext>(options =>
         builder.Configuration.GetConnectionString("ReelrContext")
         ?? throw new InvalidOperationException(
             "Connection string 'ReelrContext' not found."
-        )
-    ));
+        ))
+        .AddInterceptors(new OpenRetryInterceptor()));
 
 builder.Services
     .AddIdentity<User, IdentityRole<int>>(options =>
@@ -137,6 +137,11 @@ builder.Services.AddSingleton<LoginThrottle>();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    // How many trusted proxies a request passes through: 1 behind nginx in Docker, more where a platform's
+    // own proxies sit in front of and behind nginx (Azure Container Apps). Addresses are read from the right
+    // and only while each one is a trusted proxy, so a client still cannot pick its own address.
+    options.ForwardLimit = builder.Configuration.GetValue("ForwardedHeaders:ForwardLimit", 1);
 
     foreach (var network in builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [])
     {

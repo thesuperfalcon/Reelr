@@ -149,6 +149,20 @@ jobs:
           cache-from: type=gha,scope=e2e-backend
           cache-to: type=gha,scope=e2e-backend,mode=max
 
+      # The "migrate" service: the migrations bundle stage of the backend Dockerfile. It shares the backend's
+      # build stages, so its cache scope reuses the restore and publish layers.
+      - name: Build the migrations image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          target: migrations
+          load: true
+          tags: reelr-e2e-migrate:latest
+          cache-from: |
+            type=gha,scope=e2e-backend
+            type=gha,scope=e2e-migrate
+          cache-to: type=gha,scope=e2e-migrate,mode=max
+
       - name: Build the frontend image
         uses: docker/build-push-action@v6
         with:
