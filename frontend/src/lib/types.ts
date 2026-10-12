@@ -333,8 +333,10 @@ export interface UserSettings {
   showFriendReviews: boolean;
   /** Whether the Following feed also shows the user's own activity. */
   showOwnActivity: boolean;
-  /** Whether the user may open the moderation page. */
+  /** Whether the user may open the admin page. */
   isAdmin: boolean;
+  /** A shared demo account: its name, password and picture cannot change, and it cannot be deleted. */
+  isDemo: boolean;
 }
 
 /** Only the fields that are set change. */
