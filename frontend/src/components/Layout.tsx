@@ -27,7 +27,7 @@ function SearchBox() {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Search films, people, members"
-        className="w-full rounded-sm bg-row px-3 py-2 text-sm text-screen placeholder:text-haze/70 focus:bg-row-raised focus:outline-2 focus:outline-projector"
+        className="w-full rounded-sm bg-row px-3 py-2 text-sm text-screen ring-1 ring-edge placeholder:text-haze focus:bg-row-raised focus:outline-2 focus:outline-projector"
       />
     </form>
   );
@@ -202,7 +202,7 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <footer className="mx-auto w-full max-w-6xl px-4 py-10 text-xs text-haze/70 sm:px-6">
+      <footer className="mx-auto w-full max-w-6xl px-4 py-10 text-xs text-haze sm:px-6">
         <nav aria-label="Legal" className="mb-3 flex gap-4">
           <Link to="/privacy" className="hover:text-screen">
             Privacy

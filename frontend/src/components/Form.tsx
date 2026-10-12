@@ -17,7 +17,7 @@ export function Field({
         name={id}
         required
         aria-describedby={hint ? `${id}-hint` : undefined}
-        className="mt-1.5 w-full rounded-sm bg-row px-3 py-2.5 text-screen focus:bg-row-raised focus:outline-2 focus:outline-projector"
+        className="mt-1.5 w-full rounded-sm bg-row px-3 py-2.5 text-screen ring-1 ring-edge focus:bg-row-raised focus:outline-2 focus:outline-projector"
         {...input}
       />
       {hint && (

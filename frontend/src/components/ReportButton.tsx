@@ -132,7 +132,7 @@ function ReportDialog({
           onChange={(event) => setNote(event.target.value)}
           maxLength={REPORT_NOTE_MAX_LENGTH}
           rows={3}
-          className="mt-2 block w-full resize-y rounded-sm bg-salon px-3 py-2 text-screen ring-1 ring-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
+          className="mt-2 block w-full resize-y rounded-sm bg-salon px-3 py-2 text-screen ring-1 ring-edge focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
         />
 
         <div className="mt-4">

@@ -254,7 +254,7 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
           <select
             value={sort}
             onChange={(event) => update({ sort: event.target.value as Sort })}
-            className="rounded-sm bg-row px-2 py-1.5 text-screen ring-1 ring-white/15 focus:outline-2 focus:outline-projector"
+            className="rounded-sm bg-row px-2 py-1.5 text-screen ring-1 ring-edge focus:outline-2 focus:outline-projector"
           >
             {sorts.map((s) => (
               <option key={s.id} value={s.id}>

@@ -18,7 +18,7 @@ import { ErrorMessage, Loading } from "./Status";
 import { UserLink } from "./UserAvatar";
 
 const textareaClass =
-  "mt-2 block w-full resize-y rounded-sm bg-row px-3 py-2.5 text-screen focus:bg-row-raised focus:outline-2 focus:outline-projector";
+  "mt-2 block w-full resize-y rounded-sm bg-row px-3 py-2.5 text-screen ring-1 ring-edge focus:bg-row-raised focus:outline-2 focus:outline-projector";
 
 function CommentForm({
   initial = "",

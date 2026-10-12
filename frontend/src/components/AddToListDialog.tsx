@@ -87,7 +87,7 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
             onChange={(event) => setNewName(event.target.value)}
             maxLength={100}
             placeholder="New list…"
-            className="min-w-0 flex-1 rounded-sm bg-salon px-3 py-2 text-sm text-screen ring-1 ring-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
+            className="min-w-0 flex-1 rounded-sm bg-salon px-3 py-2 text-sm text-screen ring-1 ring-edge focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
           />
           <button
             type="submit"
