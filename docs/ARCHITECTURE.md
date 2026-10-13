@@ -57,8 +57,8 @@ Because nginx proxies the API under the same origin, the API has no CORS configu
 
 `infra/resources.bicep` defines one Container Apps environment with:
 
-- `reelr` (frontend, external ingress, 0 to 1 replicas),
-- `backend` (internal ingress only, reachable through nginx, 0 to 1 replicas, user-assigned managed identity),
+- `reelr` (frontend, external ingress, 1 replica kept warm by default, `frontendMinReplicas`),
+- `backend` (internal ingress only, reachable through nginx, 1 replica kept warm by default, `backendMinReplicas`, user-assigned managed identity),
 - `reelr-migrate` (a Container Apps job run by the Deploy workflow before each rollout),
 - an optional custom domain on the frontend with an Azure managed certificate,
 - Azure SQL (serverless, free offer, auto-pause, Entra-only authentication), Key Vault for the JWT key, TMDB token and SMTP password, Log Analytics (30-day retention) and optional metric alerts.
@@ -282,4 +282,4 @@ Summarised here; [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) has evidence, impact and
 - **One project, no enforced boundaries.** Nothing stops a feature from using another feature's entities directly, and several do (for example `DataExport` reads every feature's tables).
 - **Feed cost grows with data.** `DerivedActivityFeed` runs up to five queries per page and merges in memory. It is bounded (`Take`), indexed and windowed (30 and 365 days), but a stored activity table is the documented escape route.
 - **Inconsistent error bodies and timestamps.** Some 400 and 409 responses are plain strings, not ProblemDetails; most timestamps are serialised without a UTC marker. Both are covered in [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md).
-- **Scale-to-zero side effects.** Background work (`MovieRefresher`, `EmailDispatcher`) runs only while the container is up.
+- **Scale-to-zero side effects.** With `backendMinReplicas = 0`, background work (`MovieRefresher`, `EmailDispatcher`) runs only while the container is up. `MovieRefresher` always waits for a visitor (`VisitorSignal`), so it never wakes a paused database.

@@ -33,6 +33,7 @@ import { RouteError } from "./components/RouteError";
 import { Loading } from "./components/Status";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { RequireAuth } from "./auth/RequireAuth";
+import { popularMoviesQuery, trendingMoviesQuery } from "./lib/queries";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -44,6 +45,13 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// The start page's films are the same for everyone, so they are fetched now, alongside the page's code and the
+// sign-in, instead of after both.
+if (window.location.pathname === "/") {
+  void queryClient.prefetchQuery(trendingMoviesQuery);
+  void queryClient.prefetchQuery(popularMoviesQuery);
+}
 
 // Each page is its own code file, loaded the first time it is opened, so the first visit downloads less.
 const router = createBrowserRouter([

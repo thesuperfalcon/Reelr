@@ -3,17 +3,24 @@ using Microsoft.Extensions.Options;
 namespace backend.Features.Movies
 {
     // Keeps the stored film data from going stale: every few hours it copies a batch of the oldest films from
-    // TMDB again (MovieCatalog.RefreshStaleAsync). With several app instances each would do this; that is
+    // TMDB again (MovieCatalog.RefreshStaleAsync). A run waits for a visitor (VisitorSignal), so the app can stay
+    // up all the time without waking a paused database. With several app instances each would do this; that is
     // harmless, only wasteful, and can move to a single scheduled job when there is more than one instance.
     public class MovieRefresher : BackgroundService
     {
         private readonly IServiceScopeFactory _scopes;
+        private readonly VisitorSignal _visitors;
         private readonly MovieRefreshOptions _options;
         private readonly ILogger<MovieRefresher> _logger;
 
-        public MovieRefresher(IServiceScopeFactory scopes, IOptions<MovieRefreshOptions> options, ILogger<MovieRefresher> logger)
+        public MovieRefresher(
+            IServiceScopeFactory scopes,
+            VisitorSignal visitors,
+            IOptions<MovieRefreshOptions> options,
+            ILogger<MovieRefresher> logger)
         {
             _scopes = scopes;
+            _visitors = visitors;
             _options = options.Value;
             _logger = logger;
         }
@@ -25,10 +32,11 @@ namespace backend.Features.Movies
                 return;
             }
 
-            using var timer = new PeriodicTimer(TimeSpan.FromHours(_options.IntervalHours));
-
-            do
+            while (true)
             {
+                await _visitors.NextVisitorAsync(stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(_options.StartDelayMinutes), stoppingToken);
+
                 try
                 {
                     using var scope = _scopes.CreateScope();
@@ -46,8 +54,9 @@ namespace backend.Features.Movies
                     // The next run tries again; the app keeps working with the data it has.
                     _logger.LogWarning(ex, "Refreshing films from TMDB failed");
                 }
+
+                await Task.Delay(TimeSpan.FromHours(_options.IntervalHours), stoppingToken);
             }
-            while (await timer.WaitForNextTickAsync(stoppingToken));
         }
     }
 }
