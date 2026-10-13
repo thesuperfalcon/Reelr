@@ -15,7 +15,7 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 | [TD-5](#td-5-single-instance-state) | Single-instance state blocks scaling out | Architecture | Medium |
 | [TD-6](#td-6-testing-gaps) | Testing gaps | Testing | Medium |
 | [TD-7](#td-7-block-rules-are-applied-in-some-places-only) | Block rules are applied in some places only | Consistency | Low |
-| [TD-8](#td-8-password-length-differs-between-sign-up-and-password-change) | Password length differs between sign-up and password change | Security | Low |
+| [TD-8](#td-8-password-length-differs-between-sign-up-and-password-change) | Password length differs between sign-up and password change (fixed) | Security | Low |
 | [TD-9](#td-9-settings-update-is-not-atomic) | Settings update is not atomic | Correctness | Low |
 | [TD-10](#td-10-data-export-is-incomplete) | Data export is incomplete | Compliance | Low |
 | [TD-11](#td-11-repeated-query-code-in-controllers) | Repeated query code in controllers | Duplication | Low |
@@ -84,7 +84,7 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 - **Description:** Registration and reset require 8 characters; password change only Identity's default of 6.
 - **Evidence:** `[MinLength(8)]` in `RegisterDto` and `ResetPasswordDto`; only `[Required]` in `Settings/DTOs/ChangePasswordDto.cs`; `Program.cs` does not set `options.Password.RequiredLength`.
 - **Impact:** A member can choose a weaker password than the sign-up form allows.
-- **Next step:** Set `options.Password.RequiredLength = 8` in the Identity options so every path agrees, and keep the DTO attributes for early validation.
+- **Status:** Fixed. `options.Password.RequiredLength = 8` is set in the Identity options, and `ChangePasswordDto.NewPassword` has `[MinLength(8)]` like the other DTOs.
 
 ### TD-9. Settings update is not atomic
 
