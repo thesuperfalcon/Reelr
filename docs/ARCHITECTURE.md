@@ -201,7 +201,7 @@ sequenceDiagram
         M->>D: INSERT Movie (409 race handled by re-read)
     end
     C->>J: LogAsync(user, movie, date, score, liked, rewatched, review, spoilers)
-    J->>D: upsert Rating, WatchedMovie, Review; INSERT DiaryEntry; DELETE WatchlistItem
+    J->>D: upsert Rating, WatchedMovie, Review, INSERT DiaryEntry, DELETE WatchlistItem
     J->>D: SaveChanges (one transaction)
     C-->>B: 200 DiaryEntryDto
     Note over B: useSaveDiaryEntry invalidates rating, status, diary, watchlist and review queries
