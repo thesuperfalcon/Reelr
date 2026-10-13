@@ -24,7 +24,7 @@ jobs:
       DOTNET_CLI_TELEMETRY_OPTOUT: true
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # A throwaway SQL Server for this job only, with a password made up for each run. No repository secret is
       # needed, so pull requests that get no secrets (Dependabot's, forks) are tested too.
@@ -38,7 +38,7 @@ jobs:
           docker run --detach --name sqlserver --env ACCEPT_EULA=Y --env "MSSQL_SA_PASSWORD=$password" \
             --publish 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
 
-      - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: 10.0.x
 
@@ -85,7 +85,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: backend-test-results
           path: TestResults
@@ -99,9 +99,9 @@ jobs:
         working-directory: frontend
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -125,7 +125,7 @@ jobs:
     # No "needs": it runs next to the other jobs, so a push waits for the slowest job only.
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # The stack reads its secrets from .env. The database password is made up for each run, so no repository
       # secret is needed; single quotes stop Compose from reading "$" in the values. docker-compose.e2e.yml sets
@@ -141,10 +141,10 @@ jobs:
 
       # The images are built here with the GitHub Actions layer cache, so unchanged layers (restore, npm ci) are
       # reused between runs. They get the names Compose gives them in the reelr-e2e project, so "up" finds them.
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Build the backend image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./backend
           load: true
@@ -155,7 +155,7 @@ jobs:
       # The "migrate" service: the migrations bundle stage of the backend Dockerfile. It shares the backend's
       # build stages, so its cache scope reuses the restore and publish layers.
       - name: Build the migrations image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./backend
           target: migrations
@@ -167,7 +167,7 @@ jobs:
           cache-to: type=gha,scope=e2e-migrate,mode=max
 
       - name: Build the frontend image
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./frontend
           load: true
@@ -178,7 +178,7 @@ jobs:
       - name: Start the stack
         run: docker compose -p reelr-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --no-build --wait
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -194,7 +194,7 @@ jobs:
         working-directory: e2e
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: browsers
         with:
           path: ~/.cache/ms-playwright
@@ -215,7 +215,7 @@ jobs:
 
       - name: Upload the report
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-report
           path: |
