@@ -11,7 +11,7 @@ import { ReviewReactions } from "../components/ReviewReactions";
 import { ReviewText } from "../components/ReviewText";
 import { SpoilerGate, SpoilerTag } from "../components/SpoilerGate";
 import { STAR_PATH, Stars } from "../components/Stars";
-import { ErrorMessage, Loading } from "../components/Status";
+import { EmptyState, ErrorMessage, Loading } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
 import {
@@ -38,7 +38,7 @@ function Backdrop({ path }: { path: string | null }) {
 
   return (
     <div className="relative h-[40vh] min-h-56 overflow-hidden sm:h-[55vh]" aria-hidden="true">
-      <img src={src} alt="" className="h-full w-full object-cover object-top opacity-70" />
+      <img src={src} alt="" className="h-full w-full object-cover object-top opacity-60" />
       <div className="absolute inset-0 bg-gradient-to-t from-salon via-salon/40 to-salon/10" />
     </div>
   );
@@ -58,7 +58,7 @@ function WatchlistButton({ tmdbId, title }: { tmdbId: number; title: string | nu
       aria-label={label}
       aria-pressed={onWatchlist}
       title={label}
-      className="inline-flex size-9 items-center justify-center rounded-sm text-projector ring-1 ring-rule/15 transition hover:bg-row disabled:opacity-50"
+      className={`btn btn-icon btn-secondary ${onWatchlist ? "text-projector" : ""}`}
     >
       <svg viewBox="0 0 24 24" fill={onWatchlist ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="size-5" aria-hidden="true">
         <path d="M6 3h12v18l-6-4-6 4z" />
@@ -79,7 +79,7 @@ function AddToListButton({ movie }: { movie: MovieDetails }) {
         aria-label={label}
         title={label}
         aria-haspopup="dialog"
-        className="inline-flex size-9 items-center justify-center rounded-sm text-screen ring-1 ring-rule/15 transition hover:bg-row"
+        className="btn btn-icon btn-secondary"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-5" aria-hidden="true">
           <path d="M4 6h11M4 12h11M4 18h7M18 15v6M15 18h6" />
@@ -113,18 +113,18 @@ function RateButton({ movie }: { movie: MovieDetails }) {
         aria-label={label}
         title={label}
         aria-haspopup="dialog"
-        className="inline-flex h-9 items-center gap-2 rounded-sm px-3 text-sm font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row disabled:opacity-50"
+        className={`btn ${score === null ? "btn-primary" : "btn-secondary"}`}
       >
         {score === null ? (
           <>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="size-4 text-projector" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="size-4" aria-hidden="true">
               <path d={STAR_PATH} />
             </svg>
             Rate
           </>
         ) : (
           <>
-            <span className="text-haze">Rated</span>
+            <span className="font-medium text-haze">Rated</span>
             <Stars score={score} className="h-4" />
           </>
         )}
@@ -154,7 +154,7 @@ function PeopleLinks({ people }: { people: CrewMember[] }) {
   return unique.map((person, i) => (
     <span key={person.id}>
       {i > 0 && ", "}
-      <Link to={`/person/${person.id}`} className="hover:text-projector hover:underline hover:underline-offset-4">
+      <Link to={`/person/${person.id}`} className="rounded-xs underline decoration-rule/25 underline-offset-4 hover:text-projector hover:decoration-projector">
         {person.name}
       </Link>
     </span>
@@ -176,10 +176,10 @@ function Facts({ movie }: { movie: MovieDetails }) {
   ].filter((fact) => fact.value);
 
   return (
-    <dl className="mt-8 grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
+    <dl className="mt-8 grid gap-x-8 gap-y-4 border-t border-rule/10 pt-6 text-sm sm:grid-cols-2">
       {facts.map((fact) => (
         <div key={fact.term}>
-          <dt className="text-haze">{fact.term}</dt>
+          <dt className="text-xs font-medium tracking-wide text-haze uppercase">{fact.term}</dt>
           <dd className="mt-0.5 text-screen">{fact.value}</dd>
         </div>
       ))}
@@ -194,7 +194,7 @@ function CastList({ cast }: { cast: CastMember[] }) {
 
   return (
     <section aria-labelledby="cast-title" className="mt-16">
-      <h2 id="cast-title" className="marquee text-3xl">
+      <h2 id="cast-title" className="heading-section">
         Cast
       </h2>
       <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 lg:grid-cols-5">
@@ -249,16 +249,16 @@ function Reviews({ tmdbId }: { tmdbId: number }) {
   return (
     <section aria-labelledby="reviews-title" className="mt-16">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <h2 id="reviews-title" className="marquee text-3xl">
+        <h2 id="reviews-title" className="heading-section">
           Reviews
           {total > 0 && <span className="ml-2 text-xl text-haze">{total}</span>}
         </h2>
         {user ? (
           reviews.isSuccess && !myReview.isPending && (
-            <p className="text-sm text-haze">{own ? "Edit your review with Rate." : "Write a review with Rate."}</p>
+            <p className="text-sm text-haze">{own ? "To edit your review, open your rating above." : "Write a review with Rate above."}</p>
           )
         ) : (
-          <Link to="/login" className="text-sm font-medium text-projector underline underline-offset-4">
+          <Link to="/login" state={{ from: `/movie/${tmdbId}` }} className="link text-sm">
             Log in to write a review
           </Link>
         )}
@@ -269,7 +269,9 @@ function Reviews({ tmdbId }: { tmdbId: number }) {
       ) : reviews.isError ? (
         <ErrorMessage error={reviews.error} retry={() => reviews.refetch()} />
       ) : ordered.length === 0 ? (
-        <p className="py-6 text-haze">No reviews yet.</p>
+        <EmptyState className="mt-6">
+          <p>No reviews yet. {user ? "Be the first: rate the film and add a few words." : "Log in to write the first one."}</p>
+        </EmptyState>
       ) : (
         <>
           <ul className="mt-2 divide-y divide-rule/5">
@@ -294,7 +296,7 @@ function SimilarMovies({ tmdbId }: { tmdbId: number }) {
 
   return (
     <section aria-labelledby="similar-title" className="mt-16">
-      <h2 id="similar-title" className="marquee text-3xl">
+      <h2 id="similar-title" className="heading-section">
         If you liked this
       </h2>
       <ul className="mt-5 grid grid-cols-3 gap-3 md:grid-cols-6 lg:gap-4">
@@ -320,7 +322,7 @@ export function MoviePage() {
 
   if (details.isPending) {
     return (
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="page">
         <Loading label="Loading film" />
       </div>
     );
@@ -328,7 +330,7 @@ export function MoviePage() {
 
   if (details.isError) {
     return (
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="page">
         <ErrorMessage error={details.error} retry={() => details.refetch()} />
       </div>
     );
@@ -344,7 +346,7 @@ export function MoviePage() {
     <article>
       <Backdrop path={movie.backdropPath} />
 
-      <div className="relative mx-auto -mt-32 max-w-6xl px-4 pb-10 sm:-mt-48 sm:px-6">
+      <div className="page relative -mt-32 pb-10 sm:-mt-48">
         <div className="grid gap-8 md:grid-cols-[16rem_1fr] md:gap-12">
           <div className="w-36 sm:w-48 md:w-full">
             {poster ? (
@@ -355,7 +357,7 @@ export function MoviePage() {
           </div>
 
           <div className="max-w-3xl md:pt-24">
-            <h1 className="marquee text-6xl sm:text-8xl">{movie.title}</h1>
+            <h1 className="heading-display">{movie.title}</h1>
 
             <p className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-haze">
               {year && <span>{year}</span>}
@@ -363,26 +365,36 @@ export function MoviePage() {
               {movie.originalTitle && movie.originalTitle !== movie.title && <span lang={movie.originalLanguage ?? undefined}>{movie.originalTitle}</span>}
             </p>
 
-            {movie.tagline && <p className="mt-6 text-lg text-projector">{movie.tagline}</p>}
+            {movie.tagline && <p className="mt-6 text-lg text-projector italic">{movie.tagline}</p>}
             {movie.overview && <p className="mt-4 max-w-prose text-screen/90">{movie.overview}</p>}
 
-            {(trailer || user) && (
-              <div className="mt-6 flex flex-wrap items-center gap-3">
-                {trailer && (
-                  <a
-                    href={`https://www.youtube.com/watch?v=${trailer.key}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-block rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110"
-                  >
-                    Watch trailer on YouTube
-                  </a>
-                )}
-                {user && <RateButton movie={movie} />}
-                {user && <WatchlistButton tmdbId={tmdbId} title={movie.title} />}
-                {user && <AddToListButton movie={movie} />}
-              </div>
-            )}
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              {user ? (
+                <>
+                  <RateButton movie={movie} />
+                  <WatchlistButton tmdbId={tmdbId} title={movie.title} />
+                  <AddToListButton movie={movie} />
+                </>
+              ) : (
+                <Link to="/login" state={{ from: `/movie/${tmdbId}` }} className="btn btn-primary">
+                  Log in to rate or log
+                </Link>
+              )}
+              {trailer && (
+                <a
+                  href={`https://www.youtube.com/watch?v=${trailer.key}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-secondary"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="size-3.5" aria-hidden="true">
+                    <path d="M7 4.5v15l12-7.5z" />
+                  </svg>
+                  Trailer
+                  <span className="sr-only">on YouTube (opens in a new tab)</span>
+                </a>
+              )}
+            </div>
 
             <Facts movie={movie} />
           </div>

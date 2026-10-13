@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { HomeActivity } from "../components/HomeActivity";
 import { Poster } from "../components/Poster";
-import { ErrorMessage, Loading } from "../components/Status";
+import { ErrorMessage, PosterGridSkeleton } from "../components/Status";
 import { usePopularMovies, useTrendingMovies } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { SearchMovie } from "../lib/types";
@@ -20,14 +20,14 @@ function Feature({ movie }: { movie: SearchMovie }) {
       </Link>
 
       <div className="max-w-2xl pb-2">
-        <p className="text-sm text-projector">Most watched this week</p>
+        <p className="eyebrow">Most watched this week</p>
         <h1 id="feature-title" className="marquee mt-3 text-6xl sm:text-8xl lg:text-9xl">
           <Link to={`/movie/${movie.id}`} className="rounded-sm hover:text-projector">
             {movie.title}
           </Link>
         </h1>
         {year && <p className="mt-4 text-haze">{year}</p>}
-        {movie.overview && <p className="mt-4 max-w-prose text-screen/85">{movie.overview}</p>}
+        {movie.overview && <p className="mt-4 line-clamp-5 max-w-prose text-screen/85">{movie.overview}</p>}
       </div>
     </section>
   );
@@ -36,7 +36,7 @@ function Feature({ movie }: { movie: SearchMovie }) {
 function MovieShelf({ title, movies }: { title: string; movies: SearchMovie[] }) {
   return (
     <section aria-label={title} className="mt-16">
-      <h2 className="marquee text-3xl text-screen">{title}</h2>
+      <h2 className="heading-section">{title}</h2>
       <ul className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:gap-4">
         {movies.map((movie) => (
           <li key={movie.id}>
@@ -55,15 +55,26 @@ export function HomePage() {
 
   if (trending.isPending) {
     return (
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <Loading label="Loading this week's films" />
+      <div className="page py-10 sm:py-14">
+        {/* The same shapes as the feature and shelf, so nothing jumps when they arrive. */}
+        <div role="status" className="grid items-end gap-8 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12">
+          <span className="sr-only">Loading this week's films…</span>
+          <div className="skeleton aspect-[2/3] w-40 sm:w-56 md:w-full" aria-hidden="true" />
+          <div className="space-y-4 pb-2" aria-hidden="true">
+            <div className="skeleton h-4 w-40" />
+            <div className="skeleton h-20 w-4/5 sm:h-28" />
+            <div className="skeleton h-4 w-full max-w-prose" />
+            <div className="skeleton h-4 w-3/4 max-w-prose" />
+          </div>
+        </div>
+        <PosterGridSkeleton label="Loading more films" className="mt-16" />
       </div>
     );
   }
 
   if (trending.isError) {
     return (
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="page">
         <ErrorMessage error={trending.error} retry={() => trending.refetch()} />
       </div>
     );
@@ -73,7 +84,7 @@ export function HomePage() {
   const popularMovies = popular.data?.results.filter((m) => m.id !== featured?.id) ?? [];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+    <div className="page py-10 sm:py-14">
       {featured && <Feature movie={featured} />}
 
       <HomeActivity />

@@ -21,16 +21,17 @@ export function Poster({ movie, size = "w342", className = "", priority = false 
       aria-label={year ? `${title} (${year})` : title}
     >
       <div className="aspect-[2/3] overflow-hidden rounded-sm bg-row ring-1 ring-rule/5 transition group-hover:ring-2 group-hover:ring-projector">
+        {/* Without a poster the title stands in, so the grid still reads. */}
         {src ? (
           <img
             src={src}
             alt=""
             loading={priority ? "eager" : "lazy"}
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
           <div className="flex h-full items-end p-3">
-            <span className="marquee text-2xl text-haze">{title}</span>
+            <span className="marquee line-clamp-4 text-2xl text-haze">{title}</span>
           </div>
         )}
       </div>
