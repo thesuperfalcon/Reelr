@@ -150,7 +150,7 @@ export function ActivityItem({ item }: { item: Item }) {
               <ReviewText text={review.isTruncated ? `${review.excerpt}…` : review.excerpt} className="text-sm" />
             )}
             <p className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-              <Link to={`/review/${review.id}`} className="text-sm font-medium text-projector underline underline-offset-4">
+              <Link to={`/review/${review.id}`} className="link text-sm">
                 {review.isTruncated ? "Read the full review" : "Open review"}
               </Link>
               <ReviewCounts review={review} />
@@ -175,7 +175,7 @@ export function ActivityItem({ item }: { item: Item }) {
             </ul>
             <Link
               to={item.type === "listAdded" && list ? `/list/${list.id}` : userUrl}
-              className="mt-2 inline-block text-sm font-medium text-projector underline underline-offset-4"
+              className="link mt-2 inline-block text-sm"
             >
               {item.type === "listAdded" ? "Show the list" : "Show all in their diary"}
             </Link>

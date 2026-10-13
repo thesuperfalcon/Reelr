@@ -17,7 +17,7 @@ export function ActivityReviewCard({ item }: { item: ActivityItem }) {
   const occurred = new Date(item.occurredAt);
 
   return (
-    <article className="flex gap-4 rounded-sm bg-row p-4 sm:p-5">
+    <article className="surface flex gap-4 p-4 sm:p-5">
       <div className="min-w-0 flex-1">
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-haze">
           <Link to={`/user/${actor.id}`} className="group flex items-center gap-2 rounded-sm">
@@ -43,7 +43,7 @@ export function ActivityReviewCard({ item }: { item: ActivityItem }) {
         )}
 
         <p className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-          <Link to={`/review/${review.id}`} className="text-sm font-medium text-projector underline underline-offset-4">
+          <Link to={`/review/${review.id}`} className="link text-sm">
             Read the full review
           </Link>
           <time dateTime={item.occurredAt} title={fullFormat.format(occurred)} className="text-xs text-haze">

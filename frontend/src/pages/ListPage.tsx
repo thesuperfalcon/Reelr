@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { ReportButton } from "../components/ReportButton";
 import { LockIcon } from "../components/ListCard";
 import { ListFormDialog } from "../components/ListFormDialog";
 import { LoadMore } from "../components/LoadMore";
 import { Poster } from "../components/Poster";
-import { ErrorMessage, Loading } from "../components/Status";
+import { EmptyState, ErrorMessage, Loading, PosterGridSkeleton } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
 import { pageItems, useDeleteMovieList, useMovieList, useMovieListMovies, useToggleListMovie, useWatchedFilms } from "../lib/queries";
@@ -43,16 +43,24 @@ function MovieGrid({
 
   if (movies.length === 0) {
     return (
-      <p className="py-10 text-haze">
-        {owner ? "This list is empty. Add films with the list button on a film's page." : "This list is empty."}
-      </p>
+      <EmptyState
+        action={
+          owner && (
+            <Link to="/" className="btn btn-secondary">
+              Find films
+            </Link>
+          )
+        }
+      >
+        <p>{owner ? "This list is empty. Add films with the list button on a film's page." : "This list is empty."}</p>
+      </EmptyState>
     );
   }
 
   return (
     <>
       {remove.isError && (
-        <p role="alert" className="mt-6 text-sm text-alarm">
+        <p role="alert" className="mt-6 rounded-sm border-l-2 border-alarm bg-row px-3 py-2 text-sm">
           {remove.error.message}
         </p>
       )}
@@ -81,7 +89,7 @@ function MovieGrid({
                     disabled={removing}
                     aria-label={`Remove ${movie.title} from ${list.name}`}
                     title="Remove from list"
-                    className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-salon/80 text-screen ring-1 ring-rule/20 transition hover:bg-alarm hover:text-salon"
+                    className="absolute top-1 right-1 flex size-9 items-center justify-center rounded-full bg-salon/85 text-screen ring-1 ring-rule/20 backdrop-blur-sm transition hover:bg-alarm hover:text-salon"
                   >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="size-3.5" aria-hidden="true">
                       <path d="M6 6l12 12M18 6L6 18" />
@@ -132,12 +140,12 @@ function OwnerActions({ list }: { list: MovieList }) {
           type="button"
           onClick={() => setEditing(true)}
           aria-haspopup="dialog"
-          className="inline-flex h-9 items-center rounded-sm px-3 font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row"
+          className="btn btn-sm btn-secondary"
         >
           Edit list
         </button>
         {confirmDelete ? (
-          <span className="flex items-center gap-3">
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="text-haze">Delete “{list.name}” for good?</span>
             <button
               type="button"
@@ -145,7 +153,7 @@ function OwnerActions({ list }: { list: MovieList }) {
                 remove.mutate(list.id, { onSuccess: () => navigate("/profile?tab=lists", { replace: true }) })
               }
               disabled={remove.isPending}
-              className="font-medium text-alarm underline underline-offset-4 disabled:opacity-50"
+              className="link-danger"
             >
               {remove.isPending ? "Deleting…" : "Delete"}
             </button>
@@ -154,7 +162,7 @@ function OwnerActions({ list }: { list: MovieList }) {
               autoFocus
               onClick={() => setConfirmDelete(false)}
               disabled={remove.isPending}
-              className="text-haze underline underline-offset-4 hover:text-screen"
+              className="link-quiet"
             >
               Keep
             </button>
@@ -164,7 +172,7 @@ function OwnerActions({ list }: { list: MovieList }) {
             ref={deleteRef}
             type="button"
             onClick={() => setConfirmDelete(true)}
-            className="text-haze underline underline-offset-4 transition hover:text-alarm"
+            className="link-quiet hover:text-alarm"
           >
             Delete list
           </button>
@@ -193,7 +201,7 @@ export function ListPage() {
 
   if (details.isPending) {
     return (
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="page">
         <Loading label="Loading list" />
       </div>
     );
@@ -201,7 +209,7 @@ export function ListPage() {
 
   if (details.isError) {
     return (
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="page">
         <ErrorMessage error={details.error} retry={() => details.refetch()} />
       </div>
     );
@@ -211,10 +219,10 @@ export function ListPage() {
   const owner = user?.id === list.userId;
 
   return (
-    <article className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+    <article className="page py-10 sm:py-14">
       <header>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-haze">
-          <span className="text-projector">List</span>
+          <span className="eyebrow">List</span>
           <UserLink
             user={{ id: list.userId, userName: list.username, profileImageUrl: null }}
             avatarClassName="size-7 text-base"
@@ -226,7 +234,7 @@ export function ListPage() {
             </span>
           )}
         </div>
-        <h1 className="marquee mt-4 text-6xl wrap-break-word sm:text-8xl">{list.name}</h1>
+        <h1 className="heading-display mt-4">{list.name}</h1>
         {list.description && <p className="mt-6 max-w-prose whitespace-pre-line text-screen/90">{list.description}</p>}
         <p className="mt-4 text-sm text-haze">
           {list.movieCount} {list.movieCount === 1 ? "film" : "films"} · Created{" "}
@@ -247,7 +255,7 @@ export function ListPage() {
       </header>
 
       {movies.isPending ? (
-        <Loading label="Loading films" />
+        <PosterGridSkeleton count={6} label="Loading films" className="mt-8" />
       ) : movies.isError ? (
         <ErrorMessage error={movies.error} retry={() => movies.refetch()} />
       ) : (

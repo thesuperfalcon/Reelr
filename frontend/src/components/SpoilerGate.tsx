@@ -35,12 +35,12 @@ export function SpoilerGate({
   }
 
   return (
-    <p className={`${className} flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-sm bg-row px-4 py-3 text-sm text-haze`}>
+    <p className={`${className} flex flex-wrap items-center gap-x-3 gap-y-1 rounded-sm border border-dashed border-alarm/40 px-4 py-3 text-sm text-haze`}>
       This review contains spoilers.
       <button
         type="button"
         onClick={() => setRevealed(true)}
-        className="font-medium text-projector underline underline-offset-4"
+        className="link"
       >
         Show review
       </button>
