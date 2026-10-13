@@ -1,7 +1,16 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FocusEvent, type FormEvent } from "react";
 import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate, useNavigation, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { useSettings } from "../lib/queries";
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4" aria-hidden="true">
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M16 16l4.5 4.5" />
+    </svg>
+  );
+}
 
 function SearchBox() {
   const navigate = useNavigate();
@@ -17,17 +26,20 @@ function SearchBox() {
   }
 
   return (
-    <form role="search" onSubmit={submit} className="w-full sm:w-72">
+    <form role="search" onSubmit={submit} className="relative w-full sm:w-72">
       <label htmlFor="site-search" className="sr-only">
         Search films, people, studios and members
       </label>
+      <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-haze">
+        <SearchIcon />
+      </span>
       <input
         id="site-search"
         type="search"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Search films, people, members"
-        className="w-full rounded-sm bg-row px-3 py-2 text-sm text-screen ring-1 ring-edge placeholder:text-haze focus:bg-row-raised focus:outline-2 focus:outline-projector"
+        className="input py-2 pl-9 text-sm"
       />
     </form>
   );
@@ -38,6 +50,23 @@ function UserIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-4" aria-hidden="true">
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21a8 8 0 0 1 16 0" />
+    </svg>
+  );
+}
+
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`size-4 transition-transform ${open ? "rotate-180" : ""}`}
+      aria-hidden="true"
+    >
+      <path d="M6 9l6 6 6-6" />
     </svg>
   );
 }
@@ -70,7 +99,7 @@ function SessionBanner() {
 
   return (
     <div role="status" className="border-b border-projector/30 bg-row">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 text-sm sm:px-6">
+      <div className="page flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5 text-sm">
         <p className="text-screen">
           Your login has ended. Log in again to keep going; unsaved review text is kept.
         </p>
@@ -80,12 +109,12 @@ function SessionBanner() {
               to="/login"
               state={{ from: location.pathname + location.search }}
               onClick={dismissSessionNotice}
-              className="font-medium text-projector underline underline-offset-4"
+              className="btn btn-sm btn-primary"
             >
               Log in again
             </Link>
           )}
-          <button type="button" onClick={dismissSessionNotice} className="text-haze hover:text-screen">
+          <button type="button" onClick={dismissSessionNotice} className="link-quiet">
             Dismiss
           </button>
         </div>
@@ -94,8 +123,105 @@ function SessionBanner() {
   );
 }
 
-const navLinkClass =({ isActive }: { isActive: boolean }) =>
-  `text-sm font-medium transition-colors hover:text-screen ${isActive ? "text-screen" : "text-haze"}`;
+// The current page's link is marked with an accent bar as well as brighter text, so colour is not the only cue.
+const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+  `inline-flex h-10 items-center border-b-2 text-sm font-medium transition-colors hover:text-screen ${
+    isActive ? "border-projector text-screen" : "border-transparent text-haze"
+  }`;
+
+const menuItemClass =
+  "flex w-full items-center rounded-sm px-3 py-2.5 text-left text-sm text-screen transition-colors hover:bg-row-raised";
+
+// Settings, admin and log out behind the account button, so the header fits on one line on a phone.
+// A disclosure rather than an ARIA menu: Tab moves through the links, Escape or a click elsewhere closes it.
+function AccountMenu({ isAdmin, onLogout }: { isAdmin: boolean; onLogout: () => void }) {
+  const [open, setOpen] = useState(false);
+  const { pathname } = useLocation();
+  const [shownFor, setShownFor] = useState(pathname);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+
+  // Moving to another page closes it.
+  if (shownFor !== pathname) {
+    setShownFor(pathname);
+    setOpen(false);
+  }
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    function onPointerDown(event: PointerEvent) {
+      if (!wrapperRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    }
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  // Tabbing out of the open menu closes it.
+  function onBlur(event: FocusEvent<HTMLDivElement>) {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setOpen(false);
+    }
+  }
+
+  return (
+    <div ref={wrapperRef} onBlur={onBlur} className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-label="Account menu"
+        onClick={() => setOpen(!open)}
+        className="btn btn-icon btn-sm text-haze hover:bg-row hover:text-screen aria-expanded:bg-row aria-expanded:text-screen"
+      >
+        <ChevronIcon open={open} />
+      </button>
+      <div
+        id={panelId}
+        hidden={!open}
+        className="surface absolute top-full right-0 z-40 mt-2 w-52 p-1.5 shadow-2xl ring-rule/10"
+      >
+        <ul>
+          <li>
+            <Link to="/settings" onClick={() => setOpen(false)} className={menuItemClass}>
+              Settings
+            </Link>
+          </li>
+          {isAdmin && (
+            <li>
+              <Link to="/admin" onClick={() => setOpen(false)} className={menuItemClass}>
+                Admin
+              </Link>
+            </li>
+          )}
+          <li className="mt-1.5 border-t border-rule/10 pt-1.5">
+            <button type="button" onClick={onLogout} className={`${menuItemClass} text-haze hover:text-screen`}>
+              Log out
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
 
 // After a move to another page, focus goes to the main content, so screen readers start reading the new page
 // there and keyboard users continue from it instead of from the link they used (WCAG 2.4.3). Changes within a
@@ -134,13 +260,13 @@ export function Layout() {
         Skip to content
       </a>
       <PageLoadingBar />
-      <header className="border-b border-rule/5">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-8 gap-y-3 px-4 py-4 sm:px-6">
-          <Link to="/" className="marquee text-3xl text-projector">
+      <header className="border-b border-rule/10">
+        <div className="page flex flex-wrap items-center gap-x-4 gap-y-2 py-3 sm:gap-x-8 sm:py-4">
+          <Link to="/" className="marquee rounded-sm text-3xl text-projector">
             Reelr
           </Link>
 
-          <nav className="flex items-center gap-6" aria-label="Main">
+          <nav className="flex items-center gap-4 sm:gap-6" aria-label="Main">
             <NavLink to="/" end className={navLinkClass}>
               Films
             </NavLink>
@@ -149,11 +275,11 @@ export function Layout() {
             </NavLink>
           </nav>
 
-          <div className="order-last w-full sm:order-none sm:ml-auto sm:w-auto">
+          <div className="order-last w-full pb-1 sm:order-none sm:ml-auto sm:w-auto sm:pb-0">
             <SearchBox />
           </div>
 
-          <div className="ml-auto flex items-center gap-4 sm:ml-0">
+          <div className="ml-auto flex items-center gap-1 sm:ml-0">
             {user ? (
               <>
                 <NavLink
@@ -161,7 +287,9 @@ export function Layout() {
                   aria-label={`Profile of ${user.username}`}
                   title="Your profile"
                   className={({ isActive }) =>
-                    `flex items-center gap-2 rounded-full ${navLinkClass({ isActive })}`
+                    `flex h-10 items-center gap-2 rounded-full pr-1 text-sm font-medium transition-colors hover:text-screen ${
+                      isActive ? "text-screen" : "text-haze"
+                    }`
                   }
                 >
                   {({ isActive }) => (
@@ -183,38 +311,22 @@ export function Layout() {
                           <UserIcon />
                         </span>
                       )}
-                      <span className="hidden sm:inline">{user.username}</span>
+                      <span className="hidden max-w-32 truncate sm:inline">{user.username}</span>
                     </>
                   )}
                 </NavLink>
-                {settings.data?.isAdmin && (
-                  <NavLink to="/admin" className={navLinkClass}>
-                    Admin
-                  </NavLink>
-                )}
-                <NavLink to="/settings" className={navLinkClass}>
-                  Settings
-                </NavLink>
-                <button
-                  type="button"
-                  onClick={logout}
-                  className="text-sm text-haze transition-colors hover:text-screen"
-                >
-                  Log out
-                </button>
+                <AccountMenu isAdmin={settings.data?.isAdmin === true} onLogout={logout} />
               </>
             ) : (
-              <>
+              <div className="flex items-center gap-3 sm:gap-4">
                 <NavLink to="/login" className={navLinkClass}>
                   Log in
                 </NavLink>
-                <Link
-                  to="/register"
-                  className="rounded-sm bg-projector px-3 py-1.5 text-sm font-semibold text-salon transition hover:brightness-110"
-                >
-                  Create account
+                <Link to="/register" className="btn btn-sm btn-primary">
+                  <span className="sm:hidden">Sign up</span>
+                  <span className="hidden sm:inline">Create account</span>
                 </Link>
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -226,19 +338,26 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <footer className="mx-auto w-full max-w-6xl px-4 py-10 text-xs text-haze sm:px-6">
-        <nav aria-label="About Reelr" className="mb-3 flex gap-4">
-          <Link to="/privacy" className="hover:text-screen">
-            Privacy
-          </Link>
-          <Link to="/terms" className="hover:text-screen">
-            Terms
-          </Link>
-          <Link to="/accessibility" className="hover:text-screen">
-            Accessibility
-          </Link>
-        </nav>
-        Film data and images from TMDB. Reelr is not endorsed or certified by TMDB.
+      <footer className="mt-10 border-t border-rule/10">
+        <div className="page flex flex-col gap-4 py-8 text-xs text-haze sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <span className="marquee text-xl text-screen/80" aria-hidden="true">
+              Reelr
+            </span>
+            <nav aria-label="About Reelr" className="flex gap-4">
+              <Link to="/privacy" className="rounded-xs py-1 hover:text-screen">
+                Privacy
+              </Link>
+              <Link to="/terms" className="rounded-xs py-1 hover:text-screen">
+                Terms
+              </Link>
+              <Link to="/accessibility" className="rounded-xs py-1 hover:text-screen">
+                Accessibility
+              </Link>
+            </nav>
+          </div>
+          <p>Film data and images from TMDB. Reelr is not endorsed or certified by TMDB.</p>
+        </div>
       </footer>
     </div>
   );
