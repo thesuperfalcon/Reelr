@@ -161,7 +161,7 @@ Verified by the absence of code or configuration:
 
 - The production beta runs in Azure (Sweden Central) as described in `infra/` and the root README.
 - The privacy page is written for that setup. The root README warns it has not been reviewed by a lawyer and must be kept in step with what the code stores.
-- Everything scales to zero when idle, so the first request after a quiet period can take up to a minute.
+- The apps stay warm, but the database pauses when idle, so the first request after a quiet hour can take up to a minute.
 
 ## Vision and implementation
 

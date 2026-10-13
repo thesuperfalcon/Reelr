@@ -21,10 +21,15 @@ param imageTag string = ''
 @description('Registry and owner the images are pulled from.')
 param imageRepository string = 'ghcr.io/thesuperfalcon'
 
-@description('Smallest number of backend replicas. 0 lets it sleep when unused (cold start of a few seconds); 1 keeps it warm.')
+@description('Smallest number of backend replicas. 1 keeps it warm; 0 lets it sleep when unused (cold start of a few seconds).')
 @minValue(0)
 @maxValue(1)
-param backendMinReplicas int = 0
+param backendMinReplicas int = 1
+
+@description('Smallest number of frontend (nginx) replicas. 1 keeps it warm; 0 lets it sleep when unused.')
+@minValue(0)
+@maxValue(1)
+param frontendMinReplicas int = 1
 
 @description('SMTP server for account emails.')
 param emailHost string = 'smtp-relay.brevo.com'
@@ -75,6 +80,7 @@ module resources 'resources.bicep' = {
     imageTag: imageTag
     imageRepository: imageRepository
     backendMinReplicas: backendMinReplicas
+    frontendMinReplicas: frontendMinReplicas
     emailHost: emailHost
     emailUserName: emailUserName
     emailFromAddress: emailFromAddress
