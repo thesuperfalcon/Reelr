@@ -4,12 +4,15 @@ import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { useState, type ReactNode } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../auth/AuthProvider";
 import { DeleteReviewButton } from "../components/DeleteReviewButton";
+import { Dialog } from "../components/Dialog";
 import { LoadMore } from "../components/LoadMore";
 import { SpoilerGate } from "../components/SpoilerGate";
 import { StarInput } from "../components/Stars";
+import { PosterGridSkeleton } from "../components/Status";
+import { Tabs } from "../components/Tabs";
 import { moveBetweenTabs } from "../lib/tabs";
 import { ForgotPasswordPage, LoginPage, RegisterPage } from "../pages/AuthPages";
 import { mockFetch } from "./fakes";
@@ -159,5 +162,90 @@ describe("load more", () => {
       <LoadMore query={{ hasNextPage: true, isFetchingNextPage: false, isFetchNextPageError: true, fetchNextPage: () => undefined }} what="films" />,
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Could not load more films");
+  });
+});
+
+describe("shared tabs", () => {
+  function Sections() {
+    const [selected, setSelected] = useState<"diary" | "reviews" | "lists">("diary");
+    return (
+      <>
+        <Tabs
+          label="Sections"
+          tabs={[
+            { id: "diary", label: "Diary" },
+            { id: "reviews", label: "Reviews", count: 3 },
+            { id: "lists", label: "Lists" },
+          ]}
+          selected={selected}
+          onSelect={setSelected}
+          tabId={(id) => `tab-${id}`}
+          panelId="panel"
+        />
+        <div role="tabpanel" id="panel" aria-labelledby={`tab-${selected}`}>
+          {selected}
+        </div>
+      </>
+    );
+  }
+
+  it("keeps only the selected tab in the Tab order and labels the panel with it", async () => {
+    const { container } = render(<Sections />);
+    const user = userEvent.setup();
+
+    await user.tab();
+    expect(screen.getByRole("tab", { name: "Diary" })).toHaveFocus();
+    expect(screen.getByRole("tab", { name: "Reviews 3" })).toHaveAttribute("tabindex", "-1");
+
+    await user.keyboard("{End}");
+    expect(screen.getByRole("tab", { name: "Lists" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel", { name: "Lists" })).toHaveTextContent("lists");
+    await expectNoAxeViolations(container);
+  });
+});
+
+describe("dialog", () => {
+  it("puts focus back on the button that opened it when it closes", async () => {
+    // jsdom has no showModal; the browser behaviour under test is ours, not the dialog's.
+    HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+      this.open = true;
+    });
+
+    function Opener() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            Open
+          </button>
+          {open && (
+            <Dialog labelledBy="dialog-title" onClose={() => setOpen(false)}>
+              <h2 id="dialog-title">Title</h2>
+              <button type="button" onClick={() => setOpen(false)}>
+                Close
+              </button>
+            </Dialog>
+          )}
+        </>
+      );
+    }
+
+    render(<Opener />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(screen.getByRole("button", { name: "Open" })).toHaveFocus();
+  });
+});
+
+describe("loading placeholders", () => {
+  it("announce what is loading while the shapes stay hidden", async () => {
+    const { container } = render(<PosterGridSkeleton label="Loading films" />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading films…");
+    expect(container.querySelector("ul")).toHaveAttribute("aria-hidden", "true");
+    await expectNoAxeViolations(container);
   });
 });
