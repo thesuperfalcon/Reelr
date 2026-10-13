@@ -6,6 +6,7 @@ param adminLogin string
 param imageTag string
 param imageRepository string
 param backendMinReplicas int
+param frontendMinReplicas int
 param emailHost string
 param emailUserName string
 param emailFromAddress string
@@ -342,7 +343,7 @@ resource frontend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: frontendMinReplicas
         maxReplicas: 1
       }
     }

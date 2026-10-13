@@ -1,4 +1,12 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData, type QueryKey } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+  type QueryKey,
+} from "@tanstack/react-query";
 import { useAuth } from "../auth/auth-context";
 import { ApiError, api } from "./api";
 import type {
@@ -48,18 +56,23 @@ function usePagedQuery<TPage extends Page<unknown>>(queryKey: QueryKey, url: str
   });
 }
 
+// The same for every visitor, so main.tsx can fetch them for the start page while the sign-in is restored.
+export const trendingMoviesQuery = queryOptions({
+  queryKey: ["movies", "trending"],
+  queryFn: () => api<SearchResult>("/api/movies/trending"),
+});
+
+export const popularMoviesQuery = queryOptions({
+  queryKey: ["movies", "popular"],
+  queryFn: () => api<SearchResult>("/api/movies/popular"),
+});
+
 export function useTrendingMovies() {
-  return useQuery({
-    queryKey: ["movies", "trending"],
-    queryFn: () => api<SearchResult>("/api/movies/trending"),
-  });
+  return useQuery(trendingMoviesQuery);
 }
 
 export function usePopularMovies() {
-  return useQuery({
-    queryKey: ["movies", "popular"],
-    queryFn: () => api<SearchResult>("/api/movies/popular"),
-  });
+  return useQuery(popularMoviesQuery);
 }
 
 export function useMovieDetails(tmdbId: number) {

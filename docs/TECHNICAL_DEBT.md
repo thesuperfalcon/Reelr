@@ -141,10 +141,10 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 
 ### TD-16. Background work and scale-to-zero
 
-- **Description:** In Azure the backend scales to zero. Background services only run while a replica is up.
-- **Evidence:** `backendMinReplicas` default 0 in `infra/main.bicep`; `MovieRefresher` runs once at start-up and then every 6 hours; `EmailQueue` is in memory with retries up to about 42 seconds.
-- **Impact:** Film refresh happens mostly at cold starts, adding TMDB and database load while the first visitor waits for the app. An email still retrying when the replica scales in is lost. Rate-limit and throttle counters reset at each cold start (see [SECURITY.md](SECURITY.md) S4).
-- **Next step:** Acceptable for the beta. If it matters, delay the first refresh run after start-up, or move refresh and email to a scheduled Container Apps job.
+- **Description:** In Azure the backend keeps one replica warm by default, but `backendMinReplicas = 0` lets it scale to zero. Background services only run while a replica is up.
+- **Evidence:** `backendMinReplicas` in `infra/main.bicep`; `MovieRefresher` runs at the first visitor after start-up (plus a 2-minute delay) and then at the first visitor at least 6 hours later; `EmailQueue` is in memory with retries up to about 42 seconds.
+- **Impact:** An email still retrying when the replica scales in is lost. Rate-limit and throttle counters reset at each cold start (see [SECURITY.md](SECURITY.md) S4).
+- **Next step:** Acceptable for the beta. If it matters, move refresh and email to a scheduled Container Apps job.
 
 ### TD-17. Floating image tags
 
