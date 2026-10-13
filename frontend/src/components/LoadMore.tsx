@@ -43,7 +43,7 @@ export function LoadMore({ query, what }: LoadMoreProps) {
   }
 
   return (
-    <div className="mt-6">
+    <div className="mt-8 flex flex-col items-center">
       {isFetchNextPageError && (
         <p role="alert" className="mb-2 text-sm text-alarm">
           Could not load more {what}. Try again.
@@ -54,7 +54,7 @@ export function LoadMore({ query, what }: LoadMoreProps) {
         type="button"
         onClick={() => fetchNextPage()}
         disabled={isFetchingNextPage}
-        className="rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row disabled:opacity-50"
+        className="btn btn-secondary min-w-36"
       >
         {isFetchingNextPage ? "Loading…" : "Load more"}
       </button>
