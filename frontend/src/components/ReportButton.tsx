@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { ApiError } from "../lib/api";
 import { REPORT_NOTE_MAX_LENGTH, reportReasons, useReport, type ReportReason, type ReportTargetType } from "../lib/moderation";
+import { Dialog } from "./Dialog";
 import { FormError } from "./Form";
 
 interface ReportButtonProps {
@@ -26,7 +27,7 @@ export function ReportButton({ targetType, targetId, what, className = "" }: Rep
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        className={`text-haze underline underline-offset-4 hover:text-alarm ${className}`}
+        className={`link-quiet hover:text-alarm ${className}`}
       >
         Report
       </button>
@@ -59,17 +60,11 @@ function ReportDialog({
   onClose: () => void;
   onReported: () => void;
 }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const noteId = useId();
   const [reason, setReason] = useState<ReportReason | null>(null);
   const [note, setNote] = useState("");
   const report = useReport();
-
-  // showModal gives the blurred backdrop, focus trap and Escape to close.
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   function submit() {
     if (!reason) return;
@@ -84,13 +79,7 @@ function ReportDialog({
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby={titleId}
-      onClose={onClose}
-      onClick={(event) => event.target === event.currentTarget && onClose()}
-      className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-rule/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
-    >
+    <Dialog labelledBy={titleId} onClose={onClose} className="w-[min(32rem,calc(100vw-2rem))]">
       <form
         method="dialog"
         onSubmit={(event) => {
@@ -99,23 +88,23 @@ function ReportDialog({
         }}
         className="p-6"
       >
-        <h2 id={titleId} className="marquee text-3xl">
+        <h2 id={titleId} className="heading-section">
           Report {what}
         </h2>
         <p className="mt-2 text-sm text-haze">The admins see your report. The author is not told who reported it.</p>
 
         <fieldset className="mt-6">
-          <legend className="text-sm font-medium">What is wrong?</legend>
+          <legend className="label">What is wrong?</legend>
           <div className="mt-3 space-y-2">
             {reportReasons.map((option) => (
-              <label key={option.value} className="flex items-center gap-3 text-sm">
+              <label key={option.value} className="flex min-h-8 items-center gap-3 text-sm">
                 <input
                   type="radio"
                   name="report-reason"
                   value={option.value}
                   checked={reason === option.value}
                   onChange={() => setReason(option.value)}
-                  className="size-4 accent-projector"
+                  className="check"
                 />
                 {option.label}
               </label>
@@ -123,7 +112,7 @@ function ReportDialog({
           </div>
         </fieldset>
 
-        <label htmlFor={noteId} className="mt-6 block text-sm font-medium">
+        <label htmlFor={noteId} className="label mt-6">
           Anything the admins should know? (optional)
         </label>
         <textarea
@@ -132,26 +121,26 @@ function ReportDialog({
           onChange={(event) => setNote(event.target.value)}
           maxLength={REPORT_NOTE_MAX_LENGTH}
           rows={3}
-          className="mt-2 block w-full resize-y rounded-sm bg-salon px-3 py-2 text-screen ring-1 ring-edge focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
+          className="input mt-2 block resize-y"
         />
 
         <div className="mt-4">
           <FormError error={report.error instanceof ApiError && report.error.status === 409 ? null : report.error} />
         </div>
 
-        <div className="mt-6 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="rounded-sm px-4 py-2 text-sm font-medium text-haze hover:text-screen">
+        <div className="dialog-actions">
+          <button type="button" onClick={onClose} className="btn btn-secondary">
             Cancel
           </button>
           <button
             type="submit"
             disabled={!reason || report.isPending}
-            className="rounded-sm bg-alarm px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-60"
+            className="btn btn-danger"
           >
             {report.isPending ? "Sending…" : "Send report"}
           </button>
         </div>
       </form>
-    </dialog>
+    </Dialog>
   );
 }

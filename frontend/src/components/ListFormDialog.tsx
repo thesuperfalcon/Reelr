@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { useSaveMovieList } from "../lib/queries";
 import type { MovieList } from "../lib/types";
+import { Dialog } from "./Dialog";
 
 // Match CreateMovieListDto on the server.
 const NAME_MAX = 100;
@@ -14,7 +15,6 @@ interface ListFormDialogProps {
 }
 
 export function ListFormDialog({ current, onSaved, onClose }: ListFormDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const nameId = useId();
   const descriptionId = useId();
@@ -22,11 +22,6 @@ export function ListFormDialog({ current, onSaved, onClose }: ListFormDialogProp
   const [description, setDescription] = useState(current?.description ?? "");
   const [isPublic, setIsPublic] = useState(current?.isPublic ?? true);
   const save = useSaveMovieList();
-
-  // showModal gives the blurred backdrop, focus trap and Escape to close.
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   function submit() {
     save.mutate(
@@ -41,14 +36,7 @@ export function ListFormDialog({ current, onSaved, onClose }: ListFormDialogProp
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby={titleId}
-      onClose={onClose}
-      // A click on the backdrop lands on the dialog element itself.
-      onClick={(event) => event.target === event.currentTarget && onClose()}
-      className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-rule/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
-    >
+    <Dialog labelledBy={titleId} onClose={onClose} className="w-[min(32rem,calc(100vw-2rem))]">
       <form
         method="dialog"
         onSubmit={(event) => {
@@ -57,13 +45,13 @@ export function ListFormDialog({ current, onSaved, onClose }: ListFormDialogProp
         }}
         className="p-6"
       >
-        <h2 id={titleId} className="marquee text-3xl">
+        <h2 id={titleId} className="heading-section">
           {current ? "Edit list" : "New list"}
         </h2>
 
         <div className="mt-6">
           <div className="flex items-baseline justify-between">
-            <label htmlFor={nameId} className="text-sm text-haze">
+            <label htmlFor={nameId} className="label">
               Name
             </label>
             <span className="text-xs text-haze tabular-nums">
@@ -77,14 +65,14 @@ export function ListFormDialog({ current, onSaved, onClose }: ListFormDialogProp
             maxLength={NAME_MAX}
             required
             autoFocus
-            className="mt-2 block w-full rounded-sm bg-salon px-3 py-2 text-screen ring-1 ring-edge focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
+            className="input mt-2 block"
             placeholder="Best of the year"
           />
         </div>
 
         <div className="mt-5">
           <div className="flex items-baseline justify-between">
-            <label htmlFor={descriptionId} className="text-sm text-haze">
+            <label htmlFor={descriptionId} className="label">
               Description (optional)
             </label>
             <span className="text-xs text-haze tabular-nums">
@@ -97,7 +85,7 @@ export function ListFormDialog({ current, onSaved, onClose }: ListFormDialogProp
             onChange={(event) => setDescription(event.target.value)}
             maxLength={DESCRIPTION_MAX}
             rows={4}
-            className="mt-2 block w-full resize-y rounded-sm bg-salon px-3 py-2 text-screen ring-1 ring-edge focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
+            className="input mt-2 block resize-y"
           />
         </div>
 
@@ -106,7 +94,7 @@ export function ListFormDialog({ current, onSaved, onClose }: ListFormDialogProp
             type="checkbox"
             checked={isPublic}
             onChange={(event) => setIsPublic(event.target.checked)}
-            className="mt-0.5 size-4 accent-projector"
+            className="check mt-0.5"
           />
           <span>
             <span className="font-medium">Public</span>
@@ -117,28 +105,28 @@ export function ListFormDialog({ current, onSaved, onClose }: ListFormDialogProp
         </label>
 
         {save.error && (
-          <p role="alert" className="mt-4 text-sm text-alarm">
+          <p role="alert" className="mt-4 rounded-sm border-l-2 border-alarm bg-salon px-3 py-2 text-sm">
             {save.error.message}
           </p>
         )}
 
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="dialog-actions">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm px-4 py-2 text-sm font-medium text-haze ring-1 ring-rule/15 transition hover:text-screen"
+            className="btn btn-secondary"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={save.isPending || name.trim() === ""}
-            className="rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-50"
+            className="btn btn-primary"
           >
             {save.isPending ? "Saving…" : current ? "Save" : "Create list"}
           </button>
         </div>
       </form>
-    </dialog>
+    </Dialog>
   );
 }
