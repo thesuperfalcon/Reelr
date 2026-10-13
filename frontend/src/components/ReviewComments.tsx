@@ -19,7 +19,7 @@ import { UserLink } from "./UserAvatar";
 import { useReturnFocus } from "../lib/focus";
 
 const textareaClass =
-  "mt-2 block w-full resize-y rounded-sm bg-row px-3 py-2.5 text-screen ring-1 ring-edge focus:bg-row-raised focus:outline-2 focus:outline-projector";
+  "input mt-2 block resize-y";
 
 function CommentForm({
   initial = "",
@@ -74,7 +74,7 @@ function CommentForm({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-sm px-3 py-1.5 text-sm font-medium text-haze ring-1 ring-rule/15 transition hover:text-screen"
+            className="btn btn-sm btn-secondary"
           >
             Cancel
           </button>
@@ -82,7 +82,7 @@ function CommentForm({
         <button
           type="submit"
           disabled={pending || trimmed === ""}
-          className="rounded-sm bg-projector px-3 py-1.5 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-50"
+          className="btn btn-sm btn-primary"
         >
           {pending ? "Saving…" : submitLabel}
         </button>
@@ -123,7 +123,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
                   type="button"
                   onClick={() => remove.mutate(comment.id)}
                   disabled={remove.isPending}
-                  className="font-medium text-alarm underline underline-offset-4 disabled:opacity-50"
+                  className="link-danger"
                 >
                   {remove.isPending ? "Deleting…" : "Delete"}
                 </button>
@@ -131,7 +131,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
                   type="button"
                   autoFocus
                   onClick={() => setConfirming(false)}
-                  className="text-haze underline underline-offset-4 hover:text-screen"
+                  className="link-quiet"
                 >
                   Keep
                 </button>
@@ -143,7 +143,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
                     ref={editRef}
                     type="button"
                     onClick={() => setEditing(true)}
-                    className="text-haze underline underline-offset-4 hover:text-screen"
+                    className="link-quiet"
                   >
                     Edit
                   </button>
@@ -153,7 +153,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
                     ref={deleteRef}
                     type="button"
                     onClick={() => setConfirming(true)}
-                    className="text-haze underline underline-offset-4 hover:text-alarm"
+                    className="link-quiet hover:text-alarm"
                   >
                     Delete
                   </button>
@@ -208,7 +208,7 @@ export function ReviewComments({ review }: { review: Review }) {
 
   return (
     <section ref={sectionRef} id="comments" aria-labelledby="comments-title" className="mt-12 scroll-mt-24">
-      <h2 id="comments-title" className="marquee text-3xl">
+      <h2 id="comments-title" className="heading-section">
         Comments
         {review.commentCount > 0 && <span className="ml-2 text-xl text-haze">{review.commentCount}</span>}
       </h2>
@@ -218,7 +218,7 @@ export function ReviewComments({ review }: { review: Review }) {
       ) : comments.isError ? (
         <ErrorMessage error={comments.error} retry={() => comments.refetch()} />
       ) : items.length === 0 ? (
-        <p className="py-4 text-haze">No comments yet.</p>
+        <p className="py-4 text-haze">No comments yet. Start the conversation below.</p>
       ) : (
         <>
           <ol className="mt-2 divide-y divide-rule/5">
@@ -240,7 +240,7 @@ export function ReviewComments({ review }: { review: Review }) {
             onSubmit={(text) => add.mutate(text, { onSuccess: () => setFormKey((key) => key + 1) })}
           />
         ) : (
-          <Link to="/login" className="text-sm font-medium text-projector underline underline-offset-4">
+          <Link to="/login" className="link text-sm">
             Log in to comment
           </Link>
         )}

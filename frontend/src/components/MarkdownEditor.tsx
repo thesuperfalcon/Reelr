@@ -133,7 +133,7 @@ export function MarkdownEditor({ id, value, onChange, maxLength, placeholder, hi
   const modifier = isMac ? "⌘" : "Ctrl+";
 
   return (
-    <div className="mt-2 rounded-sm bg-salon ring-1 ring-edge focus-within:ring-2 focus-within:ring-projector">
+    <div className="mt-2 rounded-sm bg-salon ring-1 ring-edge transition-shadow focus-within:ring-2 focus-within:ring-projector">
       <div className="flex items-center gap-1 border-b border-rule/10 px-2 py-1.5">
         <div role="toolbar" aria-label="Formatting" aria-controls={id} className="flex items-center gap-0.5">
           {actions.map((action) => {

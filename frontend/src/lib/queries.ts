@@ -307,6 +307,8 @@ export function useSaveDiaryEntry(tmdbId: number) {
         queryClient.invalidateQueries({ queryKey: ["me", "rating", tmdbId] }),
         queryClient.invalidateQueries({ queryKey: ["me", "status", tmdbId] }),
         queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+        // Diary stats are counted from the diary.
+        queryClient.invalidateQueries({ queryKey: ["stats"] }),
         // Logging a film removes it from the watchlist on the server.
         queryClient.invalidateQueries({ queryKey: ["me", "watchlist"] }),
         // Reviews show the author's current rating.
@@ -323,6 +325,8 @@ export function useDeleteRating(tmdbId: number) {
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+        // Diary stats are counted from the diary.
+        queryClient.invalidateQueries({ queryKey: ["stats"] }),
         queryClient.invalidateQueries({ queryKey: ["reviews"] }),
       ]),
   });
@@ -357,7 +361,31 @@ export function useReview(reviewId: number) {
   });
 }
 
-// Reviews are written through useSaveDiaryEntry, so writing one also logs the film.
+// Writes or rewrites a review without logging the film, for a film that is already in the diary.
+// The server attaches a new review to the latest diary entry. Reviews written together with a log
+// go through useSaveDiaryEntry instead.
+export function useWriteReview(tmdbId: number) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, text, containsSpoilers }: { id: number | null; text: string; containsSpoilers: boolean }) =>
+      id === null
+        ? api<Review>(`/api/movies/${tmdbId}/reviews`, {
+            method: "POST",
+            body: JSON.stringify({ text, containsSpoilers }),
+          })
+        : api<Review>(`/api/reviews/${id}`, {
+            method: "PUT",
+            body: JSON.stringify({ text, containsSpoilers }),
+          }),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["reviews"] }),
+        // The diary shows which entries have a review.
+        queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+      ]),
+  });
+}
+
 export function useDeleteReview() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -366,6 +394,8 @@ export function useDeleteReview() {
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ["reviews"] }),
         queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
+        // Diary stats are counted from the diary.
+        queryClient.invalidateQueries({ queryKey: ["stats"] }),
       ]),
   });
 }

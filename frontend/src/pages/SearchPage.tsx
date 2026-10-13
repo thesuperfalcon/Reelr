@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router";
 import { PersonLink } from "../components/PersonLink";
 import { Poster } from "../components/Poster";
-import { ErrorMessage, Loading } from "../components/Status";
+import { EmptyState, ErrorMessage, Loading } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
 import { useSearchAll, useUserSearch } from "../lib/queries";
 import type { Person, UserSummary } from "../lib/types";
@@ -14,7 +14,7 @@ function PeopleList({ title, people }: { title: string; people: Person[] }) {
 
   return (
     <section aria-label={title} className="mt-12">
-      <h2 className="marquee text-3xl">{title}</h2>
+      <h2 className="heading-section">{title}</h2>
       <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
         {people.slice(0, 12).map((person) => (
           <li key={person.id}>
@@ -38,7 +38,7 @@ function MemberList({ members }: { members: UserSummary[] }) {
 
   return (
     <section aria-label="Members" className="mt-12">
-      <h2 className="marquee text-3xl">Members</h2>
+      <h2 className="heading-section">Members</h2>
       <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
         {members.map((member) => (
           <li key={member.id}>
@@ -58,14 +58,18 @@ export function SearchPage() {
   usePageTitle(query ? `Search: ${query}` : "Search");
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+    <div className="page py-10">
       {query ? (
-        <h1 className="marquee text-5xl sm:text-6xl">Results for “{query}”</h1>
+        <h1 className="heading-page">Results for “{query}”</h1>
       ) : (
-        <h1 className="marquee text-5xl sm:text-6xl">Search</h1>
+        <h1 className="heading-page">Search</h1>
       )}
 
-      {!query && <p className="mt-4 text-haze">Type a film title, a name, a studio or a member's username in the search field above.</p>}
+      {!query && (
+        <EmptyState>
+          <p>Type a film title, a name, a studio or a member's username in the search field above.</p>
+        </EmptyState>
+      )}
 
       {query && (search.isPending || members.isPending) && <Loading label="Searching" />}
       {search.isError && <ErrorMessage error={search.error} retry={() => search.refetch()} />}
@@ -78,12 +82,14 @@ export function SearchPage() {
             search.data.cast.length === 0 &&
             search.data.crew.length === 0 &&
             search.data.studios.length === 0 && (
-              <p className="mt-6 text-haze">Nothing matches “{query}”. Check the spelling or try a shorter search.</p>
+              <EmptyState>
+                <p>Nothing matches “{query}”. Check the spelling or try a shorter search.</p>
+              </EmptyState>
             )}
 
           {search.data.movies.length > 0 && (
             <section aria-label="Films" className="mt-10">
-              <h2 className="marquee text-3xl">Films</h2>
+              <h2 className="heading-section">Films</h2>
               <ul className="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6 lg:gap-4">
                 {search.data.movies.map((movie) => (
                   <li key={movie.id}>
@@ -100,10 +106,12 @@ export function SearchPage() {
 
           {search.data.studios.length > 0 && (
             <section aria-label="Studios" className="mt-12">
-              <h2 className="marquee text-3xl">Studios</h2>
-              <ul className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              <h2 className="heading-section">Studios</h2>
+              <ul className="mt-5 flex flex-wrap gap-2 text-sm">
                 {search.data.studios.slice(0, 20).map((studio) => (
-                  <li key={studio.id}>{studio.name}</li>
+                  <li key={studio.id} className="rounded-sm bg-row px-3 py-1.5">
+                    {studio.name}
+                  </li>
                 ))}
               </ul>
             </section>

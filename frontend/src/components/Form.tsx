@@ -9,7 +9,7 @@ export function Field({
 }: { id: string; label: string; hint?: string } & InputHTMLAttributes<HTMLInputElement>) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium">
+      <label htmlFor={id} className="label">
         {label}
       </label>
       <input
@@ -17,11 +17,11 @@ export function Field({
         name={id}
         required
         aria-describedby={hint ? `${id}-hint` : undefined}
-        className="mt-1.5 w-full rounded-sm bg-row px-3 py-2.5 text-screen ring-1 ring-edge focus:bg-row-raised focus:outline-2 focus:outline-projector"
+        className="input mt-1.5"
         {...input}
       />
       {hint && (
-        <p id={`${id}-hint`} className="mt-1 text-xs text-haze">
+        <p id={`${id}-hint`} className="hint mt-1.5">
           {hint}
         </p>
       )}
@@ -41,7 +41,7 @@ export function FormError({ error }: { error: unknown }) {
       : [error instanceof Error ? error.message : "Something went wrong."];
 
   return (
-    <div role="alert" className="text-sm text-alarm">
+    <div role="alert" className="rounded-sm border-l-2 border-alarm bg-row px-3 py-2 text-sm text-screen">
       {messages.map((message) => (
         <p key={message}>{message}</p>
       ))}

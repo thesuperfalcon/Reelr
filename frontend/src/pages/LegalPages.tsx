@@ -10,10 +10,10 @@ const contact = "reelr.beta@outlook.com";
 
 function LegalShell({ title, updated, children }: { title: string; updated: string; children: ReactNode }) {
   return (
-    <article className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-      <h1 className="marquee text-6xl sm:text-7xl">{title}</h1>
+    <article className="page py-10 *:max-w-3xl sm:py-14">
+      <h1 className="heading-page">{title}</h1>
       <p className="mt-3 text-sm text-haze">Last updated {updated}</p>
-      <p role="note" className="mt-6 rounded-sm bg-row p-4 text-sm text-projector">
+      <p role="note" className="mt-6 rounded-sm border-l-2 border-projector bg-row p-4 text-sm">
         Reelr is in a closed beta for invited members.
       </p>
       <div className="legal-text mt-8 space-y-4 text-sm leading-relaxed [&_h2]:marquee [&_h2]:mt-10 [&_h2]:text-3xl [&_li]:ml-5 [&_li]:list-disc">
@@ -176,7 +176,7 @@ export function TermsPage() {
     <LegalShell title="Terms" updated="12 October 2026">
       <p>
         These terms apply when you use Reelr. By creating an account you accept them and the{" "}
-        <Link to="/privacy" className="text-projector underline underline-offset-4">
+        <Link to="/privacy" className="link">
           privacy policy
         </Link>
         . Reelr is run by Tintin Falk, a private person in Sweden, {contact}.

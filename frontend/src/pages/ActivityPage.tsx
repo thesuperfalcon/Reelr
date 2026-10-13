@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { ActivityFeed } from "../components/ActivityFeed";
+import { Tabs } from "../components/Tabs";
 import { type FeedKind, useSettings, useUpdateSettings, useUserProfile } from "../lib/queries";
 import { usePageTitle } from "../lib/title";
 
@@ -27,13 +28,13 @@ function OwnActivityToggle() {
           Could not save that. Try again.
         </span>
       )}
-      <label className="flex items-center gap-2 text-haze">
+      <label className="flex min-h-10 cursor-pointer items-center gap-2 text-haze hover:text-screen">
         <input
           type="checkbox"
           checked={settings.data.showOwnActivity}
           onChange={(event) => update.mutate({ showOwnActivity: event.target.checked })}
           disabled={update.isPending}
-          className="size-4 accent-projector"
+          className="check"
         />
         Show my activity
       </label>
@@ -54,37 +55,28 @@ export function ActivityPage() {
   const tab: FeedKind = requested === "following" || requested === "community" ? requested : fallback;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+    <div className="page py-10 sm:py-14">
       <section aria-labelledby="feed-title" className="max-w-3xl">
-        <h1 id="feed-title" className="marquee text-5xl sm:text-6xl">
+        <h1 id="feed-title" className="heading-page">
           Activity
         </h1>
 
         {!user ? (
           <>
-            <p className="mt-3 text-haze">What people on Reelr have watched, reviewed and listed lately.</p>
+            <p className="mt-4 text-haze">What people on Reelr have watched, reviewed and listed lately.</p>
             <ActivityFeed kind="community" empty={communityEmpty} />
           </>
         ) : (
           <>
-            <div role="tablist" aria-label="Activity feeds" className="mt-6 flex gap-6 border-b border-rule/5">
-              {feedTabs.map(({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  id={`feed-tab-${id}`}
-                  aria-selected={tab === id}
-                  aria-controls="feed-panel"
-                  onClick={() => setParams({ feed: id }, { replace: true, preventScrollReset: true })}
-                  className={`-mb-px shrink-0 border-b-2 pb-3 text-sm font-medium transition-colors ${
-                    tab === id ? "border-projector text-screen" : "border-transparent text-haze hover:text-screen"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <Tabs
+              label="Activity feeds"
+              tabs={feedTabs}
+              selected={tab}
+              onSelect={(id) => setParams({ feed: id }, { replace: true, preventScrollReset: true })}
+              tabId={(id) => `feed-tab-${id}`}
+              panelId="feed-panel"
+              className="mt-8"
+            />
             <div role="tabpanel" id="feed-panel" aria-labelledby={`feed-tab-${tab}`}>
               {tab === "following" && <OwnActivityToggle />}
               {tab === "following" ? (
@@ -94,7 +86,7 @@ export function ActivityPage() {
                   empty={
                     <>
                       <p>Follow people to see what they watch, review and list.</p>
-                      <Link to="/search" className="mt-3 inline-block font-medium text-projector underline underline-offset-4">
+                      <Link to="/search" className="btn btn-primary mt-5">
                         Find people to follow
                       </Link>
                     </>

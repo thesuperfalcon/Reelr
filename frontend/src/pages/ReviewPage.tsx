@@ -31,7 +31,7 @@ export function ReviewPage() {
 
   if (review.isPending) {
     return (
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="page">
         <Loading label="Loading review" />
       </div>
     );
@@ -39,7 +39,7 @@ export function ReviewPage() {
 
   if (review.isError) {
     return (
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="page">
         <ErrorMessage error={review.error} retry={() => review.refetch()} />
       </div>
     );
@@ -51,9 +51,9 @@ export function ReviewPage() {
   const filmUrl = `/movie/${data.tmdbId}`;
 
   return (
-    <article className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+    <article className="page py-10 sm:py-14">
       <div className="grid gap-8 md:grid-cols-[12rem_1fr] md:gap-12">
-        <Link to={filmUrl} className="block w-32 rounded-sm sm:w-40 md:w-full" tabIndex={-1} aria-hidden="true">
+        <Link to={filmUrl} className="block w-32 rounded-sm sm:w-40 md:w-full md:self-start" tabIndex={-1} aria-hidden="true">
           {poster ? (
             <img src={poster} alt="" className="aspect-[2/3] w-full rounded-sm object-cover ring-1 ring-rule/10" />
           ) : (
@@ -102,9 +102,9 @@ export function ReviewPage() {
           )}
 
           {own && (
-            <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-rule/5 pt-6 text-sm">
-              <Link to={filmUrl} className="font-medium text-projector underline underline-offset-4">
-                Edit with Rate on the film page
+            <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-rule/10 pt-6 text-sm">
+              <Link to={filmUrl} className="btn btn-sm btn-secondary">
+                Edit on the film page
               </Link>
               <DeleteReviewButton reviewId={data.id} onDeleted={() => navigate(filmUrl, { replace: true })} />
             </div>

@@ -7,13 +7,13 @@ import { tmdbImage } from "../lib/tmdb";
 import type { FollowingFilm } from "../lib/types";
 import { ActivityReviewCard } from "./ActivityReviewCard";
 import { Stars } from "./Stars";
-import { ErrorMessage, Loading } from "./Status";
+import { EmptyState, ErrorMessage, PosterGridSkeleton } from "./Status";
 import { UserAvatar } from "./UserAvatar";
 
 const FILM_COUNT = 6;
 const REVIEW_COUNT = 3;
 
-const linkClass = "text-sm font-medium text-projector underline underline-offset-4";
+const linkClass = "link text-sm";
 
 function AllActivityLink({ feed }: { feed?: "community" }) {
   return (
@@ -26,7 +26,7 @@ function AllActivityLink({ feed }: { feed?: "community" }) {
 function SectionHeader({ id, title, children }: { id: string; title: string; children?: ReactNode }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
-      <h2 id={id} className="marquee text-3xl">
+      <h2 id={id} className="heading-section">
         {title}
       </h2>
       {children && <div className="flex items-baseline gap-5">{children}</div>}
@@ -45,7 +45,7 @@ function FilmTile({ film }: { film: FollowingFilm }) {
     <li className="min-w-0">
       <div className="relative">
         <Link to={`/movie/${movie.tmdbId}`} className="group block rounded-sm outline-offset-4" aria-label={movie.title}>
-          <div className="aspect-[2/3] overflow-hidden rounded-sm bg-row ring-1 ring-rule/5 transition group-hover:ring-2 group-hover:ring-projector">
+          <div className="aspect-[2/3] overflow-hidden rounded-sm bg-row ring-1 ring-rule/5 transition group-hover:ring-2 group-hover:ring-projector group-focus-visible:ring-2 group-focus-visible:ring-projector">
             {poster ? (
               <img src={poster} alt="" loading="lazy" className="h-full w-full object-cover" />
             ) : (
@@ -98,28 +98,32 @@ function NewFromFriends({ userId }: { userId: number }) {
 
   let body: ReactNode;
   if (films.isPending) {
-    body = <Loading label="Loading what your friends watched" />;
+    body = <PosterGridSkeleton count={6} label="Loading what your friends watched" />;
   } else if (films.isError) {
     body = <ErrorMessage error={films.error} retry={() => films.refetch()} />;
   } else if (films.data.length === 0) {
     body = (
-      <div className="mt-4 text-haze">
-        {profile.data?.followingCount === 0 ? (
-          <>
-            <p>Follow people to see what they watch.</p>
-            <p className="mt-3 flex flex-wrap gap-x-5 gap-y-2">
-              <Link to="/search" className={linkClass}>
-                Find people to follow
-              </Link>
-              <Link to="/activity?feed=community" className={linkClass}>
+      <EmptyState
+        className="mt-5"
+        action={
+          profile.data?.followingCount === 0 && (
+            <>
+              <Link to="/activity?feed=community" className="btn btn-primary">
                 See what everyone is watching
               </Link>
-            </p>
-          </>
-        ) : (
-          <p>Nobody you follow has logged a film in the last year.</p>
-        )}
-      </div>
+              <Link to="/search" className="btn btn-secondary">
+                Find people to follow
+              </Link>
+            </>
+          )
+        }
+      >
+        <p>
+          {profile.data?.followingCount === 0
+            ? "Follow people to see what they watch."
+            : "Nobody you follow has logged a film in the last year."}
+        </p>
+      </EmptyState>
     );
   } else {
     body = (
@@ -181,7 +185,7 @@ function ReviewsFromFriends() {
           onClick={() => update.mutate({ showFriendReviews: false })}
           disabled={update.isPending}
           title="You can turn this back on here or in Settings"
-          className="text-sm font-medium text-haze transition-colors hover:text-screen disabled:opacity-50"
+          className="btn btn-sm text-haze hover:bg-row hover:text-screen"
         >
           Hide
         </button>

@@ -121,7 +121,136 @@
   }
 }
 
+/* The shared building blocks. Pages compose these with plain utilities; a utility on the element always wins,
+   because utilities come after components. Every look above restyles them through its tokens. */
 @layer components {
+  /* Page column: the same width and side margins on every page. */
+  .page {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6;
+  }
+
+  /* Headings. Display is a film, person, member or list name; page is a page's own title; section is a
+     heading inside a page. */
+  .heading-display {
+    @apply marquee text-6xl sm:text-8xl;
+  }
+
+  .heading-page {
+    @apply marquee text-5xl sm:text-6xl;
+  }
+
+  .heading-section {
+    @apply marquee text-3xl;
+  }
+
+  /* The small accent label above a page title, such as "List" or "Your profile". */
+  .eyebrow {
+    @apply text-sm font-medium text-projector;
+  }
+
+  /* Buttons. One primary per area, for the action most people came to take. */
+  .btn {
+    @apply inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-sm px-4 text-sm font-semibold whitespace-nowrap transition select-none disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-sm {
+    @apply h-9 px-3;
+  }
+
+  /* Square button holding only an icon; it needs an aria-label. */
+  .btn-icon {
+    @apply size-10 px-0;
+
+    &.btn-sm {
+      @apply size-9;
+    }
+  }
+
+  .btn-primary {
+    @apply bg-projector text-salon hover:brightness-110 active:brightness-95;
+  }
+
+  .btn-secondary {
+    @apply font-medium text-screen ring-1 ring-rule/20 ring-inset hover:bg-row hover:ring-rule/30;
+  }
+
+  .btn-danger {
+    @apply bg-alarm text-salon hover:brightness-110;
+  }
+
+  .btn-danger-outline {
+    @apply font-medium text-alarm ring-1 ring-alarm/50 ring-inset hover:bg-alarm/10;
+  }
+
+  /* Text links and link-like buttons. */
+  .link {
+    @apply rounded-xs font-medium text-projector underline decoration-projector/50 underline-offset-4 transition-colors hover:decoration-projector;
+  }
+
+  .link-quiet {
+    @apply rounded-xs text-haze underline decoration-rule/25 underline-offset-4 transition-colors hover:text-screen hover:decoration-screen;
+  }
+
+  .link-danger {
+    @apply rounded-xs font-medium text-alarm underline decoration-alarm/50 underline-offset-4 transition-colors hover:decoration-alarm disabled:opacity-50;
+  }
+
+  /* Form controls. The outline colour keeps 3:1 against every background (WCAG 1.4.11). */
+  .input {
+    @apply w-full rounded-sm bg-row px-3 py-2.5 text-screen ring-1 ring-edge transition-colors placeholder:text-haze hover:ring-haze focus:bg-row-raised focus:outline-2 focus:outline-projector aria-invalid:ring-alarm disabled:opacity-60;
+  }
+
+  .label {
+    @apply block text-sm font-medium;
+  }
+
+  .hint {
+    @apply text-xs text-haze;
+  }
+
+  .check {
+    @apply size-4 shrink-0 accent-projector;
+  }
+
+  /* A raised surface: cards, notices, empty states. */
+  .surface {
+    @apply rounded-sm bg-row ring-1 ring-rule/5;
+  }
+
+  /* Underlined tabs that scroll sideways when they do not fit. */
+  .tablist {
+    @apply flex gap-6 overflow-x-auto overflow-y-hidden border-b border-rule/10 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+  }
+
+  .tab {
+    @apply -mb-px shrink-0 border-b-2 border-transparent pt-1 pb-3 text-sm font-medium text-haze transition-colors hover:text-screen aria-selected:border-projector aria-selected:text-screen;
+  }
+
+  /* Modal dialogs opened with showModal(). */
+  .dialog-panel {
+    @apply m-auto max-h-[calc(100dvh-2rem)] w-[min(36rem,calc(100vw-2rem))] overflow-y-auto overscroll-contain rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-rule/10 backdrop:bg-salon/70 backdrop:backdrop-blur-md;
+
+  }
+
+  /* On a raised surface fields sit a step darker, as on the page they sit a step lighter. */
+  :is(.dialog-panel, .surface) .input {
+    @apply bg-salon focus:bg-salon;
+  }
+
+  /* Divides a dialog into its parts. */
+  .dialog-section {
+    @apply mt-6 border-t border-rule/10 pt-6;
+  }
+
+  .dialog-actions {
+    @apply mt-6 flex flex-wrap items-center justify-end gap-3;
+  }
+
+  /* Loading placeholders. They pulse unless the visitor asks for less motion. */
+  .skeleton {
+    @apply animate-pulse rounded-sm bg-row;
+  }
+
   .review-text {
     @apply max-w-prose text-screen/90;
 
@@ -165,4 +294,6 @@
   line-height: 0.92;
   letter-spacing: 0.01em;
   text-wrap: balance;
+  /* Long single words, such as some usernames and list names, break instead of widening the page. */
+  overflow-wrap: break-word;
 }

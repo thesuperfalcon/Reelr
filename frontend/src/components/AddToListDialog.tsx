@@ -1,10 +1,11 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { pageItems, useListsContaining, useMyLists, useSaveMovieList, useToggleListMovie } from "../lib/queries";
-import { releaseYear, tmdbImage } from "../lib/tmdb";
+import { releaseYear } from "../lib/tmdb";
 import type { MovieDetails } from "../lib/types";
+import { Dialog, FilmDialogHeader } from "./Dialog";
 import { LockIcon } from "./ListCard";
 import { LoadMore } from "./LoadMore";
-import { ErrorMessage, Loading } from "./Status";
+import { EmptyState, ErrorMessage, Loading } from "./Status";
 
 interface AddToListDialogProps {
   movie: MovieDetails;
@@ -13,7 +14,6 @@ interface AddToListDialogProps {
 
 // Every list of the user with a check for the ones that hold this film. A click adds or removes it right away.
 export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const newNameId = useId();
   const lists = useMyLists();
@@ -21,15 +21,9 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
   const toggle = useToggleListMovie();
   const create = useSaveMovieList();
   const [newName, setNewName] = useState("");
-  const poster = tmdbImage(movie.posterPath, "w185");
   const year = releaseYear(movie.releaseDate);
   const inLists = new Set(containing.data ?? []);
   const error = toggle.error ?? create.error;
-
-  // showModal gives the blurred backdrop, focus trap and Escape to close.
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   async function createAndAdd() {
     const name = newName.trim();
@@ -47,36 +41,16 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby={titleId}
-      onClose={onClose}
-      // A click on the backdrop lands on the dialog element itself.
-      onClick={(event) => event.target === event.currentTarget && onClose()}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(28rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-rule/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
-    >
+    <Dialog labelledBy={titleId} onClose={onClose} className="w-[min(28rem,calc(100vw-2rem))]">
       <div className="p-6">
-        <div className="flex items-center gap-4">
-          {poster ? (
-            <img src={poster} alt="" className="aspect-[2/3] w-14 shrink-0 rounded-sm object-cover" />
-          ) : (
-            <div className="aspect-[2/3] w-14 shrink-0 rounded-sm bg-row-raised" aria-hidden="true" />
-          )}
-          <div className="min-w-0">
-            <p className="text-sm text-haze">Add to lists</p>
-            <h2 id={titleId} className="marquee mt-1 text-3xl">
-              {movie.title}
-              {year && <span className="ml-2 text-xl text-haze">{year}</span>}
-            </h2>
-          </div>
-        </div>
+        <FilmDialogHeader titleId={titleId} label="Add to lists" title={movie.title} year={year} posterPath={movie.posterPath} />
 
         <form
           onSubmit={(event) => {
             event.preventDefault();
             void createAndAdd();
           }}
-          className="mt-6 flex gap-2 border-t border-rule/5 pt-6"
+          className="dialog-section flex gap-2"
         >
           <label htmlFor={newNameId} className="sr-only">
             New list name
@@ -87,12 +61,12 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
             onChange={(event) => setNewName(event.target.value)}
             maxLength={100}
             placeholder="New list…"
-            className="min-w-0 flex-1 rounded-sm bg-salon px-3 py-2 text-sm text-screen ring-1 ring-edge focus:outline-none focus-visible:ring-2 focus-visible:ring-projector"
+            className="input min-w-0 flex-1 py-2 text-sm"
           />
           <button
             type="submit"
             disabled={newName.trim() === "" || create.isPending}
-            className="shrink-0 rounded-sm bg-projector px-3 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-50"
+            className="btn btn-primary px-3"
           >
             {create.isPending ? "Creating…" : "Create and add"}
           </button>
@@ -105,7 +79,9 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
         ) : containing.isError ? (
           <ErrorMessage error={containing.error} retry={() => containing.refetch()} />
         ) : pageItems(lists.data).length === 0 ? (
-          <p className="py-6 text-sm text-haze">You have no lists yet. Name one above to start.</p>
+          <EmptyState className="mt-4">
+            <p className="text-sm">You have no lists yet. Name one above to start.</p>
+          </EmptyState>
         ) : (
           <div className="mt-4 max-h-80 overflow-y-auto">
             <ul className="divide-y divide-rule/5">
@@ -119,7 +95,7 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
                       aria-pressed={inList}
                       disabled={busy}
                       onClick={() => toggle.mutate({ listId: list.id, tmdbId: movie.id, inList })}
-                      className="flex w-full items-center gap-3 px-1 py-3 text-left transition hover:bg-row-raised disabled:opacity-50"
+                      className="flex min-h-12 w-full items-center gap-3 rounded-sm px-2 py-2.5 text-left transition hover:bg-row-raised disabled:opacity-50"
                     >
                       <span
                         className={`flex size-5 shrink-0 items-center justify-center rounded-sm ring-1 ${
@@ -151,21 +127,21 @@ export function AddToListDialog({ movie, onClose }: AddToListDialogProps) {
         )}
 
         {error && (
-          <p role="alert" className="mt-4 text-sm text-alarm">
+          <p role="alert" className="mt-4 rounded-sm border-l-2 border-alarm bg-salon px-3 py-2 text-sm">
             {error.message}
           </p>
         )}
 
-        <div className="mt-6 flex justify-end">
+        <div className="dialog-actions">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm px-4 py-2 text-sm font-medium text-haze ring-1 ring-rule/15 transition hover:text-screen"
+            className="btn btn-secondary"
           >
             Done
           </button>
         </div>
       </div>
-    </dialog>
+    </Dialog>
   );
 }

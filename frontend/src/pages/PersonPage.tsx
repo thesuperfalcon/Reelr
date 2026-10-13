@@ -2,13 +2,13 @@ import { useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { Poster } from "../components/Poster";
-import { ErrorMessage, Loading } from "../components/Status";
+import { EmptyState, ErrorMessage, Loading } from "../components/Status";
+import { Tabs } from "../components/Tabs";
 import { ApiError } from "../lib/api";
 import { usePersonDetails, useWatchedFilms } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { PersonCredit, PersonDetails, SearchMovie } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
-import { moveBetweenTabs } from "../lib/tabs";
 import { usePageTitle } from "../lib/title";
 
 // TMDB dates are plain calendar days, so format them in UTC to avoid shifting a day.
@@ -70,7 +70,7 @@ function LifeFacts({ person }: { person: PersonDetails }) {
     <dl className="mt-6 grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
       {facts.map((fact) => (
         <div key={fact.term}>
-          <dt className="text-haze">{fact.term}</dt>
+          <dt className="text-xs font-medium tracking-wide text-haze uppercase">{fact.term}</dt>
           <dd className="mt-0.5 text-screen">{fact.value}</dd>
         </div>
       ))}
@@ -99,9 +99,10 @@ function ExternalLinks({ person }: { person: PersonDetails }) {
             href={link.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-block rounded-sm px-3 py-1.5 font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row"
+            className="btn btn-sm btn-secondary"
           >
             {link.label}
+            <span className="sr-only"> (opens in a new tab)</span>
           </a>
         </li>
       ))}
@@ -129,7 +130,7 @@ function Biography({ text }: { text: string }) {
           type="button"
           onClick={() => setExpanded(!expanded)}
           aria-expanded={expanded}
-          className="mt-3 text-sm font-medium text-projector underline underline-offset-4"
+          className="link mt-3 text-sm"
         >
           {expanded ? "Show less" : "Read more"}
         </button>
@@ -225,7 +226,7 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
   const sort: Sort = isSort(requestedSort) ? requestedSort : "newest";
 
   if (!department) {
-    return <p className="mt-16 text-haze">TMDB lists no films for {person.name}.</p>;
+    return <EmptyState className="mt-16">TMDB lists no films for {person.name}.</EmptyState>;
   }
 
   function update(next: { dept?: string; sort?: Sort }) {
@@ -248,7 +249,7 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
   return (
     <section aria-labelledby="filmography-title" className="mt-16">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <h2 id="filmography-title" className="marquee text-3xl">
+        <h2 id="filmography-title" className="heading-section">
           Filmography
         </h2>
         <label className="flex items-center gap-2 text-sm text-haze">
@@ -256,7 +257,7 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
           <select
             value={sort}
             onChange={(event) => update({ sort: event.target.value as Sort })}
-            className="rounded-sm bg-row px-2 py-1.5 text-screen ring-1 ring-edge focus:outline-2 focus:outline-projector"
+            className="input w-auto py-1.5 pr-8"
           >
             {sorts.map((s) => (
               <option key={s.id} value={s.id}>
@@ -267,31 +268,15 @@ function Filmography({ person, watched }: { person: PersonDetails; watched: Set<
         </label>
       </div>
 
-      <div
-        role="tablist"
-        aria-label="Departments"
-        onKeyDown={moveBetweenTabs}
-        className="mt-6 flex gap-6 overflow-x-auto overflow-y-hidden border-b border-rule/5 [&::-webkit-scrollbar]:hidden"
-      >
-        {departments.map(({ name, count }) => (
-          <button
-            key={name}
-            type="button"
-            role="tab"
-            id={tabId(name)}
-            aria-selected={department === name}
-            aria-controls={department === name ? "filmography-panel" : undefined}
-            tabIndex={department === name ? 0 : -1}
-            onClick={() => update({ dept: name })}
-            className={`-mb-px shrink-0 border-b-2 pb-3 text-sm font-medium transition-colors ${
-              department === name ? "border-projector text-screen" : "border-transparent text-haze hover:text-screen"
-            }`}
-          >
-            {name}
-            <span className="ml-1.5 text-haze">{count}</span>
-          </button>
-        ))}
-      </div>
+      <Tabs
+        label="Departments"
+        tabs={departments.map(({ name, count }) => ({ id: name, label: name, count }))}
+        selected={department}
+        onSelect={(name) => update({ dept: name })}
+        tabId={tabId}
+        panelId="filmography-panel"
+        className="mt-6"
+      />
 
       {/* The panel wraps the list, so the list keeps its list role for screen readers. */}
       <div role="tabpanel" id="filmography-panel" aria-labelledby={tabId(department)}>
@@ -312,7 +297,7 @@ function KnownFor({ credits, watched }: { credits: PersonCredit[]; watched: Set<
 
   return (
     <section aria-labelledby="known-for-title" className="mt-16">
-      <h2 id="known-for-title" className="marquee text-3xl">
+      <h2 id="known-for-title" className="heading-section">
         Known for
       </h2>
       <ul className="mt-5 grid grid-cols-4 gap-x-3 gap-y-6 md:grid-cols-8 lg:gap-x-4">
@@ -338,7 +323,7 @@ export function PersonPage() {
 
   if (details.isPending) {
     return (
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="page">
         <Loading label="Loading person" />
       </div>
     );
@@ -346,7 +331,7 @@ export function PersonPage() {
 
   if (details.isError) {
     return (
-      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="page">
         <ErrorMessage error={details.error} retry={() => details.refetch()} />
       </div>
     );
@@ -359,9 +344,9 @@ export function PersonPage() {
   const watchedCount = [...films].filter((id) => watched.has(id)).length;
 
   return (
-    <article className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+    <article className="page py-10 sm:py-14">
       <div className="grid gap-8 md:grid-cols-[16rem_1fr] md:gap-12">
-        <div className="w-36 sm:w-48 md:w-full">
+        <div className="w-36 sm:w-48 md:w-full md:self-start">
           {photo ? (
             <img src={photo} alt={`Photo of ${person.name}`} className="aspect-[2/3] w-full rounded-sm object-cover ring-1 ring-rule/10" />
           ) : (
@@ -370,8 +355,8 @@ export function PersonPage() {
         </div>
 
         <div className="min-w-0">
-          {person.knownForDepartment && <p className="text-sm text-projector">{person.knownForDepartment}</p>}
-          <h1 className="marquee mt-3 text-6xl sm:text-8xl">{person.name}</h1>
+          {person.knownForDepartment && <p className="eyebrow">{person.knownForDepartment}</p>}
+          <h1 className="heading-display mt-3">{person.name}</h1>
 
           {user && films.size > 0 && watchedFilms.isSuccess && (
             <p className="mt-4 text-sm text-haze">

@@ -19,7 +19,8 @@ import { ReviewReactions } from "../components/ReviewReactions";
 import { ReviewText } from "../components/ReviewText";
 import { SpoilerGate, SpoilerTag } from "../components/SpoilerGate";
 import { Stars } from "../components/Stars";
-import { ErrorMessage, Loading } from "../components/Status";
+import { EmptyState, ErrorMessage, Loading, PosterGridSkeleton, RowsSkeleton } from "../components/Status";
+import { Tabs } from "../components/Tabs";
 import { UserAvatar, UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
 import {
@@ -43,7 +44,7 @@ import type {
     WatchlistEntry,
 } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
-import { moveBetweenTabs } from "../lib/tabs";
+import { DiaryStats } from "../components/DiaryStats";
 import { usePageTitle } from "../lib/title";
 import { useReturnFocus } from "../lib/focus";
 
@@ -103,7 +104,7 @@ function groupByMonth(
     return groups;
 }
 
-function EmptyState({
+function TabEmpty({
     owner,
     children,
 }: {
@@ -111,17 +112,17 @@ function EmptyState({
     children: React.ReactNode;
 }) {
     return (
-        <div className="py-10">
-            <p className="text-haze">{children}</p>
-            {owner.own && (
-                <Link
-                    to="/"
-                    className="mt-4 inline-block font-medium text-projector underline underline-offset-4"
-                >
-                    Find films
-                </Link>
-            )}
-        </div>
+        <EmptyState
+            action={
+                owner.own && (
+                    <Link to="/" className="btn btn-secondary">
+                        Find films
+                    </Link>
+                )
+            }
+        >
+            <p>{children}</p>
+        </EmptyState>
     );
 }
 
@@ -137,7 +138,7 @@ function EditEntryButton({ entry }: { entry: DiaryEntry }) {
                 aria-label={label}
                 title={label}
                 aria-haspopup="dialog"
-                className="inline-flex size-8 items-center justify-center rounded-sm text-haze transition hover:bg-row hover:text-screen"
+                className="btn btn-icon btn-sm text-haze hover:bg-row hover:text-screen"
             >
                 <svg
                     viewBox="0 0 24 24"
@@ -179,7 +180,7 @@ function Diary({
     diary: UseInfiniteQueryResult<InfiniteData<Page<DiaryEntry>>>;
 }) {
     if (diary.isPending) {
-        return <Loading label="Loading diary" />;
+        return <RowsSkeleton count={6} label="Loading diary" />;
     }
 
     if (diary.isError) {
@@ -192,11 +193,11 @@ function Diary({
 
     if (entries.length === 0) {
         return (
-            <EmptyState owner={owner}>
+            <TabEmpty owner={owner}>
                 {owner.own
                     ? "Your diary is empty. Rate a film to log it here."
                     : `${owner.name} has not logged any films yet.`}
-            </EmptyState>
+            </TabEmpty>
         );
     }
 
@@ -204,10 +205,10 @@ function Diary({
         <div className="mt-8 space-y-10">
             {groupByMonth(entries).map((group) => (
                 <section key={group.month} aria-label={group.month}>
-                    <h2 className="marquee text-2xl text-projector">
+                    <h2 className="marquee border-b border-rule/10 pb-2 text-2xl text-projector">
                         {group.month}
                     </h2>
-                    <ol className="mt-3 divide-y divide-rule/5">
+                    <ol className="divide-y divide-rule/5">
                         {group.entries.map((entry) => {
                             const date = new Date(entry.watchedAt);
                             const poster = tmdbImage(entry.posterUrl, "w185");
@@ -249,57 +250,60 @@ function Diary({
                                         )}
                                     </Link>
 
-                                    <Link
-                                        to={`/movie/${entry.tmdbId}`}
-                                        className="min-w-0 flex-1 truncate font-medium hover:text-projector"
-                                    >
-                                        {entry.title}
-                                    </Link>
+                                    {/* On a phone the details go under the title, so the title keeps the width. */}
+                                    <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+                                        <Link
+                                            to={`/movie/${entry.tmdbId}`}
+                                            className="min-w-0 truncate font-medium hover:text-projector sm:flex-1"
+                                        >
+                                            {entry.title}
+                                        </Link>
 
-                                    <div className="flex shrink-0 items-center gap-3 text-sm">
-                                        {entry.rating !== null && (
-                                            <Stars
-                                                score={entry.rating}
-                                                className="h-3.5 sm:h-4"
-                                            />
-                                        )}
-                                        {entry.rewatched && (
-                                            <span className="text-haze">
-                                                Rewatch
-                                            </span>
-                                        )}
-                                        {entry.hasReview && (
-                                            <Link
-                                                to="?tab=reviews"
-                                                className="-m-1 inline-flex size-6 items-center justify-center text-haze hover:text-screen"
-                                                aria-label="Reviewed. Show reviews"
-                                                title="Reviewed"
-                                            >
-                                                <svg
-                                                    viewBox="0 0 24 24"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    strokeWidth="2"
-                                                    strokeLinecap="round"
-                                                    className="size-4"
-                                                    aria-hidden="true"
+                                        <div className="flex shrink-0 items-center gap-3 text-sm">
+                                            {entry.rating !== null && (
+                                                <Stars
+                                                    score={entry.rating}
+                                                    className="h-3.5 sm:h-4"
+                                                />
+                                            )}
+                                            {entry.rewatched && (
+                                                <span className="text-haze">
+                                                    Rewatch
+                                                </span>
+                                            )}
+                                            {entry.hasReview && (
+                                                <Link
+                                                    to="?tab=reviews"
+                                                    className="-m-1 inline-flex size-6 items-center justify-center text-haze hover:text-screen"
+                                                    aria-label="Reviewed. Show reviews"
+                                                    title="Reviewed"
                                                 >
-                                                    <path d="M4 6h16M4 12h16M4 18h10" />
-                                                </svg>
-                                            </Link>
-                                        )}
-                                        {entry.liked === true && (
-                                            <span
-                                                className="text-alarm"
-                                                aria-label="Liked"
-                                                title="Liked"
-                                            >
-                                                ♥
-                                            </span>
-                                        )}
-                                        {owner.own && (
-                                            <EditEntryButton entry={entry} />
-                                        )}
+                                                    <svg
+                                                        viewBox="0 0 24 24"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        strokeWidth="2"
+                                                        strokeLinecap="round"
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    >
+                                                        <path d="M4 6h16M4 12h16M4 18h10" />
+                                                    </svg>
+                                                </Link>
+                                            )}
+                                            {entry.liked === true && (
+                                                <span
+                                                    className="text-alarm"
+                                                    aria-label="Liked"
+                                                    title="Liked"
+                                                >
+                                                    ♥
+                                                </span>
+                                            )}
+                                            {owner.own && (
+                                                <EditEntryButton entry={entry} />
+                                            )}
+                                        </div>
                                     </div>
                                 </li>
                             );
@@ -322,7 +326,7 @@ function Reviews({ owner }: { owner: Owner }) {
     const reviews = useUserReviews(owner.id);
 
     if (reviews.isPending) {
-        return <Loading label="Loading reviews" />;
+        return <RowsSkeleton label="Loading reviews" />;
     }
 
     if (reviews.isError) {
@@ -338,11 +342,11 @@ function Reviews({ owner }: { owner: Owner }) {
 
     if (items.length === 0) {
         return (
-            <EmptyState owner={owner}>
+            <TabEmpty owner={owner}>
                 {owner.own
                     ? "You have not reviewed any films yet. Write one when you rate a film."
                     : `${owner.name} has not reviewed any films yet.`}
-            </EmptyState>
+            </TabEmpty>
         );
     }
 
@@ -446,11 +450,13 @@ function Lists({ owner }: { owner: Owner }) {
         );
     } else if (pageItems(lists.data).length === 0) {
         content = (
-            <p className="py-10 text-haze">
-                {owner.own
-                    ? "You have no lists yet. Make one here or from a film's page."
-                    : `${owner.name} has no public lists yet.`}
-            </p>
+            <EmptyState>
+                <p>
+                    {owner.own
+                        ? "You have no lists yet. Make one here or from a film's page."
+                        : `${owner.name} has no public lists yet.`}
+                </p>
+            </EmptyState>
         );
     } else {
         content = (
@@ -475,7 +481,7 @@ function Lists({ owner }: { owner: Owner }) {
                         type="button"
                         onClick={() => setCreating(true)}
                         aria-haspopup="dialog"
-                        className="inline-flex h-9 items-center rounded-sm bg-projector px-4 text-sm font-semibold text-salon transition hover:brightness-110"
+                        className="btn btn-primary"
                     >
                         New list
                     </button>
@@ -511,7 +517,7 @@ function Watchlist({
     watchlist: UseInfiniteQueryResult<InfiniteData<Page<WatchlistEntry>>>;
 }) {
     if (watchlist.isPending) {
-        return <Loading label="Loading watchlist" />;
+        return <PosterGridSkeleton label="Loading watchlist" className="mt-8" />;
     }
 
     if (watchlist.isError) {
@@ -527,11 +533,11 @@ function Watchlist({
 
     if (entries.length === 0) {
         return (
-            <EmptyState owner={owner}>
+            <TabEmpty owner={owner}>
                 {owner.own
                     ? "Your watchlist is empty. Add films you want to see."
                     : `${owner.name}'s watchlist is empty.`}
-            </EmptyState>
+            </TabEmpty>
         );
     }
 
@@ -585,13 +591,24 @@ function FollowList({
     if (people.length === 0) {
         const subject = owner.own ? "you" : owner.name;
         return (
-            <p className="py-10 text-haze">
-                {list === "followers"
-                    ? `Nobody follows ${subject} yet.`
-                    : owner.own
-                      ? "You do not follow anyone yet."
-                      : `${owner.name} does not follow anyone yet.`}
-            </p>
+            <EmptyState
+                action={
+                    owner.own &&
+                    list === "following" && (
+                        <Link to="/search" className="btn btn-secondary">
+                            Find people to follow
+                        </Link>
+                    )
+                }
+            >
+                <p>
+                    {list === "followers"
+                        ? `Nobody follows ${subject} yet.`
+                        : owner.own
+                          ? "You do not follow anyone yet."
+                          : `${owner.name} does not follow anyone yet.`}
+                </p>
+            </EmptyState>
         );
     }
 
@@ -629,7 +646,7 @@ function BlockButton({ profile }: { profile: UserProfile }) {
                         type="button"
                         onClick={() => toggle.mutate(false, { onSuccess: () => setConfirming(false) })}
                         disabled={toggle.isPending}
-                        className="font-medium text-alarm underline underline-offset-4 disabled:opacity-50"
+                        className="link-danger"
                     >
                         {toggle.isPending ? "Blocking…" : "Block"}
                     </button>
@@ -637,7 +654,7 @@ function BlockButton({ profile }: { profile: UserProfile }) {
                         type="button"
                         autoFocus
                         onClick={() => setConfirming(false)}
-                        className="text-haze underline underline-offset-4 hover:text-screen"
+                        className="link-quiet"
                     >
                         Cancel
                     </button>
@@ -652,7 +669,7 @@ function BlockButton({ profile }: { profile: UserProfile }) {
             type="button"
             onClick={() => (blocked ? toggle.mutate(true) : setConfirming(true))}
             disabled={toggle.isPending}
-            className="inline-flex h-9 items-center rounded-sm px-3 text-sm font-medium text-haze ring-1 ring-rule/15 transition hover:text-alarm disabled:opacity-50"
+            className="btn btn-secondary text-haze hover:text-alarm"
         >
             {blocked ? "Unblock" : "Block"}
         </button>
@@ -676,10 +693,10 @@ function FollowButton({
                 onClick={() => toggle.mutate(following)}
                 disabled={toggle.isPending}
                 aria-pressed={following}
-                className={`group inline-flex h-9 min-w-28 items-center justify-center rounded-sm px-4 text-sm font-semibold transition disabled:opacity-50 ${
+                className={`group btn min-w-28 ${
                     following
-                        ? "text-screen ring-1 ring-rule/15 hover:text-alarm hover:ring-alarm/50"
-                        : "bg-projector text-salon hover:brightness-110"
+                        ? "btn-secondary hover:text-alarm hover:ring-alarm/50"
+                        : "btn-primary"
                 }`}
             >
                 {following ? (
@@ -694,7 +711,7 @@ function FollowButton({
                 )}
             </button>
             {toggle.isError && (
-                <p role="alert" className="mt-2 text-sm text-alarm">
+                <p role="alert" className="mt-2 max-w-xs text-sm text-alarm">
                     {toggle.error.message}
                 </p>
             )}
@@ -749,7 +766,7 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
         : tabs[0].id;
 
     return (
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+        <div className="page py-10 sm:py-14">
             <header className="flex flex-wrap items-end gap-x-6 gap-y-4">
                 <UserAvatar
                     userName={name || "?"}
@@ -757,17 +774,17 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                     className="size-20 text-4xl sm:size-28 sm:text-5xl"
                 />
                 <div className="min-w-0">
-                    <p className="text-sm text-projector">
+                    <p className="eyebrow">
                         {own ? "Your profile" : "Member"}
                     </p>
-                    <h1 className="marquee mt-3 text-6xl wrap-break-word sm:text-8xl">
+                    <h1 className="heading-display mt-3">
                         {name}
                     </h1>
                 </div>
                 {own && (
                     <Link
                         to="/settings"
-                        className="rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row sm:ml-auto"
+                        className="btn btn-secondary sm:ml-auto"
                     >
                         Edit profile
                     </Link>
@@ -792,39 +809,24 @@ function ProfileView({ userId, own }: { userId: number; own: boolean }) {
                 />
             )}
 
-            <div
-                role="tablist"
-                aria-label="Profile sections"
-                onKeyDown={moveBetweenTabs}
-                className="mt-10 flex gap-6 overflow-x-auto overflow-y-hidden border-b border-rule/5 scrollbar-none [&::-webkit-scrollbar]:hidden"
-            >
-                {tabs.map(({ id, label, count }) => (
-                    <button
-                        key={id}
-                        type="button"
-                        role="tab"
-                        id={`tab-${id}`}
-                        aria-selected={tab === id}
-                        aria-controls={tab === id ? `panel-${id}` : undefined}
-                        tabIndex={tab === id ? 0 : -1}
-                        onClick={() =>
-                            setParams(id === "diary" ? {} : { tab: id }, {
-                                replace: true,
-                            })
-                        }
-                        className={`-mb-px shrink-0 border-b-2 pb-3 text-sm font-medium transition-colors ${
-                            tab === id
-                                ? "border-projector text-screen"
-                                : "border-transparent text-haze hover:text-screen"
-                        }`}
-                    >
-                        {label}
-                        {count !== undefined && (
-                            <span className="ml-1.5 text-haze">{count}</span>
-                        )}
-                    </button>
-                ))}
-            </div>
+            {/* Made from the diary, so shown to whoever may see the diary. */}
+            {(own || profile.data?.canSeeDiary) && (
+                <DiaryStats userId={userId} own={own} />
+            )}
+
+            <Tabs
+                label="Profile sections"
+                tabs={tabs}
+                selected={tab}
+                onSelect={(id) =>
+                    setParams(id === "diary" ? {} : { tab: id }, {
+                        replace: true,
+                    })
+                }
+                tabId={(id) => `tab-${id}`}
+                panelId={`panel-${tab}`}
+                className="mt-10"
+            />
 
             <div
                 role="tabpanel"

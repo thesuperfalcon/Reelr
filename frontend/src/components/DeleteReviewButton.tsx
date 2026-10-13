@@ -20,7 +20,7 @@ export function DeleteReviewButton({ reviewId, onDeleted, className = "" }: Dele
         ref={triggerRef}
         type="button"
         onClick={() => setConfirming(true)}
-        className={`text-sm text-haze underline underline-offset-4 transition hover:text-alarm ${className}`}
+        className={`link-quiet text-sm hover:text-alarm ${className}`}
       >
         Delete review
       </button>
@@ -34,7 +34,7 @@ export function DeleteReviewButton({ reviewId, onDeleted, className = "" }: Dele
         type="button"
         onClick={() => remove.mutate(reviewId, { onSuccess: onDeleted })}
         disabled={remove.isPending}
-        className="font-medium text-alarm underline underline-offset-4 disabled:opacity-50"
+        className="link-danger"
       >
         {remove.isPending ? "Deleting…" : "Delete"}
       </button>
@@ -43,7 +43,7 @@ export function DeleteReviewButton({ reviewId, onDeleted, className = "" }: Dele
         autoFocus
         onClick={() => setConfirming(false)}
         disabled={remove.isPending}
-        className="text-haze underline underline-offset-4 hover:text-screen"
+        className="link-quiet"
       >
         Keep
       </button>

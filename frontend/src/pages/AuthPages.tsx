@@ -8,11 +8,13 @@ import { usePageTitle } from "../lib/title";
 
 function AuthShell({ title, children, footer }: { title: string; children: ReactNode; footer?: ReactNode }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
-      <div className="max-w-sm">
-        <h1 className="marquee text-6xl">{title}</h1>
-        {children}
-        {footer && <p className="mt-6 text-sm text-haze">{footer}</p>}
+    <div className="page py-12 sm:py-20">
+      <div className="mx-auto max-w-md">
+        <div className="surface px-5 pt-8 pb-7 sm:px-8 sm:pt-10">
+          <h1 className="heading-page">{title}</h1>
+          {children}
+        </div>
+        {footer && <p className="mt-6 text-center text-sm text-haze">{footer}</p>}
       </div>
     </div>
   );
@@ -25,10 +27,9 @@ function rateLimitedOr(err: unknown): unknown {
     : err;
 }
 
-const submitClass =
-  "w-full rounded-sm bg-projector px-4 py-2.5 font-semibold text-salon transition hover:brightness-110 disabled:opacity-60";
+const submitClass = "btn btn-primary h-11 w-full text-base";
 
-const linkClass = "font-medium text-projector underline underline-offset-4";
+const linkClass = "link";
 
 const passwordHint = "At least 8 characters, with an uppercase letter, a lowercase letter, a digit and a symbol.";
 
@@ -272,7 +273,7 @@ export function RegisterPage() {
         <Field id="email" label="Email" type="email" autoComplete="email" />
         <Field id="password" label="Password" type="password" autoComplete="new-password" minLength={8} hint={passwordHint} />
         <label className="flex items-start gap-3 text-sm">
-          <input type="checkbox" name="acceptTerms" required className="mt-0.5 size-4 accent-projector" />
+          <input type="checkbox" name="acceptTerms" required className="check mt-0.5" />
           <span>
             I am at least 13 and accept the{" "}
             <Link to="/terms" target="_blank" className={linkClass}>

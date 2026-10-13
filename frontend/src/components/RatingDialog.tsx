@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 import { useAuth } from "../auth/auth-context";
 import { today } from "../lib/dates";
 import { clearDraft, readDraft, writeDraft } from "../lib/drafts";
@@ -9,10 +9,12 @@ import {
   useRemoveWatched,
   useSaveDiaryEntry,
   useSetReviewSpoilers,
+  useWriteReview,
 } from "../lib/queries";
-import { releaseYear, tmdbImage } from "../lib/tmdb";
+import { releaseYear } from "../lib/tmdb";
 import type { MovieDetails, Review, Status } from "../lib/types";
 import { DeleteReviewButton } from "./DeleteReviewButton";
+import { Dialog, FilmDialogHeader } from "./Dialog";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { StarInput } from "./Stars";
 import { WatchedOnField } from "./WatchedOnField";
@@ -40,8 +42,8 @@ export function StatusToggle({
       type="button"
       aria-pressed={pressed}
       onClick={onToggle}
-      className={`inline-flex h-9 items-center gap-2 rounded-sm px-3 text-sm font-medium ring-1 transition ${
-        pressed ? "bg-row-raised text-screen ring-rule/30" : "text-haze ring-rule/15 hover:text-screen"
+      className={`btn ${
+        pressed ? "bg-row-raised text-screen ring-1 ring-projector ring-inset" : "font-medium text-haze ring-1 ring-rule/20 ring-inset hover:text-screen"
       }`}
     >
       {children}
@@ -50,7 +52,6 @@ export function StatusToggle({
 }
 
 export function RatingDialog({ movie, current, currentStatus, currentReview: reviewProp, onClose }: RatingDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const labelId = useId();
   const titleId = useId();
   const statusLabelId = useId();
@@ -89,16 +90,18 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
   const remove = useDeleteRating(movie.id);
   const removeReview = useDeleteReview();
   const setSpoilers = useSetReviewSpoilers();
+  const writeReview = useWriteReview(movie.id);
   const unwatch = useRemoveWatched(movie.id);
-  const busy = save.isPending || remove.isPending || removeReview.isPending || setSpoilers.isPending || unwatch.isPending;
-  const error = save.error ?? remove.error ?? removeReview.error ?? setSpoilers.error ?? unwatch.error;
-  const poster = tmdbImage(movie.posterPath, "w185");
+  const busy =
+    save.isPending ||
+    remove.isPending ||
+    removeReview.isPending ||
+    setSpoilers.isPending ||
+    writeReview.isPending ||
+    unwatch.isPending;
+  const error =
+    save.error ?? remove.error ?? removeReview.error ?? setSpoilers.error ?? writeReview.error ?? unwatch.error;
   const year = releaseYear(movie.releaseDate);
-
-  // showModal gives the blurred backdrop, focus trap and Escape to close.
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   async function submit() {
     const trimmed = review.trim();
@@ -113,6 +116,10 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
     // Flipping only the spoiler flag is not a watch either, so it is saved on its own.
     const spoilersOnly =
       !reviewChanged && !reviewCleared && currentReview !== null && containsSpoilers !== currentReview.containsSpoilers;
+    // A review alone logs a film that is not in the diary yet. On a watched film it is saved on its own,
+    // so reviewing after rating does not add the same viewing twice.
+    const logs = scoreChanged || statusChanged || backDated || (reviewChanged && currentStatus === null);
+    const reviewOnly = reviewChanged && !logs;
 
     try {
       if (reviewCleared) {
@@ -123,7 +130,11 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
         await setSpoilers.mutateAsync({ id: currentReview.id, containsSpoilers });
       }
 
-      if (scoreChanged || statusChanged || reviewChanged || backDated) {
+      if (reviewOnly) {
+        await writeReview.mutateAsync({ id: currentReview?.id ?? null, text: trimmed, containsSpoilers });
+      }
+
+      if (logs) {
         await save.mutateAsync({
           score: scoreChanged ? score : null,
           liked,
@@ -142,14 +153,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby={titleId}
-      onClose={onClose}
-      // A click on the backdrop lands on the dialog element itself.
-      onClick={(event) => event.target === event.currentTarget && onClose()}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(36rem,calc(100vw-2rem))] rounded-md bg-row p-0 text-screen shadow-2xl ring-1 ring-rule/10 backdrop:bg-salon/60 backdrop:backdrop-blur-md"
-    >
+    <Dialog labelledBy={titleId} onClose={onClose}>
       <form
         method="dialog"
         onSubmit={(event) => {
@@ -158,22 +162,9 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
         }}
         className="p-6"
       >
-        <div className="flex items-center gap-4">
-          {poster ? (
-            <img src={poster} alt="" className="aspect-[2/3] w-14 shrink-0 rounded-sm object-cover" />
-          ) : (
-            <div className="aspect-[2/3] w-14 shrink-0 rounded-sm bg-row-raised" aria-hidden="true" />
-          )}
-          <div className="min-w-0">
-            <p className="text-sm text-haze">Log</p>
-            <h2 id={titleId} className="marquee mt-1 text-3xl">
-              {movie.title}
-              {year && <span className="ml-2 text-xl text-haze">{year}</span>}
-            </h2>
-          </div>
-        </div>
+        <FilmDialogHeader titleId={titleId} label="Log" title={movie.title} year={year} posterPath={movie.posterPath} />
 
-        <div className="mt-6 border-t border-rule/5 pt-6 text-center">
+        <div className="dialog-section text-center">
           <p id={labelId} className="text-sm text-haze">
             Your rating
           </p>
@@ -185,7 +176,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
           </p>
         </div>
 
-        <div className="mt-4 border-t border-rule/5 pt-6 text-center">
+        <div className="dialog-section text-center">
           <p id={statusLabelId} className="text-sm text-haze">
             Status
           </p>
@@ -202,7 +193,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
           </div>
         </div>
 
-        <div role="group" aria-labelledby={dateLabelId} className="mt-4 border-t border-rule/5 pt-6 text-center">
+        <div role="group" aria-labelledby={dateLabelId} className="dialog-section text-center">
           <p id={dateLabelId} className="text-sm text-haze">
             Watched on
           </p>
@@ -211,7 +202,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
           </div>
         </div>
 
-        <div className="mt-4 border-t border-rule/5 pt-6">
+        <div className="dialog-section">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <label htmlFor={reviewId} className="text-sm text-haze">
               {currentReview ? "Your review" : "Review (optional)"}
@@ -236,7 +227,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
                   setReview(currentReview?.text ?? "");
                   setShowDraftNotice(false);
                 }}
-                className="font-medium text-projector underline underline-offset-4"
+                className="link"
               >
                 Discard it
               </button>
@@ -249,8 +240,8 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
             maxLength={REVIEW_MAX_LENGTH}
             placeholder="What did you think?"
             hint={
-              currentReview
-                ? "Saving a changed review logs the film again."
+              currentStatus
+                ? "Changing only the review keeps your diary as it is."
                 : "Saving a review logs the film in your diary."
             }
           />
@@ -260,7 +251,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
                 type="checkbox"
                 checked={containsSpoilers}
                 onChange={(event) => setContainsSpoilers(event.target.checked)}
-                className="size-4 accent-projector"
+                className="check"
               />
               Contains spoilers
               <span className="text-haze">· readers must choose to show it</span>
@@ -269,7 +260,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
         </div>
 
         {error && (
-          <p role="alert" className="mt-4 text-sm text-alarm">
+          <p role="alert" className="mt-4 rounded-sm border-l-2 border-alarm bg-salon px-3 py-2 text-sm">
             {error.message}
           </p>
         )}
@@ -280,20 +271,20 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
               type="button"
               onClick={() => remove.mutate(undefined, { onSuccess: onClose })}
               disabled={busy}
-              className="text-sm text-haze underline underline-offset-4 transition hover:text-alarm disabled:opacity-50"
+              className="link-quiet text-sm hover:text-alarm disabled:opacity-50"
             >
               Remove rating
             </button>
           )}
           {currentStatus !== null &&
             (confirmUnwatch ? (
-              <span className="flex items-center gap-3 text-sm">
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                 <span className="text-haze">Delete every diary entry for this film, and your review?</span>
                 <button
                   type="button"
                   onClick={() => unwatch.mutate(undefined, { onSuccess: onClose })}
                   disabled={busy}
-                  className="font-medium text-alarm underline underline-offset-4 disabled:opacity-50"
+                  className="link-danger"
                 >
                   {unwatch.isPending ? "Removing…" : "Remove"}
                 </button>
@@ -302,7 +293,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
                   autoFocus
                   onClick={() => setConfirmUnwatch(false)}
                   disabled={busy}
-                  className="text-haze underline underline-offset-4 hover:text-screen"
+                  className="link-quiet"
                 >
                   Keep
                 </button>
@@ -313,7 +304,7 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
                 ref={confirmUnwatchRef}
                 onClick={() => setConfirmUnwatch(true)}
                 disabled={busy}
-                className="text-sm text-haze underline underline-offset-4 transition hover:text-alarm disabled:opacity-50"
+                className="link-quiet text-sm hover:text-alarm disabled:opacity-50"
               >
                 Remove from watched
               </button>
@@ -322,20 +313,20 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
             <button
               type="button"
               onClick={onClose}
-              className="rounded-sm px-4 py-2 text-sm font-medium text-haze ring-1 ring-rule/15 transition hover:text-screen"
+              className="btn btn-secondary"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={busy}
-              className="rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-50"
+              className="btn btn-primary min-w-24"
             >
               {save.isPending ? "Saving…" : "Save"}
             </button>
           </div>
         </div>
       </form>
-    </dialog>
+    </Dialog>
   );
 }

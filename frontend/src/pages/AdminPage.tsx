@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 import { FormError } from "../components/Form";
-import { ErrorMessage, Loading } from "../components/Status";
+import { EmptyState, ErrorMessage, Loading } from "../components/Status";
 import { UserAvatar } from "../components/UserAvatar";
 import {
   INVITE_NOTE_MAX_LENGTH,
@@ -58,7 +58,7 @@ function ReportedItemCard({ item }: { item: ReportedItem }) {
           {/* Shown as plain text, never as Markdown or HTML: reported content is the least trusted text there is. */}
           <p className="mt-3 whitespace-pre-wrap text-sm">{item.text}</p>
           {link && (
-            <Link to={link} className="mt-3 inline-block text-sm text-projector underline underline-offset-4">
+            <Link to={link} className="link mt-3 inline-block text-sm">
               Open
             </Link>
           )}
@@ -84,7 +84,7 @@ function ReportedItemCard({ item }: { item: ReportedItem }) {
             type="button"
             onClick={() => resolve.mutate({ targetType: item.targetType, targetId: item.targetId, outcome: "Removed" })}
             disabled={resolve.isPending}
-            className="rounded-sm bg-alarm px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-60"
+            className="btn btn-danger"
           >
             Remove {typeLabel[item.targetType].toLowerCase()}
           </button>
@@ -93,7 +93,7 @@ function ReportedItemCard({ item }: { item: ReportedItem }) {
           type="button"
           onClick={() => resolve.mutate({ targetType: item.targetType, targetId: item.targetId, outcome: "Dismissed" })}
           disabled={resolve.isPending}
-          className="rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row disabled:opacity-60"
+          className="btn btn-secondary"
         >
           Dismiss
         </button>
@@ -107,7 +107,7 @@ function OpenReports() {
 
   if (reports.isPending) return <Loading label="Loading reports" />;
   if (reports.isError) return <ErrorMessage error={reports.error} retry={() => reports.refetch()} />;
-  if (reports.data.length === 0) return <p className="mt-6 text-haze">No open reports.</p>;
+  if (reports.data.length === 0) return <EmptyState className="mt-6">No open reports. Reports from members show up here.</EmptyState>;
 
   return (
     <ul className="mt-6">
@@ -145,7 +145,7 @@ function NewInvite({ invite }: { invite: CreatedInvite }) {
         <button
           type="button"
           onClick={copy}
-          className="rounded-sm px-3 py-1.5 text-sm font-medium ring-1 ring-white/15 transition hover:bg-row-raised"
+          className="btn btn-sm btn-secondary"
         >
           Copy link
         </button>
@@ -170,14 +170,14 @@ function Invites() {
 
   return (
     <section aria-labelledby="invites-heading" className="mt-10">
-      <h2 id="invites-heading" className="text-2xl font-semibold">
+      <h2 id="invites-heading" className="heading-section">
         Invites
       </h2>
       <p className="mt-2 text-sm text-haze">Registration is invite only. Each code creates one account.</p>
 
       <form onSubmit={submit} className="mt-4 flex flex-wrap items-end gap-3">
         <div className="min-w-48 flex-1">
-          <label htmlFor="invite-note" className="block text-sm font-medium">
+          <label htmlFor="invite-note" className="label">
             Who is it for? <span className="text-haze">(optional)</span>
           </label>
           <input
@@ -185,13 +185,13 @@ function Invites() {
             value={note}
             onChange={(event) => setNote(event.target.value)}
             maxLength={INVITE_NOTE_MAX_LENGTH}
-            className="mt-1.5 w-full rounded-sm bg-row px-3 py-2 text-screen ring-1 ring-edge focus:bg-row-raised focus:outline-2 focus:outline-projector"
+            className="input mt-1.5"
           />
         </div>
         <button
           type="submit"
           disabled={create.isPending}
-          className="rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-60"
+          className="btn btn-primary"
         >
           {create.isPending ? "Making invite…" : "Make invite"}
         </button>
@@ -204,11 +204,11 @@ function Invites() {
       ) : invites.isError ? (
         <ErrorMessage error={invites.error} retry={() => invites.refetch()} />
       ) : invites.data.length === 0 ? (
-        <p className="mt-6 text-haze">No invites yet.</p>
+        <EmptyState className="mt-6">No invites yet. Create one above to let someone join.</EmptyState>
       ) : (
         <ul className="mt-6">
           {invites.data.map((invite) => (
-            <li key={invite.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/5 py-3 text-sm">
+            <li key={invite.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-rule/5 py-3 text-sm">
               <span className="font-medium">{invite.note ?? `Invite ${invite.id}`}</span>
               <span className="text-haze">{inviteStatus(invite)}</span>
               {!invite.usedAt && !invite.revokedAt && (
@@ -216,7 +216,7 @@ function Invites() {
                   type="button"
                   onClick={() => revoke.mutate(invite.id)}
                   disabled={revoke.isPending}
-                  className="ml-auto rounded-sm px-3 py-1 text-sm ring-1 ring-white/15 transition hover:bg-row disabled:opacity-60"
+                  className="btn btn-sm btn-secondary ml-auto"
                 >
                   Revoke<span className="sr-only"> {invite.note ?? `invite ${invite.id}`}</span>
                 </button>
@@ -239,11 +239,11 @@ export function AdminPage() {
   if (!settings.data?.isAdmin) return <NotFoundPage />;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-      <h1 className="marquee text-6xl sm:text-7xl">Admin</h1>
+    <div className="page py-10 *:max-w-3xl sm:py-14">
+      <h1 className="heading-page">Admin</h1>
       <Invites />
       <section aria-labelledby="reports-heading" className="mt-12">
-        <h2 id="reports-heading" className="text-2xl font-semibold">
+        <h2 id="reports-heading" className="heading-section">
           Reports
         </h2>
         <p className="mt-2 text-sm text-haze">

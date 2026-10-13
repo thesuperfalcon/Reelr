@@ -11,7 +11,8 @@ namespace backend.Features.Diary
     // - each log adds a diary entry that snapshots the status and rating at that moment,
     // - a logged film counts as watched and leaves the watchlist,
     // - the watched status follows the newest diary entry and goes away with the last one,
-    // - a review written while logging belongs to that entry and is deleted with it.
+    // - a review written while logging belongs to that entry and is deleted with it,
+    // - a review written on its own logs nothing; on a watched film it belongs to the latest entry.
     // Each method saves its own changes.
     public class JournalService
     {
@@ -208,6 +209,34 @@ namespace backend.Features.Diary
             await _context.SaveChangesAsync();
 
             return rating;
+        }
+
+        // Writes a review without logging a viewing. On a watched film it belongs to the latest diary entry,
+        // so rating a film and reviewing it afterwards leaves one entry with its review instead of two entries.
+        public async Task<Review> AddReviewAsync(int userId, int movieId, string text, bool containsSpoilers)
+        {
+            var latestEntry = await _context.DiaryEntries
+                .Where(d => d.UserId == userId && d.MovieId == movieId)
+                .OrderByDescending(d => d.WatchedAt)
+                .ThenByDescending(d => d.Id)
+                .FirstOrDefaultAsync();
+
+            var now = DateTime.UtcNow;
+            var review = new Review
+            {
+                UserId = userId,
+                MovieId = movieId,
+                Text = text,
+                ContainsSpoilers = containsSpoilers,
+                CreatedAt = now,
+                ActivityAt = now,
+                DiaryEntry = latestEntry
+            };
+
+            _context.Reviews.Add(review);
+            await _context.SaveChangesAsync();
+
+            return review;
         }
 
         // An unwatched film has no viewings, so its diary entries and the reviews they logged go too.
