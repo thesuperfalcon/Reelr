@@ -11,7 +11,7 @@ This document describes Reelr's security mechanisms as implemented, and the risk
 - Emails must be unique (`RequireUniqueEmail`) and confirmed before login succeeds.
 - Passwords: Identity's default complexity rules (digit, lower case, upper case, non-alphanumeric); registration and reset DTOs require at least 8 characters.
 - Lockout: 20 consecutive failures lock the account for 15 minutes, also for new users. Wrong passwords on account deletion and password change count towards the same lockout.
-- `LoginThrottle` blocks one IP from trying one account after 5 failures in 15 minutes, and those attempts stop counting towards the lockout. This stops guessing from one address without letting an attacker lock out the owner easily (comment in `Program.cs`).
+- `LoginThrottle` blocks one IP from trying one account after 5 failures in 15 minutes, and those attempts stop counting towards the lockout. This stops guessing from one address without letting an attacker lock out the owner easily (comment in `Program.cs`). A password reset clears the account's counts from every address, since the link proves the owner.
 
 ### Enumeration resistance
 

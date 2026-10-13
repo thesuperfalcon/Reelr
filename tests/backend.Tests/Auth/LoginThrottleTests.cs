@@ -58,6 +58,28 @@ public class LoginThrottleTests : IClassFixture<LowLoginThrottleApiFactory>
     }
 
     [Fact]
+    public async Task PasswordReset_UnblocksTheAccount()
+    {
+        // A new member who mistyped their password at sign-up: they guess, get blocked, then reset it.
+        var username = await RegisterAsync();
+        var email = $"{username}@test.local";
+        var newPassword = TestUsers.Password + "-reset";
+
+        for (var i = 0; i < LowLoginThrottleApiFactory.Limit; i++)
+        {
+            await LoginAsync(username, "WrongPassw0rd!");
+        }
+        Assert.Equal(HttpStatusCode.TooManyRequests, (await LoginAsync(username)).StatusCode);
+
+        (await _client.PostAsJsonAsync("/auth/forgot-password", new { Email = email })).EnsureSuccessStatusCode();
+        var (userId, token) = FakeEmailSender.ReadLink(await _factory.Emails.WaitForAsync(email, "Reset your Reelr password"));
+        (await _client.PostAsJsonAsync("/auth/reset-password", new { UserId = userId, Token = token, NewPassword = newPassword }))
+            .EnsureSuccessStatusCode();
+
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync(username, newPassword)).StatusCode);
+    }
+
+    [Fact]
     public async Task BlockedAccount_DoesNotAffectOtherAccountsFromTheSameAddress()
     {
         var target = await RegisterAsync();

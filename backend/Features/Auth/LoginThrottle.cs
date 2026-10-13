@@ -46,9 +46,30 @@ public sealed class LoginThrottle : IDisposable
 
     public void Reset(string account, IPAddress? address) => _failures.Remove(Key(account, address));
 
+    /// <summary>
+    /// Clears the account's counts from every address, for when its owner has proved who they are another way
+    /// (a password reset link). The account's keys carry a generation; a new one leaves the old counts unread
+    /// until they expire.
+    /// </summary>
+    public void Forget(string account)
+    {
+        _failures.Set(GenerationKey(account), Generation(account) + 1, new MemoryCacheEntryOptions
+        {
+            Size = 1,
+            Priority = CacheItemPriority.NeverRemove,
+            // The old counts expire within one window, after which the generation is no longer needed.
+            AbsoluteExpirationRelativeToNow = _window
+        });
+    }
+
     public void Dispose() => _failures.Dispose();
 
-    private static string Key(string account, IPAddress? address) => $"{account}|{address}";
+    private string Key(string account, IPAddress? address) => $"{account}|{Generation(account)}|{address}";
+
+    private int Generation(string account) =>
+        _failures.TryGetValue(GenerationKey(account), out int generation) ? generation : 0;
+
+    private static string GenerationKey(string account) => $"generation:{account}";
 
     private sealed class FailureCount
     {

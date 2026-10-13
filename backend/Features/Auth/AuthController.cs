@@ -211,6 +211,7 @@ public class AuthController : ControllerBase
         // The reset changed the security stamp, which signs out every device. The link came by email,
         // so it also proves the address, and it ends a lockout the forgotten password may have caused.
         _securityStamps.Forget(user.Id);
+        _loginThrottle.Forget(AccountKey(user));
         user.EmailConfirmed = true;
         user.LockoutEnd = null;
         user.AccessFailedCount = 0;
@@ -316,6 +317,9 @@ public class AuthController : ControllerBase
 
     private ObjectResult InvalidLink() =>
         Problem(statusCode: StatusCodes.Status400BadRequest, title: "This link is invalid or has expired. Ask for a new one.");
+    // LoginThrottle's key for a known account.
+    private static string AccountKey(User user) => $"id:{user.Id}";
+
 
     private ActionResult IdentityProblem(IEnumerable<IdentityError> errors)
     {
