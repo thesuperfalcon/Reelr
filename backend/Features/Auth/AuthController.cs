@@ -211,6 +211,7 @@ public class AuthController : ControllerBase
         // The reset changed the security stamp, which signs out every device. The link came by email,
         // so it also proves the address, and it ends a lockout the forgotten password may have caused.
         _securityStamps.Forget(user.Id);
+        _loginThrottle.Forget(AccountKey(user));
         user.EmailConfirmed = true;
         user.LockoutEnd = null;
         user.AccessFailedCount = 0;
@@ -225,15 +226,17 @@ public class AuthController : ControllerBase
     [EndpointSummary("Log in. Returns a short access token and sets the refresh cookie")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)
     {
-        var user = await _userManager.FindByEmailAsync(dto.UserInput);
+        // Phone keyboards often add a space after a suggested word or address.
+        var userInput = dto.UserInput.Trim();
+        var user = await _userManager.FindByEmailAsync(userInput);
 
         if (user == null)
         {
-            user = await _userManager.FindByNameAsync(dto.UserInput);
+            user = await _userManager.FindByNameAsync(userInput);
         }
 
         // Unknown names are throttled too, so a 429 does not tell whether an account exists.
-        var account = user != null ? $"id:{user.Id}" : $"name:{dto.UserInput.Trim().ToUpperInvariant()}";
+        var account = user != null ? AccountKey(user) : $"name:{userInput.ToUpperInvariant()}";
         var address = HttpContext.Connection.RemoteIpAddress;
 
         if (_loginThrottle.IsBlocked(account, address))
@@ -313,6 +316,9 @@ public class AuthController : ControllerBase
 
         return NoContent();
     }
+
+    // LoginThrottle's key for a known account.
+    private static string AccountKey(User user) => $"id:{user.Id}";
 
     private ObjectResult InvalidLink() =>
         Problem(statusCode: StatusCodes.Status400BadRequest, title: "This link is invalid or has expired. Ask for a new one.");

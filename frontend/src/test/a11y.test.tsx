@@ -2,11 +2,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
-import { useState, type ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import { AuthProvider } from "../auth/AuthProvider";
 import { DeleteReviewButton } from "../components/DeleteReviewButton";
+import { PasswordField } from "../components/Form";
 import { Dialog } from "../components/Dialog";
 import { LoadMore } from "../components/LoadMore";
 import { SpoilerGate } from "../components/SpoilerGate";
@@ -247,5 +248,41 @@ describe("loading placeholders", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Loading films…");
     expect(container.querySelector("ul")).toHaveAttribute("aria-hidden", "true");
     await expectNoAxeViolations(container);
+  });
+});
+
+describe("password field", () => {
+  it("a button shows and hides what was typed, and focus stays on it", async () => {
+    const { container } = render(<PasswordField id="password" label="Password" />);
+    const input = screen.getByLabelText("Password", { selector: "input" });
+    const user = userEvent.setup();
+
+    expect(input).toHaveAttribute("type", "password");
+    await user.click(screen.getByRole("button", { name: "Show password" }));
+
+    expect(input).toHaveAttribute("type", "text");
+    expect(screen.getByRole("button", { name: "Hide password" })).toHaveFocus();
+    await expectNoAxeViolations(container);
+  });
+
+  it("hides the password again when the form is sent", async () => {
+    const submitted = vi.fn((event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      return (event.currentTarget.elements.namedItem("password") as HTMLInputElement).type;
+    });
+    render(
+      <form onSubmit={submitted}>
+        <PasswordField id="password" label="Password" required={false} />
+        <button type="submit">Send</button>
+      </form>,
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Show password" }));
+    await user.click(screen.getByRole("button", { name: "Send" }));
+
+    // Already hidden by the time the form's own handler runs.
+    expect(submitted).toHaveReturnedWith("password");
+    expect(screen.getByLabelText("Password", { selector: "input" })).toHaveAttribute("type", "password");
   });
 });
