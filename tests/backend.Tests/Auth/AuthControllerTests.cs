@@ -268,6 +268,17 @@ public class AuthControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
+    public async Task Login_IgnoresSpacesAroundTheNameOrEmail()
+    {
+        // Phone keyboards add a space after an autocompleted word.
+        var username = UniqueName();
+        await RegisterAsync(username, $"{username}@test.local");
+
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync($"{username} ")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await LoginAsync($" {username}@test.local ")).StatusCode);
+    }
+
+    [Fact]
     public async Task Login_WrongPassword_Returns401()
     {
         var username = UniqueName();

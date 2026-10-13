@@ -90,6 +90,9 @@ builder.Services
         // Login looks up the email first, so such a name would hide the account behind another user's address.
         options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._+";
 
+        // The same minimum on every path that sets a password (sign-up, reset, change), not only where a DTO checks it.
+        options.Password.RequiredLength = 8;
+
         // The account lockout stops password guessing spread over many addresses: 20 wrong passwords in a row
         // lock the account for 15 minutes. LoginThrottle stops one address after 5, so locking someone else's
         // account (usernames are public) takes at least 4 addresses, and the owner is rarely the one locked out.

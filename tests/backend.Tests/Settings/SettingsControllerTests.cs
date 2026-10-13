@@ -169,6 +169,19 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
+    public async Task ChangePassword_ShorterThanSignUpAllows_Returns400()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+
+        // Seven characters that pass every other rule; sign-up and reset need 8.
+        var tooShort = "P" + TestUsers.Password[^6..];
+        var response = await user.Client.PostAsJsonAsync("/api/settings/password",
+            new ChangePasswordDto { CurrentPassword = TestUsers.Password, NewPassword = tooShort });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task ChangePassword_LockoutAttemptsWrongCurrentPasswords_LocksTheAccount()
     {
         var user = await _factory.CreateAuthenticatedAsync();
