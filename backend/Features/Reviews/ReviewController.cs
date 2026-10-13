@@ -1,5 +1,6 @@
 using backend.Data;
 using backend.Features.Auth;
+using backend.Features.Diary;
 using backend.Features.Movies;
 using backend.Features.Paging;
 using backend.Features.Reviews.DTOs;
@@ -16,11 +17,13 @@ namespace backend.Features.Reviews
     {
         private readonly ReelrContext _context;
         private readonly MovieCatalog _movieCatalog;
+        private readonly JournalService _journal;
 
-        public ReviewController(ReelrContext context, MovieCatalog movieCatalog)
+        public ReviewController(ReelrContext context, MovieCatalog movieCatalog, JournalService journal)
         {
             _context = context;
             _movieCatalog = movieCatalog;
+            _journal = journal;
         }
 
         [HttpGet]
@@ -91,7 +94,7 @@ namespace backend.Features.Reviews
 
         [HttpPost]
         [Authorize]
-        [EndpointSummary("Add a review to a movie")]
+        [EndpointSummary("Add a review to a movie without logging it. On a watched movie it belongs to the latest diary entry")]
         public async Task<ActionResult<ReviewDto>> CreateReview(int tmdbId, CreateReviewDto dto)
         {
             var userId = User.GetUserId();
@@ -111,19 +114,7 @@ namespace backend.Features.Reviews
                 return Conflict("User has already reviewed this movie.");
             }
 
-            var now = DateTime.UtcNow;
-            var review = new Review
-            {
-                UserId = userId,
-                MovieId = movie.Id,
-                Text = dto.Text,
-                ContainsSpoilers = dto.ContainsSpoilers,
-                CreatedAt = now,
-                ActivityAt = now
-            };
-
-            _context.Reviews.Add(review);
-            await _context.SaveChangesAsync();
+            var review = await _journal.AddReviewAsync(userId, movie.Id, dto.Text, dto.ContainsSpoilers);
 
             return Ok(await ToDtos(_context.Reviews.Where(r => r.Id == review.Id)).SingleAsync());
         }

@@ -235,7 +235,7 @@ function ReviewItem({ review, own }: { review: Review; own: boolean }) {
   );
 }
 
-// Reviews are written and edited in the rating dialog, so writing one also logs the film.
+// Reviews are written and edited in the rating dialog.
 function Reviews({ tmdbId }: { tmdbId: number }) {
   const { user } = useAuth();
   const reviews = useMovieReviews(tmdbId);

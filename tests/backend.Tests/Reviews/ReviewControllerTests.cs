@@ -68,6 +68,38 @@ public class ReviewControllerTests : IClassFixture<ReelrApiFactory>
         Assert.Equal(4.5m, review.Score);
     }
 
+    [Fact]
+    public async Task CreateReview_AfterRating_AddsNoDiaryEntryAndBelongsToTheRatedOne()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6016, "Rated then reviewed");
+        (await user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/rating", new CreateRatingDto { Score = 4 }))
+            .EnsureSuccessStatusCode();
+
+        var review = await CreateReviewAsync(user.Client, tmdbId, "Thoughts afterwards");
+
+        var entry = Assert.Single((await user.Client.GetItemsAsync<DiaryEntryDto>("/api/watched"))!);
+        Assert.True(entry.HasReview);
+        Assert.Equal(4m, entry.Rating);
+        Assert.Equal(entry.WatchedAt, review.WatchedAt);
+    }
+
+    [Fact]
+    public async Task UpdateReview_AddsNoDiaryEntry()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6017, "Review edited");
+        (await user.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/diary", new LogDiaryEntryDto { Score = 3, Review = "First" }))
+            .EnsureSuccessStatusCode();
+        var id = Assert.Single((await user.Client.GetItemsAsync<ReviewDto>(ReviewsUrl(tmdbId)))!).Id;
+
+        (await user.Client.PutAsJsonAsync($"/api/reviews/{id}", new UpdateReviewDto { Text = "Second thoughts" }))
+            .EnsureSuccessStatusCode();
+
+        var entry = Assert.Single((await user.Client.GetItemsAsync<DiaryEntryDto>("/api/watched"))!);
+        Assert.True(entry.HasReview);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData(null)]

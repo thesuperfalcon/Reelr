@@ -9,6 +9,7 @@ import {
   useRemoveWatched,
   useSaveDiaryEntry,
   useSetReviewSpoilers,
+  useWriteReview,
 } from "../lib/queries";
 import { releaseYear } from "../lib/tmdb";
 import type { MovieDetails, Review, Status } from "../lib/types";
@@ -89,9 +90,17 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
   const remove = useDeleteRating(movie.id);
   const removeReview = useDeleteReview();
   const setSpoilers = useSetReviewSpoilers();
+  const writeReview = useWriteReview(movie.id);
   const unwatch = useRemoveWatched(movie.id);
-  const busy = save.isPending || remove.isPending || removeReview.isPending || setSpoilers.isPending || unwatch.isPending;
-  const error = save.error ?? remove.error ?? removeReview.error ?? setSpoilers.error ?? unwatch.error;
+  const busy =
+    save.isPending ||
+    remove.isPending ||
+    removeReview.isPending ||
+    setSpoilers.isPending ||
+    writeReview.isPending ||
+    unwatch.isPending;
+  const error =
+    save.error ?? remove.error ?? removeReview.error ?? setSpoilers.error ?? writeReview.error ?? unwatch.error;
   const year = releaseYear(movie.releaseDate);
 
   async function submit() {
@@ -107,6 +116,10 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
     // Flipping only the spoiler flag is not a watch either, so it is saved on its own.
     const spoilersOnly =
       !reviewChanged && !reviewCleared && currentReview !== null && containsSpoilers !== currentReview.containsSpoilers;
+    // A review alone logs a film that is not in the diary yet. On a watched film it is saved on its own,
+    // so reviewing after rating does not add the same viewing twice.
+    const logs = scoreChanged || statusChanged || backDated || (reviewChanged && currentStatus === null);
+    const reviewOnly = reviewChanged && !logs;
 
     try {
       if (reviewCleared) {
@@ -117,7 +130,11 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
         await setSpoilers.mutateAsync({ id: currentReview.id, containsSpoilers });
       }
 
-      if (scoreChanged || statusChanged || reviewChanged || backDated) {
+      if (reviewOnly) {
+        await writeReview.mutateAsync({ id: currentReview?.id ?? null, text: trimmed, containsSpoilers });
+      }
+
+      if (logs) {
         await save.mutateAsync({
           score: scoreChanged ? score : null,
           liked,
@@ -223,8 +240,8 @@ export function RatingDialog({ movie, current, currentStatus, currentReview: rev
             maxLength={REVIEW_MAX_LENGTH}
             placeholder="What did you think?"
             hint={
-              currentReview
-                ? "Saving a changed review logs the film again."
+              currentStatus
+                ? "Changing only the review keeps your diary as it is."
                 : "Saving a review logs the film in your diary."
             }
           />
