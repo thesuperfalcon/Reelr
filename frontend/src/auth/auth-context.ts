@@ -16,6 +16,8 @@ export type SessionNotice = "expired" | null;
 
 export interface AuthContextValue {
   user: CurrentUser | null;
+  /** True while a page load asks the refresh cookie for the sign-in; user is null until it answers. */
+  restoring: boolean;
   login: (userInput: string, password: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => void;

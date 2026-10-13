@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type FocusEvent, type FormEvent } f
 import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate, useNavigation, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { useSettings } from "../lib/queries";
+import { Loading } from "./Status";
 
 function SearchIcon() {
   return (
@@ -243,7 +244,7 @@ function useFocusOnNavigation() {
 }
 
 export function Layout() {
-  const { user, logout } = useAuth();
+  const { user, restoring, logout } = useAuth();
   const mainRef = useFocusOnNavigation();
   // Shares the cached settings with the settings page, so a new picture shows here as soon as it is saved.
   const settings = useSettings(user !== null);
@@ -280,7 +281,8 @@ export function Layout() {
           </div>
 
           <div className="ml-auto flex items-center gap-1 sm:ml-0">
-            {user ? (
+            {/* Empty until the sign-in is restored, so a signed-in visitor never sees "Log in" flash by. */}
+            {restoring ? null : user ? (
               <>
                 <NavLink
                   to="/profile"
@@ -335,7 +337,15 @@ export function Layout() {
 
       {/* Focused in code only (skip link, page changes), so it needs no visible focus ring. */}
       <main id="main" ref={mainRef} tabIndex={-1} className="flex-1 outline-none">
-        <Outlet />
+        {/* The header and footer show at once. The page waits for the restored sign-in, so a signed-in visitor
+            is not sent to the login page first and nothing is fetched as a logged-out visitor. */}
+        {restoring ? (
+          <div className="page">
+            <Loading label="Signing in" />
+          </div>
+        ) : (
+          <Outlet />
+        )}
       </main>
 
       <footer className="mt-10 border-t border-rule/10">

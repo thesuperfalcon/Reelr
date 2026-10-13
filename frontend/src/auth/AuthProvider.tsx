@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { api, refreshAccessToken, revokeRefreshToken, setToken, setUnauthorizedHandler, wasSignedIn } from "../lib/api";
-import { Loading } from "../components/Status";
 import type { CurrentUser } from "../lib/types";
 import { AuthContext, type AuthContextValue, type RegisterInput, type SessionNotice } from "./auth-context";
 
@@ -131,10 +130,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const replaceToken = useCallback((fresh: string) => applyToken(fresh), [applyToken]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, login, register, logout, replaceToken, sessionNotice, dismissSessionNotice }),
-    [user, login, register, logout, replaceToken, sessionNotice, dismissSessionNotice],
+    () => ({ user, restoring, login, register, logout, replaceToken, sessionNotice, dismissSessionNotice }),
+    [user, restoring, login, register, logout, replaceToken, sessionNotice, dismissSessionNotice],
   );
 
-  // Pages wait for the restored sign-in, so a signed-in visitor is not sent to the login page first.
-  return <AuthContext value={value}>{restoring ? <Loading label="Signing in" /> : children}</AuthContext>;
+  // The children render straight away; Layout holds back the page itself until the sign-in is restored.
+  return <AuthContext value={value}>{children}</AuthContext>;
 }

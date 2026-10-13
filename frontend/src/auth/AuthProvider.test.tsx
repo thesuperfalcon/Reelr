@@ -8,10 +8,10 @@ import { AuthProvider } from "./AuthProvider";
 import { useAuth } from "./auth-context";
 
 function Who() {
-  const { user, login, logout } = useAuth();
+  const { user, restoring, login, logout } = useAuth();
   return (
     <div>
-      <p>{user ? `Signed in as ${user.username}` : "Signed out"}</p>
+      <p>{restoring ? "Restoring" : user ? `Signed in as ${user.username}` : "Signed out"}</p>
       <button type="button" onClick={() => login("cleo", "Passw0rd!")}>
         Log in
       </button>
@@ -39,7 +39,7 @@ describe("AuthProvider", () => {
 
     renderAuth();
 
-    expect(screen.getByRole("status")).toHaveTextContent("Signing in");
+    expect(screen.getByText("Restoring")).toBeInTheDocument();
     expect(await screen.findByText("Signed in as cleo")).toBeInTheDocument();
   });
 
