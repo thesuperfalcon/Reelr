@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
-import { Field, FormError } from "../components/Form";
+import { Field, FormError, PasswordField } from "../components/Form";
 import { clearEmailLink, confirmEmail, forgotPassword, readEmailLink, resendConfirmation, resetPassword } from "../lib/account";
 import { ApiError } from "../lib/api";
 import { usePageTitle } from "../lib/title";
@@ -98,7 +98,9 @@ export function LoginPage() {
         setError(
           err instanceof ApiError && err.status === 401
             ? new Error("Wrong username, email or password.")
-            : rateLimitedOr(err),
+            : err instanceof ApiError && err.status === 429
+              ? new Error("Too many failed attempts. Wait 15 minutes, or reset your password below to log in now.")
+              : err,
         );
       }
     } finally {
@@ -136,7 +138,7 @@ export function LoginPage() {
     >
       <form onSubmit={submit} className="mt-8 space-y-5">
         <Field id="userInput" label="Username or email" autoComplete="username" minLength={3} />
-        <Field id="password" label="Password" type="password" autoComplete="current-password" minLength={8} />
+        <PasswordField id="password" label="Password" autoComplete="current-password" minLength={8} />
         <FormError error={error} />
         <button type="submit" disabled={pending} className={submitClass}>
           {pending ? "Logging in…" : "Log in"}
@@ -214,6 +216,13 @@ export function RegisterPage() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email"));
+    const password = String(form.get("password"));
+
+    if (password !== String(form.get("confirmPassword"))) {
+      setError(new Error("The passwords do not match."));
+      return;
+    }
+
     setPending(true);
     setError(null);
 
@@ -221,7 +230,7 @@ export function RegisterPage() {
       await register({
         username: String(form.get("username")),
         email,
-        password: String(form.get("password")),
+        password,
         acceptTerms: form.get("acceptTerms") === "on",
         inviteCode: String(form.get("inviteCode")).trim() || undefined,
       });
@@ -271,7 +280,8 @@ export function RegisterPage() {
         />
         <Field id="username" label="Username" autoComplete="username" minLength={3} maxLength={50} />
         <Field id="email" label="Email" type="email" autoComplete="email" />
-        <Field id="password" label="Password" type="password" autoComplete="new-password" minLength={8} hint={passwordHint} />
+        <PasswordField id="password" label="Password" autoComplete="new-password" minLength={8} hint={passwordHint} />
+        <PasswordField id="confirmPassword" label="Password again" autoComplete="new-password" minLength={8} />
         <label className="flex items-start gap-3 text-sm">
           <input type="checkbox" name="acceptTerms" required className="check mt-0.5" />
           <span>
@@ -464,8 +474,8 @@ export function ResetPasswordPage() {
   return (
     <AuthShell title="New password">
       <form onSubmit={submit} className="mt-8 space-y-5">
-        <Field id="password" label="New password" type="password" autoComplete="new-password" minLength={8} hint={passwordHint} />
-        <Field id="confirmPassword" label="New password again" type="password" autoComplete="new-password" minLength={8} />
+        <PasswordField id="password" label="New password" autoComplete="new-password" minLength={8} hint={passwordHint} />
+        <PasswordField id="confirmPassword" label="New password again" autoComplete="new-password" minLength={8} />
         <FormError error={error} />
         <button type="submit" disabled={pending} className={submitClass}>
           {pending ? "Saving…" : "Set new password"}
