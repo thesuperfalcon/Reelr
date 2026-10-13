@@ -71,6 +71,7 @@ const router = createBrowserRouter([
           { path: "forgot-password", lazy: async () => ({ Component: (await import("./pages/AuthPages")).ForgotPasswordPage }) },
           { path: "privacy", lazy: async () => ({ Component: (await import("./pages/LegalPages")).PrivacyPage }) },
           { path: "terms", lazy: async () => ({ Component: (await import("./pages/LegalPages")).TermsPage }) },
+          { path: "accessibility", lazy: async () => ({ Component: (await import("./pages/LegalPages")).AccessibilityPage }) },
           { path: "reset-password", lazy: async () => ({ Component: (await import("./pages/AuthPages")).ResetPasswordPage }) },
           {
             element: <RequireAuth />,
