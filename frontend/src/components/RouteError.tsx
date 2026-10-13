@@ -21,8 +21,9 @@ export function RouteError() {
   }
 
   return (
-    <div role="alert" className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-      <h1 className="marquee text-6xl sm:text-8xl">{staleBuild ? "New version" : "Film snapped"}</h1>
+    <div role="alert" className="page py-20">
+      <p className="eyebrow">Something went wrong</p>
+      <h1 className="heading-display mt-3">{staleBuild ? "New version" : "Film snapped"}</h1>
       <p className="mt-6 max-w-prose text-haze">
         {staleBuild
           ? "Reelr was updated while this tab was open. Reload the page to get the new version."
@@ -30,15 +31,15 @@ export function RouteError() {
             ? `This page could not be shown (${error.status}).`
             : "Something went wrong while showing this page. Reloading usually helps."}
       </p>
-      <div className="mt-6 flex gap-6">
+      <div className="mt-8 flex flex-wrap gap-3">
         <button
           type="button"
           onClick={() => window.location.reload()}
-          className="font-medium text-projector underline underline-offset-4"
+          className="btn btn-primary"
         >
           Reload the page
         </button>
-        <Link to="/" className="font-medium text-haze underline underline-offset-4 hover:text-screen">
+        <Link to="/" className="btn btn-secondary">
           Go to films
         </Link>
       </div>

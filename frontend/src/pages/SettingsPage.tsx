@@ -21,10 +21,8 @@ import { themes, useTheme } from "../lib/theme";
 import { usePageTitle } from "../lib/title";
 import { useReturnFocus } from "../lib/focus";
 
-const buttonClass =
-  "rounded-sm bg-projector px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-60";
-const quietButtonClass =
-  "rounded-sm px-4 py-2 text-sm font-medium text-screen ring-1 ring-rule/15 transition hover:bg-row disabled:opacity-50";
+const buttonClass = "btn btn-primary";
+const quietButtonClass = "btn btn-secondary";
 
 // A new picture waits here until Save; "remove" likewise.
 type PictureChange = { kind: "none" } | { kind: "upload"; image: Blob; preview: string } | { kind: "remove" };
@@ -66,9 +64,9 @@ function changedSettings(draft: Draft, settings: UserSettings): UserSettingsUpda
 
 function Section({ id, title, description, children }: { id: string; title: string; description?: string; children: ReactNode }) {
   return (
-    <section aria-labelledby={id} className="grid gap-4 border-t border-rule/5 py-10 md:grid-cols-[16rem_1fr] md:gap-10">
+    <section aria-labelledby={id} className="grid gap-5 border-t border-rule/10 py-10 md:grid-cols-[16rem_1fr] md:gap-10">
       <div>
-        <h2 id={id} className="marquee text-2xl">
+        <h2 id={id} className="heading-section">
           {title}
         </h2>
         {description && <p className="mt-2 text-sm text-haze">{description}</p>}
@@ -198,7 +196,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
     <form onSubmit={save}>
       {/* A shared demo account keeps its name, password and picture (DemoAccounts in the backend). */}
       {settings.isDemo ? (
-        <p className="border-t border-white/5 py-10 text-sm text-haze">
+        <p className="border-t border-rule/5 py-10 text-sm text-haze">
           This is a shared demo account, so its name, password and picture stay as they are. Everything else works as
           for any member.
         </p>
@@ -231,7 +229,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
                     type="button"
                     onClick={() => setPicture({ kind: "none" })}
                     disabled={saving}
-                    className="text-sm font-medium text-haze underline underline-offset-4 hover:text-screen"
+                    className="link-quiet text-sm font-medium"
                   >
                     Keep current
                   </button>
@@ -260,7 +258,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
                 onChange={(event) => edit("userName", event.target.value)}
               />
               <div>
-                <p className="text-sm font-medium">Email</p>
+                <p className="label">Email</p>
                 <p className="mt-1.5 text-haze">{settings.email}</p>
               </div>
             </div>
@@ -304,7 +302,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
 
       <Section id="settings-privacy" title="Privacy">
         <fieldset className="mb-8">
-          <legend className="text-sm font-medium">Who can see your diary</legend>
+          <legend className="label">Who can see your diary</legend>
           <div className="mt-3 space-y-3">
             {diaryVisibilityOptions.map((option) => (
               <label key={option.value} className="flex items-start gap-3 text-sm">
@@ -314,7 +312,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
                   value={option.value}
                   checked={draft.diaryVisibility === option.value}
                   onChange={() => edit("diaryVisibility", option.value)}
-                  className="mt-0.5 size-4 accent-projector"
+                  className="check mt-0.5"
                 />
                 <span>
                   <span className="font-medium">{option.label}</span>
@@ -325,7 +323,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
           </div>
         </fieldset>
         <fieldset>
-          <legend className="text-sm font-medium">Who can see your watchlist</legend>
+          <legend className="label">Who can see your watchlist</legend>
           <div className="mt-3 space-y-3">
             {visibilityOptions.map((option) => (
               <label key={option.value} className="flex items-start gap-3 text-sm">
@@ -335,7 +333,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
                   value={option.value}
                   checked={draft.watchlistVisibility === option.value}
                   onChange={() => edit("watchlistVisibility", option.value)}
-                  className="mt-0.5 size-4 accent-projector"
+                  className="check mt-0.5"
                 />
                 <span>
                   <span className="font-medium">{option.label}</span>
@@ -353,7 +351,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
             type="checkbox"
             checked={draft.showFriendReviews}
             onChange={(event) => edit("showFriendReviews", event.target.checked)}
-            className="mt-0.5 size-4 accent-projector"
+            className="check mt-0.5"
           />
           <span>
             <span className="font-medium">Show reviews from friends</span>
@@ -368,7 +366,7 @@ function SettingsForm({ settings }: { settings: UserSettings }) {
             type="checkbox"
             checked={draft.showOwnActivity}
             onChange={(event) => edit("showOwnActivity", event.target.checked)}
-            className="mt-0.5 size-4 accent-projector"
+            className="check mt-0.5"
           />
           <span>
             <span className="font-medium">Show my activity in Following</span>
@@ -429,7 +427,7 @@ function AppearanceSection() {
   return (
     <Section id="settings-appearance" title="Appearance" description="Changes the look straight away. Kept in this browser only.">
       <fieldset>
-        <legend className="text-sm font-medium">Theme</legend>
+        <legend className="label">Theme</legend>
         <div className="mt-3 space-y-3">
           {themes.map((option) => (
             <label key={option.value} className="flex items-start gap-3 text-sm">
@@ -439,7 +437,7 @@ function AppearanceSection() {
                 value={option.value}
                 checked={theme === option.value}
                 onChange={() => setTheme(option.value)}
-                className="mt-0.5 size-4 accent-projector"
+                className="check mt-0.5"
               />
               <span
                 aria-hidden="true"
@@ -475,7 +473,7 @@ function BlockedSection() {
       ) : blocked.isError ? (
         <ErrorMessage error={blocked.error} retry={() => blocked.refetch()} />
       ) : blocked.data.length === 0 ? (
-        <p className="text-sm text-haze">You have not blocked anyone.</p>
+        <p className="text-sm text-haze">You have not blocked anyone. You can block a member from their profile.</p>
       ) : (
         <ul className="space-y-3">
           {blocked.data.map((member) => (
@@ -623,7 +621,7 @@ function DeleteAccountSection({ userName }: { userName: string }) {
             <button
               type="submit"
               disabled={!password || deleteAccount.isPending}
-              className="rounded-sm bg-alarm px-4 py-2 text-sm font-semibold text-salon transition hover:brightness-110 disabled:opacity-60"
+              className="btn btn-danger"
             >
               {deleteAccount.isPending ? "Deleting…" : "Delete my account"}
             </button>
@@ -637,7 +635,7 @@ function DeleteAccountSection({ userName }: { userName: string }) {
           ref={triggerRef}
           type="button"
           onClick={() => setOpen(true)}
-          className="rounded-sm px-4 py-2 text-sm font-medium text-alarm ring-1 ring-alarm/40 transition hover:bg-alarm/10"
+          className="btn btn-danger-outline"
         >
           Delete account…
         </button>
@@ -651,13 +649,13 @@ export function SettingsPage() {
   const settings = useSettings();
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pt-10 sm:px-6 sm:pt-14">
-      <p className="text-sm text-projector">
-        <Link to="/profile" className="hover:underline">
-          Your profile
+    <div className="page pt-10 sm:pt-14">
+      <p className="eyebrow">
+        <Link to="/profile" className="rounded-xs hover:underline">
+          <span aria-hidden="true">← </span>Your profile
         </Link>
       </p>
-      <h1 className="marquee mt-3 text-6xl sm:text-7xl">Settings</h1>
+      <h1 className="heading-page mt-3">Settings</h1>
 
       <div className="mt-10">
         {settings.isPending ? (
