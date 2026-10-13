@@ -15,7 +15,7 @@ import { ForgotPasswordPage, LoginPage, RegisterPage } from "../pages/AuthPages"
 import { mockFetch } from "./fakes";
 
 // The automatic WCAG checks that make sense without a real browser. Colour contrast needs real layout and
-// is checked in the browser instead.
+// is checked in the browser instead, in e2e/tests/accessibility.spec.ts.
 async function expectNoAxeViolations(container: Element) {
   const results = await axe.run(container, {
     runOnly: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"],

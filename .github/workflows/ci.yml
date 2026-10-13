@@ -19,32 +19,24 @@ jobs:
     name: Backend (build + test)
     runs-on: ubuntu-latest
 
-    services:
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          ACCEPT_EULA: "Y"
-          # Throwaway container that only lives for this job. Set in repo secrets.
-          # The health check reads it from the container environment, since
-          # the secrets context is not available in service options.
-          MSSQL_SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
-        ports:
-          - 1433:1433
-        options: >-
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P $MSSQL_SA_PASSWORD -C -Q 'SELECT 1' -b"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-          --health-start-period 20s
-
     env:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
-      # ReelrApiFactory appends "Database=...;" to this value.
-      REELR_TEST_SQLSERVER: "Server=localhost,1433;User Id=sa;Password=${{ secrets.MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # A throwaway SQL Server for this job only, with a password made up for each run. No repository secret is
+      # needed, so pull requests that get no secrets (Dependabot's, forks) are tested too.
+      - name: Start SQL Server
+        run: |
+          password="$(openssl rand -hex 16)-Aa1"
+          echo "::add-mask::$password"
+          echo "SA_PASSWORD=$password" >> "$GITHUB_ENV"
+          # ReelrApiFactory appends "Database=...;" to this value.
+          echo "REELR_TEST_SQLSERVER=Server=localhost,1433;User Id=sa;Password=$password;TrustServerCertificate=True;" >> "$GITHUB_ENV"
+          docker run --detach --name sqlserver --env ACCEPT_EULA=Y --env "MSSQL_SA_PASSWORD=$password" \
+            --publish 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
 
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
@@ -55,6 +47,18 @@ jobs:
 
       - name: Build
         run: dotnet build backend/backend.slnx --configuration Release --no-restore
+
+      # Started before the build, so it is usually up by now.
+      - name: Wait for SQL Server
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$SA_PASSWORD" -C -Q "SELECT 1" -b > /dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 5
+          done
+          docker logs sqlserver
+          exit 1
 
       - name: Test
         run: >-
@@ -77,7 +81,7 @@ jobs:
         working-directory: backend
         run: |
           dotnet ef migrations bundle --configuration Release --output efbundle
-          ./efbundle --connection "Server=localhost,1433;Database=ReelrMigrations;User Id=sa;Password=${{ secrets.MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
+          ./efbundle --connection "Server=localhost,1433;Database=ReelrMigrations;User Id=sa;Password=$SA_PASSWORD;TrustServerCertificate=True;"
 
       - name: Upload test results
         if: always()
@@ -123,13 +127,12 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      # The stack reads its secrets from .env. The password comes in through env and printf, so bash never
-      # expands it, and single quotes stop Compose from reading "$" in it. docker-compose.e2e.yml sets the
-      # fake TMDB token.
+      # The stack reads its secrets from .env. The database password is made up for each run, so no repository
+      # secret is needed; single quotes stop Compose from reading "$" in the values. docker-compose.e2e.yml sets
+      # the fake TMDB token.
       - name: Write the stack's settings
-        env:
-          SA_PASSWORD: ${{ secrets.MSSQL_SA_PASSWORD }}
         run: |
+          SA_PASSWORD="$(openssl rand -hex 16)-Aa1"
           {
             printf "MSSQL_SA_PASSWORD='%s'\n" "$SA_PASSWORD"
             printf "ConnectionStrings__ReelrContext='Server=db;Database=Reelr;User Id=sa;Password=%s;TrustServerCertificate=True;'\n" "$SA_PASSWORD"

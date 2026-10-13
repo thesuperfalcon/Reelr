@@ -13,6 +13,7 @@ param adminUserIds array
 param demoUserIds array
 param inviteOnly bool
 param alertEmail string
+param customDomain string
 param deployApps bool
 
 // Short, stable suffix for names that must be unique across Azure (SQL server, Key Vault).
@@ -171,7 +172,21 @@ resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-var siteUrl = 'https://reelr.${environment.properties.defaultDomain}'
+// The site's own domain, e.g. reelr.tintinfalk.dev, with a free certificate Azure renews itself. Its DNS needs
+// a CNAME to the app's default address and a TXT record asuid.<name> with the environment's verification id.
+// The default address keeps working next to it.
+resource domainCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' = if (!empty(customDomain)) {
+  parent: environment
+  name: 'mc-reelr-domain'
+  location: location
+  tags: tags
+  properties: {
+    subjectName: customDomain
+    domainControlValidation: 'CNAME'
+  }
+}
+
+var siteUrl = empty(customDomain) ? 'https://reelr.${environment.properties.defaultDomain}' : 'https://${customDomain}'
 
 // Connection strings carry no secret: the identity's client id says which managed identity signs in.
 // The long timeout covers the database waking up from a pause.
@@ -302,6 +317,13 @@ resource frontend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
         targetPort: appPort
         transport: 'http'
         allowInsecure: false
+        customDomains: empty(customDomain) ? [] : [
+          {
+            name: customDomain
+            certificateId: domainCertificate.id
+            bindingType: 'SniEnabled'
+          }
+        ]
       }
     }
     template: {

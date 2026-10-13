@@ -105,6 +105,71 @@ export function PrivacyPage() {
   );
 }
 
+// Describes what the frontend does for accessibility. Keep it in step with the code: a feature listed here
+// that is removed, or a new one, belongs here too.
+export function AccessibilityPage() {
+  usePageTitle("Accessibility");
+  return (
+    <LegalShell title="Accessibility" updated="13 October 2026">
+      <p>
+        Reelr should work for everyone, whether you use a mouse, a keyboard, a screen reader or a magnifier. We aim for
+        the WCAG 2.2 guidelines at level AA. This page says what we have done, what we know does not work yet, and how
+        to tell us about problems.
+      </p>
+
+      <h2>Keyboard</h2>
+      <ul>
+        <li>Everything can be done with the keyboard alone, and the control in focus always has a visible outline.</li>
+        <li>The first Tab on every page shows a "Skip to content" link that jumps past the menu.</li>
+        <li>When you go to another page, focus moves to the new page's content, and the browser tab names the page.</li>
+        <li>Dialogs keep focus inside them while open, close with Escape, and give focus back to the button that opened them.</li>
+        <li>When an inline step closes, such as a delete confirmation or an edit form, focus goes back to the button you started from.</li>
+        <li>Star ratings move in half stars with the arrow keys; Home gives half a star and End gives five.</li>
+        <li>Tabs, such as on profiles, move with the arrow keys, Home and End.</li>
+        <li>The review editor has shortcuts for bold (Ctrl+B), italic (Ctrl+I) and links (Ctrl+K), or ⌘ on a Mac.</li>
+      </ul>
+
+      <h2>Screen readers</h2>
+      <ul>
+        <li>Pages use headings, landmarks and lists, so you can jump between sections.</li>
+        <li>Every form field has a label, help text is read with its field, and errors are read out as soon as they appear.</li>
+        <li>Messages such as "Saved" or a failed request are announced without moving focus.</li>
+        <li>Ratings are read as text, for example "4.5 out of 5 stars".</li>
+        <li>Reviews with spoilers stay hidden until you choose to show them; then focus moves to the review text.</li>
+      </ul>
+
+      <h2>Seeing and motion</h2>
+      <ul>
+        <li>
+          Five looks to choose from in Settings, two of them light (Broadsheet and Video Store). Your choice is kept in
+          your browser and works before you log in.
+        </li>
+        <li>Text can be enlarged with the browser's zoom without content being cut off.</li>
+        <li>If your system asks for less motion, Reelr turns off fades, slides and loading animations.</li>
+      </ul>
+
+      <h2>How we check</h2>
+      <p>
+        Every change is checked automatically: the axe accessibility rules run on our forms and on the main pages in a
+        real browser, including colour contrast, and tests confirm that keyboard focus behaves as described above.
+      </p>
+
+      <h2>Known problems</h2>
+      <ul>
+        <li>Posters and photos from TMDB have no text description; the film or person's name is always shown next to them.</li>
+        <li>Film information comes from TMDB and is only in English.</li>
+        <li>Reelr has not been reviewed by an outside accessibility expert or tested with every screen reader.</li>
+      </ul>
+
+      <h2>Tell us</h2>
+      <p>
+        If something is hard or impossible to use, write to {contact} and say which page and what you tried. We will
+        answer and fix what we can.
+      </p>
+    </LegalShell>
+  );
+}
+
 export function TermsPage() {
   usePageTitle("Terms");
   return (
