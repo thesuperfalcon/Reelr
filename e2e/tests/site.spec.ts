@@ -17,7 +17,7 @@ test("member pages ask not to be indexed, the pages about Reelr do not", async (
     expect(response.headers()["x-robots-tag"], path).toBe("noindex");
   }
 
-  for (const path of ["/", "/privacy", "/terms", "/accessibility"]) {
+  for (const path of ["/", "/privacy", "/terms", "/accessibility", "/contact"]) {
     const response = await request.get(path);
     expect(response.headers()["x-robots-tag"], path).toBeUndefined();
   }

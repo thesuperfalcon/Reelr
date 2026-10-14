@@ -105,6 +105,36 @@ export function PrivacyPage() {
   );
 }
 
+// How to reach the person who runs Reelr. Keep the ways to see, download and delete data in step with
+// the privacy page.
+export function ContactPage() {
+  usePageTitle("Contact", "How to reach the person who runs Reelr, and what to write about.");
+  return (
+    <LegalShell title="Contact" updated="14 October 2026">
+      <p>
+        Reelr is run by Tintin Falk, a private person in Sweden. Write to{" "}
+        <a href={`mailto:${contact}`} className="link">
+          {contact}
+        </a>{" "}
+        about anything to do with Reelr, in English or Swedish.
+      </p>
+
+      <h2>What to write about</h2>
+      <ul>
+        <li>Something that does not work, or is hard to use with your keyboard, screen reader or magnifier. Say which page and what you tried.</li>
+        <li>Your personal data: questions, objections, or help with seeing, correcting or deleting it.</li>
+        <li>Invites, ideas and anything else.</li>
+      </ul>
+
+      <h2>Faster ways for some things</h2>
+      <ul>
+        <li>Download your data or delete your account: Settings, then "Download my data" or "Delete account".</li>
+        <li>A review, comment or list that breaks the rules: use its "Report" link, so admins see exactly what you mean.</li>
+      </ul>
+    </LegalShell>
+  );
+}
+
 // Describes what the frontend does for accessibility. Keep it in step with the code: a feature listed here
 // that is removed, or a new one, belongs here too.
 export function AccessibilityPage() {

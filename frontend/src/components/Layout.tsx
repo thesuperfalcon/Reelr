@@ -365,6 +365,9 @@ export function Layout() {
               <Link to="/accessibility" className="rounded-xs py-1 hover:text-screen">
                 Accessibility
               </Link>
+              <Link to="/contact" className="rounded-xs py-1 hover:text-screen">
+                Contact
+              </Link>
             </nav>
           </div>
           <p>Film data and images from TMDB. Reelr is not endorsed or certified by TMDB.</p>

@@ -13,10 +13,10 @@ map $http_x_forwarded_proto $forwarded_proto {
 # reviews, lists and films (with members' reviews) are visible without logging in, so they ask not to be indexed.
 # The request URI is used because try_files rewrites $uri to /index.html. An empty value sends no header.
 map $request_uri $robots_tag {
-    default                                  "noindex";
-    ~^/(privacy|terms|accessibility)?(\?.*)?$ "";
+    default                                          "noindex";
+    ~^/(privacy|terms|accessibility|contact)?(\?.*)?$ "";
     # Icons, so search results can show the site's icon next to those pages.
-    ~^/[\w.-]+\.(ico|png|svg|webmanifest)$  "";
+    ~^/[\w.-]+\.(ico|png|svg|webmanifest)$          "";
 }
 
 server {
