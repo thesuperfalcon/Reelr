@@ -297,3 +297,15 @@
   /* Long single words, such as some usernames and list names, break instead of widening the page. */
   overflow-wrap: break-word;
 }
+
+/* The sign-up bar fixed to the bottom of phone screens (components/JoinBar.tsx). The end of the page and any
+   focused control stay above it, so it never hides what has focus (WCAG 2.4.11). */
+@media (width < 40rem) {
+  html:has(.mobile-join-bar) {
+    scroll-padding-bottom: 5rem;
+  }
+
+  body:has(.mobile-join-bar) {
+    padding-bottom: 4.5rem;
+  }
+}

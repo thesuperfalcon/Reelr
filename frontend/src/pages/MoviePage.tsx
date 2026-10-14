@@ -314,7 +314,7 @@ export function MoviePage() {
   const tmdbId = Number(useParams().tmdbId);
   const { user } = useAuth();
   const details = useMovieDetails(tmdbId);
-  usePageTitle(details.data?.title ?? undefined);
+  usePageTitle(details.data?.title ?? undefined, details.data?.overview);
 
   if (!Number.isInteger(tmdbId) || tmdbId <= 0 || (details.error instanceof ApiError && details.error.status === 404)) {
     return <NotFoundPage />;

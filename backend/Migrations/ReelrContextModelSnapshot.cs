@@ -174,6 +174,24 @@ namespace backend.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("backend.Features.Analytics.PageView", b =>
+                {
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Route")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(64)");
+
+                    b.Property<int>("Views")
+                        .HasColumnType("int");
+
+                    b.HasKey("Day", "Route");
+
+                    b.ToTable("PageViews");
+                });
+
             modelBuilder.Entity("backend.Features.Auth.RefreshToken", b =>
                 {
                     b.Property<long>("Id")

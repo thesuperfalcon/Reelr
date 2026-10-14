@@ -1,5 +1,6 @@
 using backend.Features.Auth;
 using backend.Features.Diary;
+using backend.Features.Analytics;
 using backend.Features.Invites;
 using backend.Features.Moderation;
 using backend.Features.MovieLists;
@@ -60,6 +61,8 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
 
     public DbSet<Invite> Invites => Set<Invite>();
 
+    public DbSet<PageView> PageViews => Set<PageView>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -86,6 +89,13 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
             invite.Property(i => i.CodeHash).HasMaxLength(Invite.HashLength).IsFixedLength().IsUnicode(false);
             invite.Property(i => i.Note).HasMaxLength(Invite.NoteMaxLength);
             invite.HasIndex(i => i.CodeHash).IsUnique();
+        });
+
+        // PageView: one row per day and route, counted up.
+        modelBuilder.Entity<PageView>(view =>
+        {
+            view.HasKey(v => new { v.Day, v.Route });
+            view.Property(v => v.Route).HasMaxLength(PageView.RouteMaxLength).IsUnicode(false);
         });
 
         // UserAvatar: one per user, removed with the user.

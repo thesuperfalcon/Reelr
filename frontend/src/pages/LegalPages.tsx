@@ -24,9 +24,9 @@ function LegalShell({ title, updated, children }: { title: string; updated: stri
 }
 
 export function PrivacyPage() {
-  usePageTitle("Privacy");
+  usePageTitle("Privacy", "What Reelr stores about you, why, who else sees it, and how to see, take with you or delete it.");
   return (
-    <LegalShell title="Privacy" updated="12 October 2026">
+    <LegalShell title="Privacy" updated="14 October 2026">
       <p>
         This page explains what Reelr stores about you, why, who else sees it, and how you can see, take with you or
         delete it. Reelr is run by Tintin Falk, a private person in Sweden, who is responsible for your personal data.
@@ -70,13 +70,19 @@ export function PrivacyPage() {
         <li>Reelr runs on Microsoft Azure in Sweden. Your data, logs and backups stay there.</li>
         <li>Admins see reports and the reported content. The author of reported content is not told who reported it.</li>
       </ul>
-      <p>We do not sell your data and we use no advertising, analytics or tracking services.</p>
+      <p>
+        We count how often each kind of page is opened per day, such as "a film page" or "the search page", to see
+        what is used. The count is kept on our own server and holds nothing else: no address with an id in it, no
+        account, no IP address and no cookie, so it cannot be tied to you. If your browser sends Do Not Track or
+        Global Privacy Control, your visits are not counted at all.
+      </p>
+      <p>We do not sell your data and we use no advertising services or outside analytics or tracking services.</p>
 
       <h2>Cookies and storage in your browser</h2>
       <p>
         Reelr sets one cookie, only when you log in: it keeps you logged in for up to 30 days, is sent only to Reelr's
         login service, and cannot be read by scripts on the page. Local storage in your browser remembers that you are
-        logged in and the theme you chose; session storage keeps unsaved review text until you close the tab. All of
+        logged in, the theme you chose and that you have seen the note about cookies; session storage keeps unsaved review text until you close the tab. All of
         this is needed for the site to work, so we do not ask for consent. There are no tracking cookies.
       </p>
 
@@ -105,10 +111,43 @@ export function PrivacyPage() {
   );
 }
 
+// How to reach the person who runs Reelr. Keep the ways to see, download and delete data in step with
+// the privacy page.
+export function ContactPage() {
+  usePageTitle("Contact", "How to reach the person who runs Reelr, and what to write about.");
+  return (
+    <LegalShell title="Contact" updated="14 October 2026">
+      <p>
+        Reelr is run by Tintin Falk, a private person in Sweden. Write to{" "}
+        <a href={`mailto:${contact}`} className="link">
+          {contact}
+        </a>{" "}
+        about anything to do with Reelr, in English or Swedish.
+      </p>
+
+      <h2>What to write about</h2>
+      <ul>
+        <li>Something that does not work, or is hard to use with your keyboard, screen reader or magnifier. Say which page and what you tried.</li>
+        <li>Your personal data: questions, objections, or help with seeing, correcting or deleting it.</li>
+        <li>Invites, ideas and anything else.</li>
+      </ul>
+
+      <h2>Faster ways for some things</h2>
+      <ul>
+        <li>Download your data or delete your account: Settings, then "Download my data" or "Delete account".</li>
+        <li>A review, comment or list that breaks the rules: use its "Report" link, so admins see exactly what you mean.</li>
+      </ul>
+    </LegalShell>
+  );
+}
+
 // Describes what the frontend does for accessibility. Keep it in step with the code: a feature listed here
 // that is removed, or a new one, belongs here too.
 export function AccessibilityPage() {
-  usePageTitle("Accessibility");
+  usePageTitle(
+    "Accessibility",
+    "How Reelr works with a keyboard, a screen reader or a magnifier, what does not work yet, and how to report problems.",
+  );
   return (
     <LegalShell title="Accessibility" updated="13 October 2026">
       <p>
@@ -171,7 +210,7 @@ export function AccessibilityPage() {
 }
 
 export function TermsPage() {
-  usePageTitle("Terms");
+  usePageTitle("Terms", "The terms for using Reelr: your account, what you post, moderation, film data and the service.");
   return (
     <LegalShell title="Terms" updated="12 October 2026">
       <p>

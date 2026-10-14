@@ -26,7 +26,7 @@ async function expectNoAxeViolations(page: Page) {
   ).toEqual([]);
 }
 
-const publicPages = ["/", "/login", "/register", "/forgot-password", "/search?q=test", "/movie/900001", "/privacy", "/accessibility", "/no-such-page"];
+const publicPages = ["/", "/login", "/register", "/forgot-password", "/search?q=test", "/movie/900001", "/privacy", "/accessibility", "/contact", "/no-such-page"];
 
 for (const look of looks) {
   test(`public pages pass axe in the ${look} look`, async ({ page }) => {
