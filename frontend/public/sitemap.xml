@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The pages search engines may list during the closed beta. Keep in step with the robots map in
+     nginx.conf.template; member pages are left out on purpose. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://reelr.se/</loc></url>
+  <url><loc>https://reelr.se/privacy</loc></url>
+  <url><loc>https://reelr.se/terms</loc></url>
+  <url><loc>https://reelr.se/accessibility</loc></url>
+  <url><loc>https://reelr.se/contact</loc></url>
+</urlset>

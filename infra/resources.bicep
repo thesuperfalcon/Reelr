@@ -173,7 +173,7 @@ resource environment 'Microsoft.App/managedEnvironments@2024-03-01' = {
   }
 }
 
-// The site's own domain, e.g. reelr.tintinfalk.dev, with a free certificate Azure renews itself. Its DNS needs
+// The site's own domain, e.g. reelr.se, with a free certificate Azure renews itself. Its DNS needs
 // a CNAME to the app's default address and a TXT record asuid.<name> with the environment's verification id.
 // The default address keeps working next to it.
 resource domainCertificate 'Microsoft.App/managedEnvironments/managedCertificates@2024-03-01' = if (!empty(customDomain)) {

@@ -56,7 +56,7 @@ test("sign up, log a film with a review, follow someone and delete the account",
   await deleteSection.getByRole("textbox", { name: "Password", exact: true }).fill(password);
   await deleteSection.getByRole("button", { name: "Delete my account" }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("link", { name: "Log in" })).toBeVisible();
+  await expect(page.getByRole("banner").getByRole("link", { name: "Log in" })).toBeVisible();
 
   // The account is gone, so its password no longer works.
   await logIn(page, member);

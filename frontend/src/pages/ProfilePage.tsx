@@ -726,7 +726,10 @@ function isTab(value: string | null, tabs: Tab[]): value is Tab {
 function ProfileView({ userId, own }: { userId: number; own: boolean }) {
     const { user } = useAuth();
     const profile = useUserProfile(userId);
-    usePageTitle(own ? "Your profile" : profile.data?.userName);
+    usePageTitle(
+      own ? "Your profile" : profile.data?.userName,
+      profile.data && `${profile.data.userName}'s film diary, reviews and lists on Reelr.`,
+    );
     const [params, setParams] = useSearchParams();
 
     if (profile.error instanceof ApiError && profile.error.status === 404) {

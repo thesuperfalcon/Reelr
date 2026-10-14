@@ -55,6 +55,7 @@ Defaults from `backend/Features/Auth/RateLimitPolicies.cs`; each can be overridd
 | `auth-login` | login, confirm-email, reset-password | 10 per 60 s | IP |
 | `auth-register` | register | 5 per 3600 s | IP |
 | `auth-account-email` | resend-confirmation, forgot-password | 5 per 900 s | IP |
+| `page-views` | `POST /api/analytics/page-views`, instead of Write | 120 per 60 s | user id, else IP |
 
 Login is additionally throttled per account and IP by `LoginThrottle` (5 failures per 900 s), and a single email address receives at most 3 account emails per hour (`AccountEmails`).
 
@@ -258,6 +259,15 @@ All endpoints act on the caller and need a Member token. If the token belongs to
 | `GET /api/admin/invites` | Admin | | 200 `InviteDto[] { id, note, createdAt, usedAt, usedBy, revokedAt }`, newest first | 403 |
 | `POST /api/admin/invites` | Admin | `{ note? (max 100) }` | 201 `CreatedInviteDto` with the one-time `code` and a `link` to `/register?invite=...` | 403 |
 | `DELETE /api/admin/invites/{id}` | Admin | | 204 (also when already revoked) | 403; 404; 409 already used |
+
+## Page views (`AnalyticsController`)
+
+Counted per route and UTC day, with nothing that identifies the visitor. The SPA sends one for each page it shows (`frontend/src/lib/analytics.ts`), except when the browser sends Do Not Track or Global Privacy Control.
+
+| Method and path | Auth | Request | Success | Errors |
+|---|---|---|---|---|
+| `POST /api/analytics/page-views` | Anonymous | `{ route }`, an SPA route such as `/movie/:tmdbId` (`PageViewRoutes`; others are ignored) | 204 | 400 no route; 429 (`page-views`) |
+| `GET /api/admin/page-views?days=30` | Admin | `days` 1 to 365 | 200 `PageViewStatsDto { days, totalViews, perDay: [{ day, views }], perRoute: [{ route, views }] }` | 400; 403 |
 
 ## Health
 

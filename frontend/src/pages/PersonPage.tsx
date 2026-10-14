@@ -313,7 +313,7 @@ export function PersonPage() {
   const personId = Number(useParams().personId);
   const { user } = useAuth();
   const details = usePersonDetails(personId);
-  usePageTitle(details.data?.name ?? undefined);
+  usePageTitle(details.data?.name ?? undefined, details.data?.biography);
   // Marks films the logged-in user has seen.
   const watchedFilms = useWatchedFilms(user !== null);
 

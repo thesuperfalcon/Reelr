@@ -9,6 +9,16 @@ map $http_x_forwarded_proto $forwarded_proto {
     ""      $scheme;
 }
 
+# During the closed beta only the start page and the pages about Reelr may appear in search results. Profiles,
+# reviews, lists and films (with members' reviews) are visible without logging in, so they ask not to be indexed.
+# The request URI is used because try_files rewrites $uri to /index.html. An empty value sends no header.
+map $request_uri $robots_tag {
+    default                                          "noindex";
+    ~^/(privacy|terms|accessibility|contact)?(\?.*)?$ "";
+    # Icons, so search results can show the site's icon next to those pages.
+    ~^/[\w.-]+\.(ico|png|svg|webmanifest)$          "";
+}
+
 server {
     listen 8080;
     server_name _;
@@ -58,6 +68,14 @@ server {
         include security-headers.conf;
         add_header Cache-Control "public, max-age=31536000, immutable" always;
         try_files $uri =404;
+    }
+
+    # nginx's own list of file types has no entry for web app manifests.
+    location = /manifest.webmanifest {
+        include security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+        types { }
+        default_type application/manifest+json;
     }
 
     # Client-side routing: unknown paths fall back to the SPA entry point. index.html is checked with
