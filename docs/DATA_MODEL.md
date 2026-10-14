@@ -95,6 +95,12 @@ Column lengths come from constants on the entity classes and are applied in `OnM
 | `Block` (`Blocks`) | (`BlockerId`, `BlockedId`) | `CreatedAt`. Check `CK_Blocks_NotSelf`. Index `BlockedId`. |
 | `Report` (`Reports`) | `Id` | `ReporterId`, `TargetType` (`Review`, `Comment`, `List`; stored as int), `TargetId` (no FK), `Reason` (enum), `Note` (500), `CreatedAt`, `ResolvedAt`, `ResolvedById` (no FK), `Outcome`. Unique filtered index (`ReporterId`, `TargetType`, `TargetId`) where `ResolvedAt IS NULL` (one open report per reporter and item); index (`ResolvedAt`, `TargetType`, `TargetId`). |
 
+### Analytics
+
+| Entity (table) | Key | Purpose and notable columns |
+|---|---|---|
+| `PageView` (`PageViews`) | (`Day`, `Route`) | Views of one SPA route (varchar 64, such as `/movie/:tmdbId`) on one UTC day (`date`). No user, IP or address with ids; counted up with `ExecuteUpdate`, the day's first view inserts the row. |
+
 Enums (`WatchlistVisibility`, `DiaryVisibility`, `ReportTargetType`, `ReportReason`, `ReportOutcome`) are stored as integers and serialised as strings in JSON (`JsonStringEnumConverter` attributes on the enums).
 
 ## Relationships and delete behaviour
@@ -156,7 +162,7 @@ DTOs live in each feature's `DTOs/` folder. The SPA mirrors them in `frontend/sr
 
 ## Migrations
 
-- 22 migrations in `backend/Migrations/`, from `20260907141742_InitialCreate` to `20261012142931_AddInvites`.
+- 23 migrations in `backend/Migrations/`, from `20260907141742_InitialCreate` to `20261014130423_AddPageViews`.
 - Create: `dotnet ef migrations add <Name> --project backend/backend.csproj`. Apply locally: `dotnet ef database update --project backend/backend.csproj`.
 - The app never migrates at start-up. In Docker Compose the `migrate` service runs an EF migrations bundle (`backend/Dockerfile`, target `migrations`) before the backend starts. In Azure the `reelr-migrate` Container Apps job runs the same bundle, under an identity with `db_owner`, before each rollout (`.github/workflows/deploy.yml`).
 - CI runs `dotnet ef migrations has-pending-model-changes` and applies every migration to an empty database (`.github/workflows/ci.yml`).
@@ -169,5 +175,6 @@ DTOs live in each feature's `DTOs/` folder. The SPA mirrors them in `frontend/sr
 | Member content | Until the member deletes it or the account | Cascades and `UserController.DeleteUser` |
 | Refresh tokens | Expired rows are deleted when the same user next gets a token; used rows are kept until expiry to detect reuse | `RefreshTokens.AddAsync` |
 | Reports | Kept after resolution; deleted with the reporter's account | `Report` configuration |
+| Page views | Kept indefinitely; counts per route and day only | `PageView` |
 | Films | Kept indefinitely, refreshed when older than 30 days | `MovieRefresher`, `MovieRefreshOptions` |
 | Azure SQL backups | 7 days point-in-time | Root README |

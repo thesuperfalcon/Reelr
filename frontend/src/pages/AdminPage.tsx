@@ -11,6 +11,7 @@ import {
   type CreatedInvite,
   type Invite,
 } from "../lib/invites";
+import { usePageViewStats } from "../lib/analytics";
 import { reportReasons, useOpenReports, useResolveReports, type ReportedItem } from "../lib/moderation";
 import { useSettings } from "../lib/queries";
 import { NotFoundPage } from "./NotFoundPage";
@@ -230,7 +231,56 @@ function Invites() {
   );
 }
 
-// Invites, and reported reviews, comments and lists, the most reported first. Only admins get past the check.
+// How often each kind of page was opened in the last 30 days (see lib/analytics.ts).
+function PageViews() {
+  const stats = usePageViewStats();
+
+  return (
+    <section aria-labelledby="page-views-heading" className="mt-12">
+      <h2 id="page-views-heading" className="heading-section">
+        Page views
+      </h2>
+      {stats.isPending ? (
+        <Loading />
+      ) : stats.isError ? (
+        <ErrorMessage error={stats.error} retry={() => stats.refetch()} />
+      ) : (
+        <>
+          <p className="mt-2 text-sm text-haze">
+            {stats.data.totalViews.toLocaleString("en")} in the last {stats.data.days} days, counted per kind of page
+            without cookies or anything that identifies the visitor.
+          </p>
+          {stats.data.perRoute.length > 0 && (
+            <table className="mt-5 w-full text-sm">
+              <caption className="sr-only">Page views per kind of page in the last {stats.data.days} days</caption>
+              <thead>
+                <tr className="border-b border-rule/10 text-left text-haze">
+                  <th scope="col" className="py-2 font-medium">
+                    Page
+                  </th>
+                  <th scope="col" className="py-2 text-right font-medium">
+                    Views
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.data.perRoute.map((row) => (
+                  <tr key={row.route} className="border-b border-rule/5">
+                    <td className="py-2 font-mono">{row.route}</td>
+                    <td className="py-2 text-right tabular-nums">{row.views.toLocaleString("en")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
+// Invites, reported reviews, comments and lists (the most reported first), and page views. Only admins get past
+// the check.
 export function AdminPage() {
   usePageTitle("Admin");
   const settings = useSettings();
@@ -251,6 +301,7 @@ export function AdminPage() {
         </p>
         <OpenReports />
       </section>
+      <PageViews />
     </div>
   );
 }

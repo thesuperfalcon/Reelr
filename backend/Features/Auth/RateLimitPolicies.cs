@@ -9,6 +9,7 @@ public static class RateLimitPolicies
     public const string Register = "auth-register";
     public const string AccountEmail = "auth-account-email";
     public const string Search = "search";
+    public const string PageViews = "page-views";
 
     /// <summary>
     /// Request limits, all set under "RateLimiting:{name}" (PermitLimit, WindowSeconds):
@@ -18,6 +19,7 @@ public static class RateLimitPolicies
     /// <item>Search applies on top to the search endpoints, since each search calls TMDB.</item>
     /// <item>Login and Register apply per IP, to slow down password guessing and mass sign-ups.</item>
     /// <item>AccountEmail applies per IP to the forms that send an account email (forgot password, resend confirmation).</item>
+    /// <item>PageViews applies instead of Write to counting page views, so browsing never uses up the writes.</item>
     /// </list>
     /// Rejected requests get 429 with a Retry-After header.
     /// </summary>
@@ -47,6 +49,12 @@ public static class RateLimitPolicies
                     return RateLimitPartition.GetNoLimiter("health");
                 }
 
+                // Counted under their own policy (PageViews), since the SPA sends one for every page it shows.
+                if (context.Request.Path.StartsWithSegments("/api/analytics/page-views"))
+                {
+                    return RateLimitPartition.GetNoLimiter("page-views");
+                }
+
                 var isRead = HttpMethods.IsGet(context.Request.Method)
                     || HttpMethods.IsHead(context.Request.Method)
                     || HttpMethods.IsOptions(context.Request.Method);
@@ -59,6 +67,7 @@ public static class RateLimitPolicies
             AddPolicy(options, Search, Limit(configuration, "Search", permitLimit: 30, windowSeconds: 60), ClientKey);
             AddPolicy(options, Login, Limit(configuration, "Login", permitLimit: 10, windowSeconds: 60), IpKey);
             AddPolicy(options, Register, Limit(configuration, "Register", permitLimit: 5, windowSeconds: 3600), IpKey);
+            AddPolicy(options, PageViews, Limit(configuration, "PageViews", permitLimit: 120, windowSeconds: 60), ClientKey);
             AddPolicy(options, AccountEmail, Limit(configuration, "AccountEmail", permitLimit: 5, windowSeconds: 900), IpKey);
         });
     }

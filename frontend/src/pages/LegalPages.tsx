@@ -26,7 +26,7 @@ function LegalShell({ title, updated, children }: { title: string; updated: stri
 export function PrivacyPage() {
   usePageTitle("Privacy", "What Reelr stores about you, why, who else sees it, and how to see, take with you or delete it.");
   return (
-    <LegalShell title="Privacy" updated="12 October 2026">
+    <LegalShell title="Privacy" updated="14 October 2026">
       <p>
         This page explains what Reelr stores about you, why, who else sees it, and how you can see, take with you or
         delete it. Reelr is run by Tintin Falk, a private person in Sweden, who is responsible for your personal data.
@@ -70,7 +70,13 @@ export function PrivacyPage() {
         <li>Reelr runs on Microsoft Azure in Sweden. Your data, logs and backups stay there.</li>
         <li>Admins see reports and the reported content. The author of reported content is not told who reported it.</li>
       </ul>
-      <p>We do not sell your data and we use no advertising, analytics or tracking services.</p>
+      <p>
+        We count how often each kind of page is opened per day, such as "a film page" or "the search page", to see
+        what is used. The count is kept on our own server and holds nothing else: no address with an id in it, no
+        account, no IP address and no cookie, so it cannot be tied to you. If your browser sends Do Not Track or
+        Global Privacy Control, your visits are not counted at all.
+      </p>
+      <p>We do not sell your data and we use no advertising services or outside analytics or tracking services.</p>
 
       <h2>Cookies and storage in your browser</h2>
       <p>

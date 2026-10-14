@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FocusEvent, type FormEvent } from "react";
 import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate, useNavigation, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
+import { usePageViews } from "../lib/analytics";
 import { useSettings } from "../lib/queries";
 import { JoinBar } from "./JoinBar";
 import { Loading } from "./Status";
@@ -247,6 +248,7 @@ function useFocusOnNavigation() {
 export function Layout() {
   const { user, restoring, logout } = useAuth();
   const mainRef = useFocusOnNavigation();
+  usePageViews();
   // Shares the cached settings with the settings page, so a new picture shows here as soon as it is saved.
   const settings = useSettings(user !== null);
   const profileImageUrl = user ? settings.data?.profileImageUrl : null;
