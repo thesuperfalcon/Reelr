@@ -22,3 +22,14 @@ test("member pages ask not to be indexed, the pages about Reelr do not", async (
     expect(response.headers()["x-robots-tag"], path).toBeUndefined();
   }
 });
+
+test("the web app manifest is served as one, with icons that exist", async ({ request }) => {
+  const response = await request.get("/manifest.webmanifest");
+  expect(response.headers()["content-type"]).toContain("application/manifest+json");
+
+  const manifest = (await response.json()) as { icons: { src: string }[] };
+  for (const icon of [...manifest.icons.map((i) => i.src), "/apple-touch-icon.png", "/favicon.ico", "/favicon.svg"]) {
+    const file = await request.get(icon);
+    expect(file.headers()["content-type"], icon).toMatch(/^image\//);
+  }
+});
