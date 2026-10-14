@@ -1,0 +1,6 @@
+# Reelr is in a closed beta. Member pages answer with "X-Robots-Tag: noindex" (see nginx.conf.template), which
+# search engines only see if they may fetch those pages, so they are not blocked here. The API is blocked, so a
+# crawler that runs the page's JavaScript gets no reviews, names or lists to index.
+User-agent: *
+Disallow: /api/
+Disallow: /auth/
