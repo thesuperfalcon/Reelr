@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import { HomeActivity } from "../components/HomeActivity";
 import { Poster } from "../components/Poster";
 import { ErrorMessage, PosterGridSkeleton } from "../components/Status";
+import { Welcome } from "../components/Welcome";
 import { usePopularMovies, useTrendingMovies } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { SearchMovie } from "../lib/types";
@@ -56,6 +57,7 @@ export function HomePage() {
   if (trending.isPending) {
     return (
       <div className="page py-10 sm:py-14">
+        <Welcome />
         {/* The same shapes as the feature and shelf, so nothing jumps when they arrive. */}
         <div role="status" className="grid items-end gap-8 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12">
           <span className="sr-only">Loading this week's films…</span>
@@ -74,7 +76,8 @@ export function HomePage() {
 
   if (trending.isError) {
     return (
-      <div className="page">
+      <div className="page py-10 sm:py-14">
+        <Welcome />
         <ErrorMessage error={trending.error} retry={() => trending.refetch()} />
       </div>
     );
@@ -85,6 +88,7 @@ export function HomePage() {
 
   return (
     <div className="page py-10 sm:py-14">
+      <Welcome />
       {featured && <Feature movie={featured} />}
 
       <HomeActivity />
