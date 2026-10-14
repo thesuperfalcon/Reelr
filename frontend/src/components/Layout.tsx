@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type FocusEvent, type FormEvent } f
 import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate, useNavigation, useSearchParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { useSettings } from "../lib/queries";
+import { JoinBar } from "./JoinBar";
 import { Loading } from "./Status";
 
 function SearchIcon() {
@@ -369,6 +370,7 @@ export function Layout() {
           <p>Film data and images from TMDB. Reelr is not endorsed or certified by TMDB.</p>
         </div>
       </footer>
+      <JoinBar />
     </div>
   );
 }
