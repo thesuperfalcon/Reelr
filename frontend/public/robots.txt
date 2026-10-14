@@ -4,3 +4,5 @@
 User-agent: *
 Disallow: /api/
 Disallow: /auth/
+
+Sitemap: https://reelr.se/sitemap.xml

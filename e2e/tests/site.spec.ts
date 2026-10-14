@@ -42,3 +42,15 @@ test("the link preview image named in the page exists", async ({ request }) => {
   const response = await request.get(image!);
   expect(response.headers()["content-type"]).toBe("image/png");
 });
+
+test("the sitemap lists only pages that may be indexed", async ({ request }) => {
+  const response = await request.get("/sitemap.xml");
+  expect(response.headers()["content-type"]).toContain("xml");
+
+  const paths = [...(await response.text()).matchAll(/<loc>https:\/\/[^/<]+(\/[^<]*)<\/loc>/g)].map((m) => m[1]);
+  expect(paths).toContain("/");
+  for (const path of paths) {
+    const page = await request.get(path);
+    expect(page.headers()["x-robots-tag"], path).toBeUndefined();
+  }
+});
