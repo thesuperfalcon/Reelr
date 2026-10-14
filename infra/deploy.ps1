@@ -30,7 +30,7 @@ param(
     [switch] $OpenRegistration,
     # Gets an email when the backend fails. Keep it the same as the GitHub variable REELR_ALERT_EMAIL.
     [string] $AlertEmail = '',
-    # The site's own domain, e.g. reelr.tintinfalk.dev, once its DNS points at the app. Keep it the same as the
+    # The site's own domain, e.g. reelr.se, once its DNS points at the app. Keep it the same as the
     # GitHub variable REELR_CUSTOM_DOMAIN.
     [string] $CustomDomain = '',
     [switch] $ResetSecrets
