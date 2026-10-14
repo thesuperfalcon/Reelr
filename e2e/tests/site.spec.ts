@@ -33,3 +33,12 @@ test("the web app manifest is served as one, with icons that exist", async ({ re
     expect(file.headers()["content-type"], icon).toMatch(/^image\//);
   }
 });
+
+test("the link preview image named in the page exists", async ({ request }) => {
+  const html = await (await request.get("/")).text();
+  const image = /<meta property="og:image" content="https:\/\/[^/"]+(\/[^"]+)"/.exec(html)?.[1];
+  expect(image).toBeDefined();
+
+  const response = await request.get(image!);
+  expect(response.headers()["content-type"]).toBe("image/png");
+});
