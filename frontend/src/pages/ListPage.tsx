@@ -192,7 +192,10 @@ export function ListPage() {
   const listId = Number(useParams().listId);
   const { user } = useAuth();
   const details = useMovieList(listId);
-  usePageTitle(details.data?.name);
+  usePageTitle(
+    details.data?.name,
+    details.data && (details.data.description || `A film list by ${details.data.username} on Reelr.`),
+  );
   const movies = useMovieListMovies(listId);
 
   if (!Number.isInteger(listId) || listId <= 0 || (details.error instanceof ApiError && details.error.status === 404)) {

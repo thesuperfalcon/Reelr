@@ -24,7 +24,7 @@ function LegalShell({ title, updated, children }: { title: string; updated: stri
 }
 
 export function PrivacyPage() {
-  usePageTitle("Privacy");
+  usePageTitle("Privacy", "What Reelr stores about you, why, who else sees it, and how to see, take with you or delete it.");
   return (
     <LegalShell title="Privacy" updated="12 October 2026">
       <p>
@@ -108,7 +108,10 @@ export function PrivacyPage() {
 // Describes what the frontend does for accessibility. Keep it in step with the code: a feature listed here
 // that is removed, or a new one, belongs here too.
 export function AccessibilityPage() {
-  usePageTitle("Accessibility");
+  usePageTitle(
+    "Accessibility",
+    "How Reelr works with a keyboard, a screen reader or a magnifier, what does not work yet, and how to report problems.",
+  );
   return (
     <LegalShell title="Accessibility" updated="13 October 2026">
       <p>
@@ -171,7 +174,7 @@ export function AccessibilityPage() {
 }
 
 export function TermsPage() {
-  usePageTitle("Terms");
+  usePageTitle("Terms", "The terms for using Reelr: your account, what you post, moderation, film data and the service.");
   return (
     <LegalShell title="Terms" updated="12 October 2026">
       <p>

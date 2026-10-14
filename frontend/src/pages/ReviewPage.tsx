@@ -23,7 +23,11 @@ export function ReviewPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const review = useReview(reviewId);
-  usePageTitle(review.data && `${review.data.username} on ${review.data.title}`);
+  // Not the review text, which may give away the plot.
+  usePageTitle(
+    review.data && `${review.data.username} on ${review.data.title}`,
+    review.data && `${review.data.username}'s review of ${review.data.title} on Reelr.`,
+  );
 
   if (!Number.isInteger(reviewId) || reviewId <= 0 || (review.error instanceof ApiError && review.error.status === 404)) {
     return <NotFoundPage />;
