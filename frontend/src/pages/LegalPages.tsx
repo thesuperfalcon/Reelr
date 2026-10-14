@@ -82,7 +82,7 @@ export function PrivacyPage() {
       <p>
         Reelr sets one cookie, only when you log in: it keeps you logged in for up to 30 days, is sent only to Reelr's
         login service, and cannot be read by scripts on the page. Local storage in your browser remembers that you are
-        logged in and the theme you chose; session storage keeps unsaved review text until you close the tab. All of
+        logged in, the theme you chose and that you have seen the note about cookies; session storage keeps unsaved review text until you close the tab. All of
         this is needed for the site to work, so we do not ask for consent. There are no tracking cookies.
       </p>
 

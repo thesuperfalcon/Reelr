@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, ScrollRestoration, useLocation, useNavigate, use
 import { useAuth } from "../auth/auth-context";
 import { usePageViews } from "../lib/analytics";
 import { useSettings } from "../lib/queries";
+import { CookieNotice } from "./CookieNotice";
 import { JoinBar } from "./JoinBar";
 import { Loading } from "./Status";
 
@@ -337,6 +338,7 @@ export function Layout() {
         </div>
       </header>
       <SessionBanner />
+      <CookieNotice />
 
       {/* Focused in code only (skip link, page changes), so it needs no visible focus ring. */}
       <main id="main" ref={mainRef} tabIndex={-1} className="flex-1 outline-none">
