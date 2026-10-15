@@ -44,12 +44,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [restoring, setRestoring] = useState(wasSignedIn);
   const [token, setTokenState] = useState<string | null>(null);
   const [sessionNotice, setSessionNotice] = useState<SessionNotice>(null);
+  // The refresh on load never got an answer, so the sign-in may still be fine.
+  const [restoreFailed, setRestoreFailed] = useState(false);
   const user = useMemo(() => userFromToken(token), [token]);
 
   const applyToken = useCallback((next: string | null) => {
     setToken(next);
     setTokenState(next);
+    setRestoreFailed(false);
   }, []);
+
+  // Profiles fetched while logged out say isFollowing: false, and the logged-out
+  // community feed still contains the user's own activity.
+  const refetchPersonalData = useCallback(
+    () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["users"] }),
+        queryClient.invalidateQueries({ queryKey: ["feed"] }),
+      ]),
+    [queryClient],
+  );
 
   const signOut = useCallback(
     (notice: SessionNotice) => {
@@ -81,10 +95,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     refreshAccessToken()
       .then((fresh) => setTokenState(fresh))
-      // Offline: the page works logged out for now, and the next load tries again.
-      .catch(() => undefined)
+      // Offline, or a phone that left the app while the server was slow: the page works logged out for now.
+      .catch(() => setRestoreFailed(true))
       .finally(() => setRestoring(false));
   }, [restoring]);
+
+  // The server keeps the cookie when the request was dropped, so the sign-in is tried again once the page is
+  // back on screen or the connection is back, instead of waiting for the next load.
+  useEffect(() => {
+    if (!restoreFailed) {
+      return;
+    }
+
+    const retry = () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+
+      refreshAccessToken()
+        .then((fresh) => {
+          setRestoreFailed(false);
+          if (fresh) {
+            setTokenState(fresh);
+            void refetchPersonalData();
+          }
+        })
+        .catch(() => undefined);
+    };
+
+    document.addEventListener("visibilitychange", retry);
+    window.addEventListener("online", retry);
+    return () => {
+      document.removeEventListener("visibilitychange", retry);
+      window.removeEventListener("online", retry);
+    };
+  }, [restoreFailed, refetchPersonalData]);
 
   // Gets a new access token shortly before the current one runs out, so a long visit never hits a 401.
   // api() also refreshes on a 401, so a timer delayed by a sleeping laptop does no harm.
@@ -113,13 +158,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     applyToken(fresh);
     setSessionNotice(null);
-    // Profiles fetched while logged out say isFollowing: false, and the logged-out
-    // community feed still contains the user's own activity.
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["users"] }),
-      queryClient.invalidateQueries({ queryKey: ["feed"] }),
-    ]);
-  }, [queryClient, applyToken]);
+    await refetchPersonalData();
+  }, [applyToken, refetchPersonalData]);
 
   // The new account can log in once its email is confirmed, so registering does not log in.
   const register = useCallback(async (input: RegisterInput) => {
