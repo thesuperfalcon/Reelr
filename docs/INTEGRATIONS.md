@@ -169,7 +169,7 @@ Defined in `infra/main.bicep` and `infra/resources.bicep`, deployed by `infra/de
 | Log Analytics `log-reelr` | Container logs, 30-day retention |
 | Container Apps environment `cae-reelr` | Hosts `reelr` (frontend, external), `backend` (internal) and job `reelr-migrate` |
 | Managed certificate `mc-reelr-domain` (optional) | With `customDomain` set (`-CustomDomain` or variable `REELR_CUSTOM_DOMAIN`), binds the site's own domain to the frontend app with a free certificate Azure renews. `App:BaseUrl` then uses that domain. The root README names the beta domain and its Cloudflare DNS records. |
-| Action group and metric alerts (optional) | Email when the backend returns more than 5 server errors in 15 minutes or restarts more than twice in 30 minutes |
+| Action group and metric alerts (optional) | Email when the backend returns more than 5 server errors in 15 minutes, restarts more than twice in 30 minutes, or the database has less than 20 % of its monthly free amount left |
 
 Backend settings set by the template include `ASPNETCORE_ENVIRONMENT=Production`, `ForwardedHeaders__ForwardLimit=3`, private-range `ForwardedHeaders__KnownNetworks__*`, `Registration__InviteOnly`, `Admin__UserIds__*` and `Demo__UserIds__*`. Liveness and startup probes use `/health/live`, not `/health/ready`, so probes do not keep the database awake.
 
