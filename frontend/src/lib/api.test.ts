@@ -86,6 +86,24 @@ describe("api", () => {
 
     expect(unauthorized).toHaveBeenCalledOnce();
     expect(getToken()).toBeNull();
+    expect(wasSignedIn()).toBe(false);
+    setUnauthorizedHandler(null);
+  });
+
+  it("keeps the sign-in when the refresh gets no answer", async () => {
+    mockFetch({
+      "GET /api/settings": () => new Response(null, { status: 401 }),
+      "POST /auth/refresh": () => Promise.reject(new TypeError("Load failed")),
+    });
+    const unauthorized = vi.fn();
+    setUnauthorizedHandler(unauthorized);
+    setToken("expired");
+
+    await expect(api("/api/settings")).rejects.toThrow(TypeError);
+
+    expect(unauthorized).not.toHaveBeenCalled();
+    expect(getToken()).toBe("expired");
+    expect(localStorage.getItem("reelr.signedIn")).toBe("1");
     setUnauthorizedHandler(null);
   });
 
