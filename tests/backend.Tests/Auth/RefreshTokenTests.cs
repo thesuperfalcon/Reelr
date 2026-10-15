@@ -1,18 +1,76 @@
+using System.Data.Common;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using backend.Data;
 using backend.Features.Auth;
 using backend.Tests.Infrastructure;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace backend.Tests.Auth;
 
-public class RefreshTokenTests : IClassFixture<ReelrApiFactory>
+/// <summary>
+/// Once held, the next query on the refresh tokens waits until it is cancelled, like a paused database that is
+/// still waking up. The wait ends by itself after a while, so a request that is never cancelled cannot hang the run.
+/// </summary>
+public class HeldRefreshTokenQuery : DbCommandInterceptor
 {
-    private readonly ReelrApiFactory _factory;
+    private int _held;
 
-    public RefreshTokenTests(ReelrApiFactory factory)
+    public TaskCompletionSource Reached { get; private set; } = new();
+
+    public TaskCompletionSource Cancelled { get; private set; } = new();
+
+    public void HoldNext()
+    {
+        Reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Interlocked.Exchange(ref _held, 1);
+    }
+
+    public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+        DbCommand command, CommandEventData eventData, InterceptionResult<DbDataReader> result,
+        CancellationToken cancellationToken = default)
+    {
+        if (command.CommandText.Contains("[RefreshTokens]") && Interlocked.Exchange(ref _held, 0) == 1)
+        {
+            Reached.SetResult();
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(20), cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                Cancelled.SetResult();
+                throw;
+            }
+        }
+
+        return result;
+    }
+}
+
+public class RefreshTokenApiFactory : ReelrApiFactory
+{
+    public HeldRefreshTokenQuery HeldQuery { get; } = new();
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.ConfigureServices(services =>
+            services.ConfigureDbContext<ReelrContext>(options => options.AddInterceptors(HeldQuery)));
+    }
+}
+
+public class RefreshTokenTests : IClassFixture<RefreshTokenApiFactory>
+{
+    private readonly RefreshTokenApiFactory _factory;
+
+    public RefreshTokenTests(RefreshTokenApiFactory factory)
     {
         _factory = factory;
     }
@@ -38,7 +96,7 @@ public class RefreshTokenTests : IClassFixture<ReelrApiFactory>
         return (user, RefreshCookie(response)!);
     }
 
-    private Task<HttpResponseMessage> RefreshAsync(string? cookie, bool csrfHeader = true)
+    private Task<HttpResponseMessage> RefreshAsync(string? cookie, bool csrfHeader = true, CancellationToken cancellationToken = default)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "/auth/refresh");
         if (cookie != null)
@@ -49,7 +107,7 @@ public class RefreshTokenTests : IClassFixture<ReelrApiFactory>
         {
             request.Headers.Add(RefreshTokens.CsrfHeader, "1");
         }
-        return Client().SendAsync(request);
+        return Client().SendAsync(request, cancellationToken);
     }
 
     // Moves every used token back in time, past the window in which two tabs may share one.
@@ -129,6 +187,26 @@ public class RefreshTokenTests : IClassFixture<ReelrApiFactory>
         // The rightful device's newer cookie is from the same sign-in, so it stops working too.
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshAsync(current)).StatusCode);
         Assert.Contains(_factory.Logs.Entries, e => e.EventId.Id == 1013 && Equals(e.State.GetValueOrDefault("UserId"), user.Id));
+    }
+
+    [Fact]
+    public async Task Refresh_DroppedByTheClientWhileTheDatabaseWakes_KeepsTheOldCookieValid()
+    {
+        var (_, cookie) = await LoginAsync();
+        _factory.HeldQuery.HoldNext();
+        using var phone = new CancellationTokenSource();
+
+        // The phone leaves the app while the database is still waking up.
+        var dropped = RefreshAsync(cookie, cancellationToken: phone.Token);
+        await _factory.HeldQuery.Reached.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await phone.CancelAsync();
+
+        // The server stops waiting too, instead of rotating the token for a client that is gone.
+        await _factory.HeldQuery.Cancelled.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => dropped);
+        // Back in the app minutes later, with the cookie it already had.
+        await MarkUsedTokensLongAgoAsync();
+        Assert.Equal(HttpStatusCode.OK, (await RefreshAsync(cookie)).StatusCode);
     }
 
     [Fact]
