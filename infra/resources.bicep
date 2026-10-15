@@ -493,6 +493,42 @@ resource restartAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (alertsO
   }
 }
 
+// When the free amount runs out the database pauses, and the site is down until the 1st of the next month.
+resource freeAmountAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = if (alertsOn) {
+  name: 'reelr-sql-free-amount-low'
+  location: 'global'
+  tags: tags
+  properties: {
+    description: 'Less than 20 % of the database\'s monthly free amount (20,000 of 100,000 vCore seconds) is left.'
+    severity: 2
+    enabled: true
+    scopes: [
+      database.id
+    ]
+    evaluationFrequency: 'PT1H'
+    windowSize: 'PT1H'
+    criteria: {
+      'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+      allOf: [
+        {
+          criterionType: 'StaticThresholdCriterion'
+          name: 'FreeAmountRemaining'
+          metricNamespace: 'Microsoft.Sql/servers/databases'
+          metricName: 'free_amount_remaining'
+          operator: 'LessThan'
+          threshold: 20000
+          timeAggregation: 'Minimum'
+        }
+      ]
+    }
+    actions: [
+      {
+        actionGroupId: alertEmails.id
+      }
+    ]
+  }
+}
+
 output siteUrl string = siteUrl
 output keyVaultName string = vault.name
 output sqlServerName string = sqlServer.name
