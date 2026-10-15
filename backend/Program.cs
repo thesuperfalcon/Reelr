@@ -73,13 +73,16 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
     return Task.CompletedTask;
 }));
 
-builder.Services.AddDbContext<ReelrContext>(options =>
+// Every use of the database is tracked (DatabaseActivity), so work that can wait never wakes a paused database.
+builder.Services.AddSingleton<DatabaseActivity>();
+builder.Services.AddSingleton<DatabaseActivityInterceptor>();
+builder.Services.AddDbContext<ReelrContext>((services, options) =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("ReelrContext")
         ?? throw new InvalidOperationException(
             "Connection string 'ReelrContext' not found."
         ))
-        .AddInterceptors(new OpenRetryInterceptor()));
+        .AddInterceptors(new OpenRetryInterceptor(), services.GetRequiredService<DatabaseActivityInterceptor>()));
 
 builder.Services
     .AddIdentity<User, IdentityRole<int>>(options =>
