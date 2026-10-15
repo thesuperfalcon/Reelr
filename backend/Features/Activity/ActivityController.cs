@@ -22,13 +22,17 @@ namespace backend.Features.Activity
         private readonly ReelrContext _context;
         private readonly IMemoryCache _cache;
         private readonly ActivityOptions _options;
+        private readonly AnonymousCommunityPages _anonymousPages;
 
-        public ActivityController(IActivityFeed feed, ReelrContext context, IMemoryCache cache, IOptions<ActivityOptions> options)
+        public ActivityController(
+            IActivityFeed feed, ReelrContext context, IMemoryCache cache, IOptions<ActivityOptions> options,
+            AnonymousCommunityPages anonymousPages)
         {
             _feed = feed;
             _context = context;
             _cache = cache;
             _options = options.Value;
+            _anonymousPages = anonymousPages;
         }
 
         [Authorize]
@@ -86,11 +90,24 @@ namespace backend.Features.Activity
                 return Ok(await _feed.GetCommunityAsync(viewerId, before, limit, kinds));
             }
 
-            var typesKey = kinds == null ? "all" : string.Join(',', kinds.Order());
-            var page = await _cache.GetOrCreateAsync($"feed:community:{viewerId}:{limit}:{typesKey}", entry =>
+            // Logged-out visitors get the page read when the database was last in use, if nothing changed since,
+            // so they do not wake a paused database.
+            if (viewerId == null && _anonymousPages.TryGet(limit, kinds, out var unchanged))
+            {
+                return Ok(unchanged);
+            }
+
+            var key = $"feed:community:{viewerId}:{AnonymousCommunityPages.Key(limit, kinds)}";
+            var page = await _cache.GetOrCreateAsync(key, async entry =>
             {
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(_options.CommunityCacheSeconds);
-                return _feed.GetCommunityAsync(viewerId, null, limit, kinds);
+                var fresh = await _feed.GetCommunityAsync(viewerId, null, limit, kinds);
+                if (viewerId == null)
+                {
+                    _anonymousPages.Set(limit, kinds, fresh);
+                }
+
+                return fresh;
             });
 
             return Ok(page);

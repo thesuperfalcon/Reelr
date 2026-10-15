@@ -232,7 +232,7 @@ All endpoints act on the caller and need a Member token. If the token belongs to
 | Method and path | Auth | Parameters | Success | Errors |
 |---|---|---|---|---|
 | `GET /api/feed/following` | Member | `cursor`, `limit` (default 20, clamped 1-50), `types` (comma list), `includeOwn` (defaults to the `ShowOwnActivity` setting) | 200 `ActivityPageDto { items, nextCursor }` | 400 (string) invalid cursor |
-| `GET /api/feed/community` | Public | `cursor`, `limit`, `types` | 200 `ActivityPageDto`; first page cached 60 s per viewer | 400 (string) invalid cursor |
+| `GET /api/feed/community` | Public | `cursor`, `limit`, `types` | 200 `ActivityPageDto`; first page cached 60 s per viewer, and for logged-out visitors until the database is next used | 400 (string) invalid cursor |
 | `GET /api/feed/following/films` | Member | `limit` (default 6, clamped 1-24) | 200 `FollowingFilmDto[]` | |
 
 `types` values: `watched`, `reviewed`, `listCreated`, `listAdded`, `watchlistAdded`; unknown values are ignored. The Community feed only produces `watched`, `reviewed` and `listCreated`. `ActivityItemDto` fields: `id` (for example `diary:123`, `listitem:4:56`), `type`, `occurredAt`, `actor`, `movie?`, `list?`, `review?` (excerpt up to 280 characters, empty for spoilers), `rating`, `liked`, `rewatched`, `watchedAt`, `groupCount`, `groupMovies`.

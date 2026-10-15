@@ -150,6 +150,15 @@ All persistent state, including Identity, refresh tokens and the Data Protection
 
 `backend/Data/OpenRetryInterceptor.cs` retries opening a connection up to 6 times with exponential backoff (2 to 20 seconds) for Azure transient errors such as 40613 (a paused serverless database waking up). It deliberately excludes error 4060 so EF can still detect a missing database. The Azure connection string uses a 90-second connect timeout.
 
+### Keeping the paused database asleep
+
+Every wake-up of the serverless database uses part of its monthly free amount (about 900 vCore seconds for a short visit, measured in October 2026), so the backend avoids waking it for work that can wait:
+
+- `DatabaseActivityInterceptor` reports every connection opened or closed to `DatabaseActivity`.
+- `IdleConnectionCloser` clears the SqlClient pools 60 seconds after the last use (`Database:CloseIdleConnectionsAfterSeconds`). Pooled connections are sessions, and the database only starts counting down to its pause once none are left; the pool alone would keep them open for 4 to 8 minutes. Just before closing, it runs the `IBeforeDatabaseIdle` work.
+- `MovieRefresher` waits for the next database use, not for any request, so scanners asking for paths such as `/api/.env` do not wake the database.
+- Logged-out visitors get the community feed from `AnonymousCommunityPages`, which stays valid until the database is used again and is read again before it goes idle (`AnonymousCommunityRefresh`).
+
 ### Limitations
 
 - The Azure database is serverless with auto-pause after 60 minutes and the free offer, which pauses until next month if the free amount runs out (`infra/resources.bicep`). The first request after a pause can take up to a minute.
@@ -169,7 +178,7 @@ Defined in `infra/main.bicep` and `infra/resources.bicep`, deployed by `infra/de
 | Log Analytics `log-reelr` | Container logs, 30-day retention |
 | Container Apps environment `cae-reelr` | Hosts `reelr` (frontend, external), `backend` (internal) and job `reelr-migrate` |
 | Managed certificate `mc-reelr-domain` (optional) | With `customDomain` set (`-CustomDomain` or variable `REELR_CUSTOM_DOMAIN`), binds the site's own domain to the frontend app with a free certificate Azure renews. `App:BaseUrl` then uses that domain. The root README names the beta domain and its Cloudflare DNS records. |
-| Action group and metric alerts (optional) | Email when the backend returns more than 5 server errors in 15 minutes or restarts more than twice in 30 minutes |
+| Action group and metric alerts (optional) | Email when the backend returns more than 5 server errors in 15 minutes, restarts more than twice in 30 minutes, or the database has less than 20 % of its monthly free amount left |
 
 Backend settings set by the template include `ASPNETCORE_ENVIRONMENT=Production`, `ForwardedHeaders__ForwardLimit=3`, private-range `ForwardedHeaders__KnownNetworks__*`, `Registration__InviteOnly`, `Admin__UserIds__*` and `Demo__UserIds__*`. Liveness and startup probes use `/health/live`, not `/health/ready`, so probes do not keep the database awake.
 

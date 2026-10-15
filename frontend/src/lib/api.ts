@@ -137,9 +137,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response = await send(token);
 
   // The access token ran out or was revoked: get a new one once and try again. If the sign-in itself
-  // has ended, the auth state is reset.
+  // has ended, the auth state is reset. A refresh that never got an answer (a phone dropping the request
+  // while the database wakes up) rejects and is thrown as is, so the request can be retried and the
+  // sign-in is kept.
   if (response.status === 401 && token) {
-    const fresh = await refreshAccessToken().catch(() => null);
+    const fresh = await refreshAccessToken();
     if (fresh) {
       response = await send(fresh);
     } else {

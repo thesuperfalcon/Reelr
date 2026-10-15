@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { getToken } from "../lib/api";
@@ -59,6 +59,29 @@ describe("AuthProvider", () => {
     renderAuth();
 
     expect(await screen.findByText("Signed out")).toBeInTheDocument();
+  });
+
+  it("tries the sign-in again when the page is back on screen after a dropped refresh", async () => {
+    let attempts = 0;
+    mockFetch({
+      "POST /auth/refresh": () => {
+        attempts += 1;
+        if (attempts === 1) {
+          // What fetch does when a phone drops the request.
+          throw new TypeError("Load failed");
+        }
+        return json({ token: fakeToken(7, "cleo") });
+      },
+    });
+    localStorage.setItem("reelr.signedIn", "1");
+
+    renderAuth();
+    expect(await screen.findByText("Signed out")).toBeInTheDocument();
+
+    fireEvent(document, new Event("visibilitychange"));
+
+    expect(await screen.findByText("Signed in as cleo")).toBeInTheDocument();
+    expect(attempts).toBe(2);
   });
 
   it("logs in and out, ending the sign-in on the server", async () => {

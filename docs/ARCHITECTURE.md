@@ -238,7 +238,7 @@ sequenceDiagram
 |---|---|---|
 | TMDB | `TmdbService` typed HttpClient | Timeouts 4 s per attempt and 10 s total, 2 retries, circuit breaker; failures become `TmdbUnavailableException` and then 502 or 503. Stored films still work. |
 | SMTP | `EmailQueue` -> `EmailDispatcher` -> `SmtpEmailSender` | Requests never wait for email. Three retries, then the message is logged and dropped. |
-| SQL Server | `ReelrContext` with `OpenRetryInterceptor` | Connection opening retries transient Azure SQL errors (for example a paused database waking). |
+| SQL Server | `ReelrContext` with `OpenRetryInterceptor` and `DatabaseActivityInterceptor` | Connection opening retries transient Azure SQL errors (for example a paused database waking). Every use is tracked, so background work and cached pages never wake a paused database. |
 
 Details are in [INTEGRATIONS.md](INTEGRATIONS.md).
 
@@ -277,9 +277,9 @@ Each decision below is stated in a code comment or README; the file is the evide
 
 Summarised here; [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) has evidence, impact and next steps.
 
-- **Scale-out blocked by in-memory state.** `LoginThrottle`, the ASP.NET rate limiter, `TmdbCache`, `SecurityStamps`, `AccountEmails` counters, the community feed cache and `EmailQueue` are all per process. A second replica would weaken rate limits and lose queued emails on scale-in.
+- **Scale-out blocked by in-memory state.** `LoginThrottle`, the ASP.NET rate limiter, `TmdbCache`, `SecurityStamps`, `AccountEmails` counters, the community feed caches (including `AnonymousCommunityPages`, which relies on `DatabaseActivity` seeing every change) and `EmailQueue` are all per process. A second replica would weaken rate limits and lose queued emails on scale-in.
 - **Controllers coupled to EF Core.** Every controller injects `ReelrContext`. That is simple, but it duplicates query shapes (cursor paging blocks, list "top movies" queries) and puts business checks in several places (block checks appear in four controllers).
 - **One project, no enforced boundaries.** Nothing stops a feature from using another feature's entities directly, and several do (for example `DataExport` reads every feature's tables).
 - **Feed cost grows with data.** `DerivedActivityFeed` runs up to five queries per page and merges in memory. It is bounded (`Take`), indexed and windowed (30 and 365 days), but a stored activity table is the documented escape route.
 - **Inconsistent error bodies and timestamps.** Some 400 and 409 responses are plain strings, not ProblemDetails; most timestamps are serialised without a UTC marker. Both are covered in [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md).
-- **Scale-to-zero side effects.** With `backendMinReplicas = 0`, background work (`MovieRefresher`, `EmailDispatcher`) runs only while the container is up. `MovieRefresher` always waits for a visitor (`VisitorSignal`), so it never wakes a paused database.
+- **Scale-to-zero side effects.** With `backendMinReplicas = 0`, background work (`MovieRefresher`, `EmailDispatcher`) runs only while the container is up. `MovieRefresher` always waits until the app uses the database (`DatabaseActivity`), so it never wakes a paused database.
