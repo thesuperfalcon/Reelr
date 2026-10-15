@@ -47,7 +47,11 @@ public class RefreshTokens
     /// </summary>
     public async Task<User?> RotateAsync(HttpRequest request, HttpResponse response)
     {
-        var token = await FindAsync(request);
+        // Waking a paused database takes most of a minute, and a phone often drops the request meanwhile, e.g. when
+        // the user leaves the app. A rotation then would set a cookie nobody receives, and the old cookie that comes
+        // back later would look stolen. So the lookup stops when the client is gone, and the old cookie stays valid.
+        var aborted = request.HttpContext.RequestAborted;
+        var token = await FindAsync(request, aborted);
         var now = DateTime.UtcNow;
 
         if (token == null || token.RevokedAt != null || token.ExpiresAt <= now || token.SecurityStamp != token.User.SecurityStamp)
@@ -55,6 +59,10 @@ public class RefreshTokens
             Clear(response);
             return null;
         }
+
+        // The last point to stop. From the claim on, the rotation runs to the end, so no token is ever used up
+        // without a new one in its place.
+        aborted.ThrowIfCancellationRequested();
 
         // Claims the token in one statement, so two requests with the same token cannot both pass as first use.
         var claimed = await _context.RefreshTokens
@@ -124,7 +132,7 @@ public class RefreshTokens
         });
     }
 
-    private async Task<RefreshToken?> FindAsync(HttpRequest request)
+    private async Task<RefreshToken?> FindAsync(HttpRequest request, CancellationToken cancellationToken = default)
     {
         var value = request.Cookies[CookieName];
 
@@ -134,7 +142,7 @@ public class RefreshTokens
         }
 
         var hash = Hash(value);
-        return await _context.RefreshTokens.Include(t => t.User).FirstOrDefaultAsync(t => t.TokenHash == hash);
+        return await _context.RefreshTokens.Include(t => t.User).FirstOrDefaultAsync(t => t.TokenHash == hash, cancellationToken);
     }
 
     private Task RevokeFamilyAsync(Guid familyId, DateTime now) =>
