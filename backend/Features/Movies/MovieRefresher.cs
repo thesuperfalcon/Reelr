@@ -1,26 +1,29 @@
+using backend.Data;
 using Microsoft.Extensions.Options;
 
 namespace backend.Features.Movies
 {
     // Keeps the stored film data from going stale: every few hours it copies a batch of the oldest films from
-    // TMDB again (MovieCatalog.RefreshStaleAsync). A run waits for a visitor (VisitorSignal), so the app can stay
-    // up all the time without waking a paused database. With several app instances each would do this; that is
-    // harmless, only wasteful, and can move to a single scheduled job when there is more than one instance.
+    // TMDB again (MovieCatalog.RefreshStaleAsync). A run waits until the app uses the database anyway
+    // (DatabaseActivity), so the app can stay up all the time without waking a paused database. It does not wait
+    // for any request: scanners asking for /api/.env would count, and the run would wake the database for them.
+    // With several app instances each would do this; that is harmless, only wasteful, and can move to a single
+    // scheduled job when there is more than one instance.
     public class MovieRefresher : BackgroundService
     {
         private readonly IServiceScopeFactory _scopes;
-        private readonly VisitorSignal _visitors;
+        private readonly DatabaseActivity _database;
         private readonly MovieRefreshOptions _options;
         private readonly ILogger<MovieRefresher> _logger;
 
         public MovieRefresher(
             IServiceScopeFactory scopes,
-            VisitorSignal visitors,
+            DatabaseActivity database,
             IOptions<MovieRefreshOptions> options,
             ILogger<MovieRefresher> logger)
         {
             _scopes = scopes;
-            _visitors = visitors;
+            _database = database;
             _options = options.Value;
             _logger = logger;
         }
@@ -34,7 +37,7 @@ namespace backend.Features.Movies
 
             while (true)
             {
-                await _visitors.NextVisitorAsync(stoppingToken);
+                await _database.NextUseAsync(stoppingToken);
                 await Task.Delay(TimeSpan.FromMinutes(_options.StartDelayMinutes), stoppingToken);
 
                 try

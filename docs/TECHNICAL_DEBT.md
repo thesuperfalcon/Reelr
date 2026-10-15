@@ -142,7 +142,7 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 ### TD-16. Background work and scale-to-zero
 
 - **Description:** In Azure the backend keeps one replica warm by default, but `backendMinReplicas = 0` lets it scale to zero. Background services only run while a replica is up.
-- **Evidence:** `backendMinReplicas` in `infra/main.bicep`; `MovieRefresher` runs at the first visitor after start-up (plus a 2-minute delay) and then at the first visitor at least 6 hours later; `EmailQueue` is in memory with retries up to about 42 seconds.
+- **Evidence:** `backendMinReplicas` in `infra/main.bicep`; `MovieRefresher` runs at the first database use after start-up (plus a 2-minute delay) and then at the first use at least 6 hours later; `EmailQueue` is in memory with retries up to about 42 seconds.
 - **Impact:** An email still retrying when the replica scales in is lost. Rate-limit and throttle counters reset at each cold start (see [SECURITY.md](SECURITY.md) S4).
 - **Next step:** Acceptable for the beta. If it matters, move refresh and email to a scheduled Container Apps job.
 

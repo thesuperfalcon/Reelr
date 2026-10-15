@@ -5,10 +5,10 @@ namespace backend.Features.Movies
     {
         public bool Enabled { get; set; } = true;
 
-        // The shortest time between two runs. A run waits for a visitor after that, so it never wakes the database.
+        // The shortest time between two runs. A run waits for the database to be in use after that, so it never wakes it.
         public double IntervalHours { get; set; } = 6;
 
-        // How long a run waits after that visitor, so it does not slow down the first requests of a visit.
+        // How long a run waits after that use, so it does not slow down the first requests of a visit.
         public double StartDelayMinutes { get; set; } = 2;
 
         // A stored film older than this is copied from TMDB again.

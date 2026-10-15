@@ -73,13 +73,19 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
     return Task.CompletedTask;
 }));
 
-builder.Services.AddDbContext<ReelrContext>(options =>
+// Every use of the database is tracked (DatabaseActivity), so work that can wait never wakes a paused database
+// and idle connections are closed soon, which lets the database pause sooner ("Database" section).
+builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection("Database"));
+builder.Services.AddSingleton<DatabaseActivity>();
+builder.Services.AddSingleton<DatabaseActivityInterceptor>();
+builder.Services.AddHostedService<IdleConnectionCloser>();
+builder.Services.AddDbContext<ReelrContext>((services, options) =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("ReelrContext")
         ?? throw new InvalidOperationException(
             "Connection string 'ReelrContext' not found."
         ))
-        .AddInterceptors(new OpenRetryInterceptor()));
+        .AddInterceptors(new OpenRetryInterceptor(), services.GetRequiredService<DatabaseActivityInterceptor>()));
 
 builder.Services
     .AddIdentity<User, IdentityRole<int>>(options =>
@@ -119,7 +125,6 @@ builder.Services.AddHostedService<EmailDispatcher>();
 
 // Copies stored films from TMDB again now and then ("MovieRefresh" section).
 builder.Services.Configure<MovieRefreshOptions>(builder.Configuration.GetSection("MovieRefresh"));
-builder.Services.AddSingleton<VisitorSignal>();
 builder.Services.AddHostedService<MovieRefresher>();
 builder.Services.AddScoped<AccountEmails>();
 builder.Services.AddSingleton<SecurityStamps>();
@@ -172,6 +177,8 @@ builder.Services.AddScoped<IActivityFeed>(services =>
         null or "Derived" => ActivatorUtilities.CreateInstance<DerivedActivityFeed>(services),
         var name => throw new InvalidOperationException($"Unknown Activity:Implementation '{name}'.")
     });
+builder.Services.AddSingleton<AnonymousCommunityPages>();
+builder.Services.AddScoped<IBeforeDatabaseIdle, AnonymousCommunityRefresh>();
 
 builder.Services
     .AddAuthentication(options =>
@@ -265,18 +272,6 @@ app.UseCorrelationId();
 
 // Logs each request once it is done, with the status the later steps set.
 app.UseRequestLogging();
-
-// Background work waits for a visitor, so it never wakes a paused database. Health checks do not count.
-var visitors = app.Services.GetRequiredService<VisitorSignal>();
-app.Use((context, next) =>
-{
-    if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/auth"))
-    {
-        visitors.Seen();
-    }
-
-    return next(context);
-});
 
 // In Development the developer exception page runs first and still shows the stack trace.
 app.UseExceptionHandler();
