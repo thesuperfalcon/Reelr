@@ -53,6 +53,10 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
 
     public bool RequiresInvite => InviteOnly;
 
+    // Closing idle connections clears every pool in the process, also those of test classes running alongside,
+    // so it is off. IdleConnectionCloserTests turns it on.
+    protected virtual int CloseIdleConnectionsAfterSeconds => 0;
+
     /// <summary>
     /// Runs code against the test database directly, for setup the API cannot do yet or for checking stored values.
     /// </summary>
@@ -74,6 +78,7 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("App:BaseUrl", "http://reelr.test");
         // Tests read the community feed right after changing data, so its short cache is off.
         builder.UseSetting("Activity:CommunityCacheSeconds", "0");
+        builder.UseSetting("Database:CloseIdleConnectionsAfterSeconds", CloseIdleConnectionsAfterSeconds.ToString());
         // MovieRefresherTests calls the refresh itself; the background run would change films under other tests.
         builder.UseSetting("MovieRefresh:Enabled", "false");
         builder.UseSetting("Registration:InviteOnly", InviteOnly.ToString());

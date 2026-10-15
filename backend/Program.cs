@@ -73,9 +73,12 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
     return Task.CompletedTask;
 }));
 
-// Every use of the database is tracked (DatabaseActivity), so work that can wait never wakes a paused database.
+// Every use of the database is tracked (DatabaseActivity), so work that can wait never wakes a paused database
+// and idle connections are closed soon, which lets the database pause sooner ("Database" section).
+builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection("Database"));
 builder.Services.AddSingleton<DatabaseActivity>();
 builder.Services.AddSingleton<DatabaseActivityInterceptor>();
+builder.Services.AddHostedService<IdleConnectionCloser>();
 builder.Services.AddDbContext<ReelrContext>((services, options) =>
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("ReelrContext")
