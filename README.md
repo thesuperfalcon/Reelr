@@ -216,7 +216,7 @@ After that, `.github/workflows/deploy.yml` deploys every commit on `main` that p
 
 **Own domain.** The beta runs at https://reelr.se (registered at Loopia, DNS at Cloudflare, "DNS only"): a CNAME to the app's default address and a TXT record `asuid.<name>` with the environment's custom domain verification id. With `-CustomDomain` (and the variable `REELR_CUSTOM_DOMAIN`), the template binds it with a free managed certificate that Azure renews, and account emails link to it.
 
-The backend and the frontend each keep one replica warm (`backendMinReplicas` and `frontendMinReplicas`, both 1 by default; 0 lets them sleep). The database still pauses after an idle hour, so the first visit after a quiet spell can take up to a minute while it resumes; pages show the header at once and wait for it under "Signing in". Background film refreshes wait for a visitor, so a warm backend does not wake the database and use up the free amount.
+The backend and the frontend each keep one replica warm (`backendMinReplicas` and `frontendMinReplicas`, both 1 by default; 0 lets them sleep). The database still pauses after an idle hour, so the first visit after a quiet spell can take up to a minute while it resumes; pages show the header at once and wait for it under "Signing in". Background film refreshes wait until the app uses the database anyway, so a warm backend does not wake the database and use up the free amount.
 
 ## Before going live
 

@@ -125,7 +125,6 @@ builder.Services.AddHostedService<EmailDispatcher>();
 
 // Copies stored films from TMDB again now and then ("MovieRefresh" section).
 builder.Services.Configure<MovieRefreshOptions>(builder.Configuration.GetSection("MovieRefresh"));
-builder.Services.AddSingleton<VisitorSignal>();
 builder.Services.AddHostedService<MovieRefresher>();
 builder.Services.AddScoped<AccountEmails>();
 builder.Services.AddSingleton<SecurityStamps>();
@@ -271,18 +270,6 @@ app.UseCorrelationId();
 
 // Logs each request once it is done, with the status the later steps set.
 app.UseRequestLogging();
-
-// Background work waits for a visitor, so it never wakes a paused database. Health checks do not count.
-var visitors = app.Services.GetRequiredService<VisitorSignal>();
-app.Use((context, next) =>
-{
-    if (context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/auth"))
-    {
-        visitors.Seen();
-    }
-
-    return next(context);
-});
 
 // In Development the developer exception page runs first and still shows the stack trace.
 app.UseExceptionHandler();
