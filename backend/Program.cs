@@ -177,6 +177,8 @@ builder.Services.AddScoped<IActivityFeed>(services =>
         null or "Derived" => ActivatorUtilities.CreateInstance<DerivedActivityFeed>(services),
         var name => throw new InvalidOperationException($"Unknown Activity:Implementation '{name}'.")
     });
+builder.Services.AddSingleton<AnonymousCommunityPages>();
+builder.Services.AddScoped<IBeforeDatabaseIdle, AnonymousCommunityRefresh>();
 
 builder.Services
     .AddAuthentication(options =>
