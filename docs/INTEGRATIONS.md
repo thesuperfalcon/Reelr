@@ -180,6 +180,8 @@ Defined in `infra/main.bicep` and `infra/resources.bicep`, deployed by `infra/de
 | Managed certificate `mc-reelr-domain` (optional) | With `customDomain` set (`-CustomDomain` or variable `REELR_CUSTOM_DOMAIN`), binds the site's own domain to the frontend app with a free certificate Azure renews. `App:BaseUrl` then uses that domain. The root README names the beta domain and its Cloudflare DNS records. |
 | Action group and metric alerts (optional) | Email when the backend returns more than 5 server errors in 15 minutes, restarts more than twice in 30 minutes, or the database has less than 20 % of its monthly free amount left |
 
+The alerts above fire only when a request reaches the backend. An external check covers the rest (DNS, certificate, Cloudflare, nginx): a free UptimeRobot monitor, outside Azure and the repository, requests `https://reelr.tintinfalk.dev/` every 5 minutes, expects status 200 and the keyword `Reelr` from `index.html`, and emails the same address as `REELR_ALERT_EMAIL`. It checks the root because nginx serves it alone; `/api` and `/health/ready` would keep the database awake, and `/health/live` is not reachable from outside. The free plan has no advance certificate warning, but an expired or invalid certificate fails the check like any other outage.
+
 Backend settings set by the template include `ASPNETCORE_ENVIRONMENT=Production`, `ForwardedHeaders__ForwardLimit=3`, private-range `ForwardedHeaders__KnownNetworks__*`, `Registration__InviteOnly`, `Admin__UserIds__*` and `Demo__UserIds__*`. Liveness and startup probes use `/health/live`, not `/health/ready`, so probes do not keep the database awake.
 
 ## GitHub Actions, Container Registry and Dependabot
