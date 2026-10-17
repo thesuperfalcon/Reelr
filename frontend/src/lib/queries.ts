@@ -260,20 +260,19 @@ export interface DiaryEntryUpdate {
   rewatched: boolean;
 }
 
-// Diary edits can change the film's watched status, and deleting an entry deletes the review it logged,
-// so they refresh everything about the user and all reviews.
-function useInvalidateDiary() {
+// Every diary, rating and review change goes through JournalService, which also changes watched status, the
+// watchlist, reviews and the activity feed. One list for all of them keeps them from drifting apart; only queries
+// on screen are fetched again, so a broad list costs little.
+function useInvalidateJournal() {
   const queryClient = useQueryClient();
   return () =>
-    Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["me"] }),
-      queryClient.invalidateQueries({ queryKey: ["users"] }),
-      queryClient.invalidateQueries({ queryKey: ["reviews"] }),
-    ]);
+    Promise.all(
+      [["me"], ["users"], ["reviews"], ["stats"], ["feed"]].map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+    );
 }
 
 export function useUpdateDiaryEntry() {
-  const invalidate = useInvalidateDiary();
+  const invalidate = useInvalidateJournal();
   return useMutation({
     mutationFn: ({ id, update }: { id: number; update: DiaryEntryUpdate }) =>
       api<DiaryEntry>(`/api/diary/${id}`, { method: "PUT", body: JSON.stringify(update) }),
@@ -282,7 +281,7 @@ export function useUpdateDiaryEntry() {
 }
 
 export function useDeleteDiaryEntry() {
-  const invalidate = useInvalidateDiary();
+  const invalidate = useInvalidateJournal();
   return useMutation({
     mutationFn: (id: number) => api<void>(`/api/diary/${id}`, { method: "DELETE" }),
     onSettled: invalidate,
@@ -291,7 +290,7 @@ export function useDeleteDiaryEntry() {
 
 // Marks the film unwatched and deletes all its diary entries. The rating stays.
 export function useRemoveWatched(tmdbId: number) {
-  const invalidate = useInvalidateDiary();
+  const invalidate = useInvalidateJournal();
   return useMutation({
     mutationFn: () => api<void>(`/api/movies/${tmdbId}/status`, { method: "DELETE" }),
     onSettled: invalidate,
@@ -304,6 +303,7 @@ export const REVIEW_MAX_LENGTH = 5000;
 // Saves rating and status from the rating dialog in one request, which logs one new diary entry.
 export function useSaveDiaryEntry(tmdbId: number) {
   const queryClient = useQueryClient();
+  const invalidate = useInvalidateJournal();
   return useMutation({
     mutationFn: (input: DiaryEntryInput) =>
       api<DiaryEntry>(`/api/movies/${tmdbId}/diary`, {
@@ -315,33 +315,17 @@ export function useSaveDiaryEntry(tmdbId: number) {
         queryClient.setQueryData<Rating>(["me", "rating", tmdbId], { tmdbId, score: entry.rating });
       }
     },
-    onSettled: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["me", "rating", tmdbId] }),
-        queryClient.invalidateQueries({ queryKey: ["me", "status", tmdbId] }),
-        queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
-        // Diary stats are counted from the diary.
-        queryClient.invalidateQueries({ queryKey: ["stats"] }),
-        // Logging a film removes it from the watchlist on the server.
-        queryClient.invalidateQueries({ queryKey: ["me", "watchlist"] }),
-        // Reviews show the author's current rating.
-        queryClient.invalidateQueries({ queryKey: ["reviews"] }),
-      ]),
+    onSettled: invalidate,
   });
 }
 
 export function useDeleteRating(tmdbId: number) {
   const queryClient = useQueryClient();
+  const invalidate = useInvalidateJournal();
   return useMutation({
     mutationFn: () => api<void>(`/api/movies/${tmdbId}/rating`, { method: "DELETE" }),
     onSuccess: () => queryClient.setQueryData(["me", "rating", tmdbId], null),
-    onSettled: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
-        // Diary stats are counted from the diary.
-        queryClient.invalidateQueries({ queryKey: ["stats"] }),
-        queryClient.invalidateQueries({ queryKey: ["reviews"] }),
-      ]),
+    onSettled: invalidate,
   });
 }
 
@@ -378,7 +362,7 @@ export function useReview(reviewId: number) {
 // The server attaches a new review to the latest diary entry. Reviews written together with a log
 // go through useSaveDiaryEntry instead.
 export function useWriteReview(tmdbId: number) {
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateJournal();
   return useMutation({
     mutationFn: ({ id, text, containsSpoilers }: { id: number | null; text: string; containsSpoilers: boolean }) =>
       id === null
@@ -390,26 +374,15 @@ export function useWriteReview(tmdbId: number) {
             method: "PUT",
             body: JSON.stringify({ text, containsSpoilers }),
           }),
-    onSettled: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["reviews"] }),
-        // The diary shows which entries have a review.
-        queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
-      ]),
+    onSettled: invalidate,
   });
 }
 
 export function useDeleteReview() {
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateJournal();
   return useMutation({
     mutationFn: (id: number) => api<void>(`/api/reviews/${id}`, { method: "DELETE" }),
-    onSettled: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["reviews"] }),
-        queryClient.invalidateQueries({ queryKey: ["me", "diary"] }),
-        // Diary stats are counted from the diary.
-        queryClient.invalidateQueries({ queryKey: ["stats"] }),
-      ]),
+    onSettled: invalidate,
   });
 }
 
