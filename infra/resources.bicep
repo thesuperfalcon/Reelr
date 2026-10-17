@@ -31,6 +31,7 @@ var appPort = usePlaceholder ? 80 : 8080
 
 // Built-in role ids.
 var keyVaultSecretsUser = '4633458b-17de-408a-b874-0445c86b69e6'
+var keyVaultCryptoUser = '12338af0-0e69-4776-bea7-57ae8d297424'
 var keyVaultSecretsOfficer = 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
 
 // ---------- Identities ----------
@@ -67,11 +68,36 @@ resource vault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
+// Wraps the ASP.NET Core Data Protection key ring, which is stored in the database.
+resource dataProtectionKey 'Microsoft.KeyVault/vaults/keys@2023-07-01' = {
+  parent: vault
+  name: 'data-protection'
+  properties: {
+    kty: 'RSA'
+    keySize: 2048
+    keyOps: [
+      'wrapKey'
+      'unwrapKey'
+    ]
+  }
+}
+
 resource backendReadsSecrets 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(vault.id, backendIdentity.id, keyVaultSecretsUser)
   scope: vault
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUser)
+    principalId: backendIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Scoped to the one key, not the vault.
+resource backendWrapsDataProtectionKeys 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(dataProtectionKey.id, backendIdentity.id, keyVaultCryptoUser)
+  scope: dataProtectionKey
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultCryptoUser)
     principalId: backendIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
@@ -283,6 +309,8 @@ resource backend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
             { name: 'Email__Password', secretRef: 'email-password' }
             { name: 'Email__FromAddress', value: emailFromAddress }
             { name: 'App__BaseUrl', value: siteUrl }
+            // Versionless, so rotated key versions are picked up.
+            { name: 'DataProtection__KeyVaultKeyUri', value: dataProtectionKey.properties.keyUri }
             // Requests pass the platform's proxy, nginx and the platform's proxy again, all on private addresses.
             { name: 'ForwardedHeaders__ForwardLimit', value: '3' }
             { name: 'ForwardedHeaders__KnownNetworks__0', value: '10.0.0.0/8' }
@@ -302,6 +330,7 @@ resource backend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
   }
   dependsOn: [
     backendReadsSecrets
+    backendWrapsDataProtectionKeys
   ]
 }
 
