@@ -309,6 +309,8 @@ resource backend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
             { name: 'Email__Password', secretRef: 'email-password' }
             { name: 'Email__FromAddress', value: emailFromAddress }
             { name: 'App__BaseUrl', value: siteUrl }
+            // Versionless, so rotated key versions are picked up.
+            { name: 'DataProtection__KeyVaultKeyUri', value: dataProtectionKey.properties.keyUri }
             // Requests pass the platform's proxy, nginx and the platform's proxy again, all on private addresses.
             { name: 'ForwardedHeaders__ForwardLimit', value: '3' }
             { name: 'ForwardedHeaders__KnownNetworks__0', value: '10.0.0.0/8' }
