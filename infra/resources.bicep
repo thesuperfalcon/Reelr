@@ -67,6 +67,20 @@ resource vault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
+// Wraps the ASP.NET Core Data Protection key ring, which is stored in the database.
+resource dataProtectionKey 'Microsoft.KeyVault/vaults/keys@2023-07-01' = {
+  parent: vault
+  name: 'data-protection'
+  properties: {
+    kty: 'RSA'
+    keySize: 2048
+    keyOps: [
+      'wrapKey'
+      'unwrapKey'
+    ]
+  }
+}
+
 resource backendReadsSecrets 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(vault.id, backendIdentity.id, keyVaultSecretsUser)
   scope: vault
