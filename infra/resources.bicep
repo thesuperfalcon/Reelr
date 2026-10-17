@@ -31,6 +31,7 @@ var appPort = usePlaceholder ? 80 : 8080
 
 // Built-in role ids.
 var keyVaultSecretsUser = '4633458b-17de-408a-b874-0445c86b69e6'
+var keyVaultCryptoUser = '12338af0-0e69-4776-bea7-57ae8d297424'
 var keyVaultSecretsOfficer = 'b86a8fe4-44ce-4948-aee5-eccb2c155cd7'
 
 // ---------- Identities ----------
@@ -86,6 +87,17 @@ resource backendReadsSecrets 'Microsoft.Authorization/roleAssignments@2022-04-01
   scope: vault
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultSecretsUser)
+    principalId: backendIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Scoped to the one key, not the vault.
+resource backendWrapsDataProtectionKeys 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(dataProtectionKey.id, backendIdentity.id, keyVaultCryptoUser)
+  scope: dataProtectionKey
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', keyVaultCryptoUser)
     principalId: backendIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
@@ -316,6 +328,7 @@ resource backend 'Microsoft.App/containerApps@2024-03-01' = if (deployApps) {
   }
   dependsOn: [
     backendReadsSecrets
+    backendWrapsDataProtectionKeys
   ]
 }
 
