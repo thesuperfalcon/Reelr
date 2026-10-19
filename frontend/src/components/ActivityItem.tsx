@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { useAuth } from "../auth/auth-context";
-import { dayFormat, fullFormat, timeAgo } from "../lib/activity";
+import { timeAgo } from "../lib/activity";
+import { formatDateTime, formatDay } from "../lib/dates";
 import { tmdbImage } from "../lib/tmdb";
 import type { ActivityItem as Item, ActivityMovie } from "../lib/types";
 import { ReviewCounts } from "./ReviewReactions";
@@ -38,7 +39,7 @@ function watchedOnText(item: Item): string | null {
 
   const watched = new Date(item.watchedAt);
   const logged = new Date(item.occurredAt);
-  return Math.abs(logged.getTime() - watched.getTime()) > 36 * 60 * 60 * 1000 ? `watched ${dayFormat.format(watched)}` : null;
+  return Math.abs(logged.getTime() - watched.getTime()) > 36 * 60 * 60 * 1000 ? `watched ${formatDay(watched)}` : null;
 }
 
 function Details({ item }: { item: Item }) {
@@ -182,7 +183,7 @@ export function ActivityItem({ item }: { item: Item }) {
           </div>
         )}
 
-        <time dateTime={item.occurredAt} title={fullFormat.format(occurred)} className="mt-2 block text-xs text-haze">
+        <time dateTime={item.occurredAt} title={formatDateTime(occurred)} className="mt-2 block text-xs text-haze">
           {timeAgo(occurred)}
         </time>
       </div>

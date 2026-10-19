@@ -12,12 +12,11 @@ import {
   type Invite,
 } from "../lib/invites";
 import { usePageViewStats } from "../lib/analytics";
+import { formatDateTime } from "../lib/dates";
 import { reportReasons, useOpenReports, useResolveReports, type ReportedItem } from "../lib/moderation";
 import { useSettings } from "../lib/queries";
 import { NotFoundPage } from "./NotFoundPage";
 import { usePageTitle } from "../lib/title";
-
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 
 const reasonLabel = (reason: string) => reportReasons.find((r) => r.value === reason)?.label ?? reason;
 
@@ -41,7 +40,7 @@ function ReportedItemCard({ item }: { item: ReportedItem }) {
           {item.reportCount} {item.reportCount === 1 ? "report" : "reports"}
         </span>
         <span className="text-haze">
-          First <time dateTime={item.firstReportedAt}>{dateFormat.format(new Date(item.firstReportedAt))}</time>
+          First <time dateTime={item.firstReportedAt}>{formatDateTime(item.firstReportedAt)}</time>
         </span>
       </div>
 
@@ -121,9 +120,9 @@ function OpenReports() {
 
 function inviteStatus(invite: Invite) {
   if (invite.usedAt) {
-    return `Used ${dateFormat.format(new Date(invite.usedAt))}${invite.usedBy ? ` by ${invite.usedBy}` : " (account deleted)"}`;
+    return `Used ${formatDateTime(invite.usedAt)}${invite.usedBy ? ` by ${invite.usedBy}` : " (account deleted)"}`;
   }
-  if (invite.revokedAt) return `Revoked ${dateFormat.format(new Date(invite.revokedAt))}`;
+  if (invite.revokedAt) return `Revoked ${formatDateTime(invite.revokedAt)}`;
   return "Not used yet";
 }
 

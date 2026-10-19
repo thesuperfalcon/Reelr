@@ -122,7 +122,7 @@ nginx.conf.template, security-headers.conf, Dockerfile   Container serving and p
 | `drafts.ts` | Keeps unsaved review text in `sessionStorage`. |
 | `focus.ts`, `tabs.ts`, `title.ts` | Accessibility helpers: return focus after inline steps, ARIA tab keyboard handling, page titles. |
 | `theme.ts` | Theme names; must match `public/theme.js` and `index.css`. |
-| `dates.ts`, `tmdb.ts` | Local calendar days; TMDB image URLs, years and runtimes. |
+| `dates.ts`, `tmdb.ts` | Local calendar days and every date formatter (moments in the viewer's time zone, calendar days in UTC); TMDB image URLs, years and runtimes. |
 
 ### `src/pages/`
 

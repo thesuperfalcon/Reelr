@@ -14,6 +14,7 @@ import { STAR_PATH, Stars } from "../components/Stars";
 import { EmptyState, ErrorMessage, Loading } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
+import { formatDate } from "../lib/dates";
 import {
   pageItems,
   useMovieDetails,
@@ -208,8 +209,6 @@ function CastList({ cast }: { cast: CastMember[] }) {
   );
 }
 
-const reviewDateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" });
-
 function ReviewItem({ review, own }: { review: Review; own: boolean }) {
   return (
     <li className="py-6">
@@ -221,7 +220,7 @@ function ReviewItem({ review, own }: { review: Review; own: boolean }) {
         />
         {review.score !== null && <Stars score={review.score} className="h-3.5" />}
         <Link to={`/review/${review.id}`} className="text-haze hover:text-screen hover:underline" title="Open review">
-          <time dateTime={review.createdAt}>{reviewDateFormat.format(new Date(review.createdAt))}</time>
+          <time dateTime={review.createdAt}>{formatDate(review.createdAt)}</time>
         </Link>
         {review.updatedAt && <span className="text-haze">(edited)</span>}
         {review.containsSpoilers && <SpoilerTag />}
