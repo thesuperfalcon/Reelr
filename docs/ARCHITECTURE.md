@@ -61,7 +61,7 @@ Because nginx proxies the API under the same origin, the API has no CORS configu
 - `backend` (internal ingress only, reachable through nginx, 1 replica kept warm by default, `backendMinReplicas`, user-assigned managed identity),
 - `reelr-migrate` (a Container Apps job run by the Deploy workflow before each rollout),
 - an optional custom domain on the frontend with an Azure managed certificate,
-- Azure SQL (serverless, free offer, auto-pause, Entra-only authentication), Key Vault for the JWT key, TMDB token and SMTP password, plus an RSA key `data-protection` for wrapping the Data Protection key ring (the backend identity has Key Vault Crypto User on that key only; the backend does not use it yet, see [SECURITY.md](SECURITY.md) S3), Log Analytics (30-day retention) and optional metric alerts.
+- Azure SQL (serverless, free offer, auto-pause, Entra-only authentication), Key Vault for the JWT key, TMDB token and SMTP password, plus an RSA key `data-protection` for wrapping the Data Protection key ring (the backend identity has Key Vault Crypto User on that key only, see [SECURITY.md](SECURITY.md) S3), Log Analytics (30-day retention) and optional metric alerts.
 
 See [INTEGRATIONS.md](INTEGRATIONS.md) for the Azure and GitHub details.
 
