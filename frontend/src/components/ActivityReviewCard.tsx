@@ -1,5 +1,6 @@
 import { Link } from "react-router";
-import { fullFormat, timeAgo } from "../lib/activity";
+import { timeAgo } from "../lib/activity";
+import { formatDateTime } from "../lib/dates";
 import type { ActivityItem } from "../lib/types";
 import { FilmLink, SmallPoster } from "./ActivityItem";
 import { ReviewCounts } from "./ReviewReactions";
@@ -46,7 +47,7 @@ export function ActivityReviewCard({ item }: { item: ActivityItem }) {
           <Link to={`/review/${review.id}`} className="link text-sm">
             Read the full review
           </Link>
-          <time dateTime={item.occurredAt} title={fullFormat.format(occurred)} className="text-xs text-haze">
+          <time dateTime={item.occurredAt} title={formatDateTime(occurred)} className="text-xs text-haze">
             {timeAgo(occurred)}
           </time>
           <ReviewCounts review={review} />

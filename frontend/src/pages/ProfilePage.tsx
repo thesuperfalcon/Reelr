@@ -23,6 +23,7 @@ import { EmptyState, ErrorMessage, Loading, PosterGridSkeleton, RowsSkeleton } f
 import { Tabs } from "../components/Tabs";
 import { UserAvatar, UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
+import { formatDate, formatDayOfMonth, formatMonth, formatWeekdayShort } from "../lib/dates";
 import {
     pageItems,
     useDiary,
@@ -79,20 +80,13 @@ function asSearchMovie(entry: {
     };
 }
 
-const monthFormat = new Intl.DateTimeFormat("en", {
-    month: "long",
-    year: "numeric",
-});
-const dayFormat = new Intl.DateTimeFormat("en", { day: "numeric" });
-const weekdayFormat = new Intl.DateTimeFormat("en", { weekday: "short" });
-
 function groupByMonth(
     entries: DiaryEntry[],
 ): { month: string; entries: DiaryEntry[] }[] {
     const groups: { month: string; entries: DiaryEntry[] }[] = [];
 
     for (const entry of entries) {
-        const month = monthFormat.format(new Date(entry.watchedAt));
+        const month = formatMonth(entry.watchedAt);
         const last = groups.at(-1);
         if (last?.month === month) {
             last.entries.push(entry);
@@ -222,10 +216,10 @@ function Diary({
                                         className="w-10 shrink-0 text-center"
                                     >
                                         <span className="marquee block text-3xl">
-                                            {dayFormat.format(date)}
+                                            {formatDayOfMonth(date)}
                                         </span>
                                         <span className="block text-xs text-haze">
-                                            {weekdayFormat.format(date)}
+                                            {formatWeekdayShort(date)}
                                         </span>
                                     </time>
 
@@ -316,12 +310,6 @@ function Diary({
     );
 }
 
-const reviewDateFormat = new Intl.DateTimeFormat("en", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-});
-
 function Reviews({ owner }: { owner: Owner }) {
     const reviews = useUserReviews(owner.id);
 
@@ -398,9 +386,7 @@ function Reviews({ owner }: { owner: Owner }) {
                                         title="Open review"
                                     >
                                         <time dateTime={review.createdAt}>
-                                            {reviewDateFormat.format(
-                                                new Date(review.createdAt),
-                                            )}
+                                            {formatDate(review.createdAt)}
                                         </time>
                                     </Link>
                                     {review.updatedAt && (
