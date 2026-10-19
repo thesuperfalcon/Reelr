@@ -44,11 +44,6 @@ namespace backend.Features.Invites
                 })
                 .ToListAsync();
 
-            foreach (var invite in invites)
-            {
-                AsUtc(invite);
-            }
-
             return Ok(invites);
         }
 
@@ -68,7 +63,7 @@ namespace backend.Features.Invites
                 Link = $"{_baseUrl}/register?invite={Uri.EscapeDataString(code)}"
             };
 
-            return Created($"/api/admin/invites/{invite.Id}", AsUtc(created));
+            return Created($"/api/admin/invites/{invite.Id}", created);
         }
 
         [HttpDelete("{id:int}")]
@@ -93,15 +88,6 @@ namespace backend.Features.Invites
                 { RevokedAt: not null } => NoContent(),
                 _ => Problem(statusCode: StatusCodes.Status409Conflict, title: "This invite has already been used.")
             };
-        }
-
-        // SQL Server returns the stored UTC times without a kind; marking them makes the JSON end in "Z".
-        private static T AsUtc<T>(T invite) where T : InviteDto
-        {
-            invite.CreatedAt = DateTime.SpecifyKind(invite.CreatedAt, DateTimeKind.Utc);
-            invite.UsedAt = invite.UsedAt is { } used ? DateTime.SpecifyKind(used, DateTimeKind.Utc) : null;
-            invite.RevokedAt = invite.RevokedAt is { } revoked ? DateTime.SpecifyKind(revoked, DateTimeKind.Utc) : null;
-            return invite;
         }
     }
 }
