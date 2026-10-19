@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace backend.Data;
 
@@ -62,6 +63,18 @@ public class ReelrContext : IdentityDbContext<User, IdentityRole<int>, int>, IDa
     public DbSet<Invite> Invites => Set<Invite>();
 
     public DbSet<PageView> PageViews => Set<PageView>();
+
+    // Every DateTime is stored as UTC, but datetime2 has no kind, so EF Core would read it back as Unspecified
+    // and the JSON would lack the "Z" that tells browsers it is UTC. Reads are marked UTC; writes are unchanged.
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+        configurationBuilder.Properties<DateTime?>().HaveConversion<UtcDateTimeConverter>();
+    }
+
+    private sealed class UtcDateTimeConverter() : ValueConverter<DateTime, DateTime>(
+        value => value,
+        value => DateTime.SpecifyKind(value, DateTimeKind.Utc));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
