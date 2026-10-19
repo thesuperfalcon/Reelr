@@ -9,7 +9,7 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 | ID | Finding | Category | Severity |
 |---|---|---|---|
 | [TD-1](#td-1-error-responses-are-not-always-problemdetails) | Error responses are not always ProblemDetails | Error handling | Medium |
-| [TD-2](#td-2-most-timestamps-are-serialised-without-a-utc-marker) | Most timestamps are serialised without a UTC marker | Correctness | Medium |
+| [TD-2](#td-2-most-timestamps-are-serialised-without-a-utc-marker) | Most timestamps are serialised without a UTC marker (fixed) | Correctness | Medium |
 | [TD-3](#td-3-data-protection-keys-are-not-encrypted-at-rest) | Data Protection keys are not encrypted at rest (fixed) | Security | Medium |
 | [TD-4](#td-4-private-diary-data-appears-on-reviews) | Private diary data appears on reviews | Privacy | Medium |
 | [TD-5](#td-5-single-instance-state) | Single-instance state blocks scaling out | Architecture | Medium |
@@ -42,7 +42,7 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 - **Description:** Timestamps are stored as UTC, but EF Core reads `datetime2` values with `DateTimeKind.Unspecified`, and `System.Text.Json` then writes them without `Z`. Browsers parse such strings as local time. Some code knows this and marks values as UTC; most does not.
 - **Evidence:** `DateTime.SpecifyKind(..., DateTimeKind.Utc)` appears only in `InvitesController.AsUtc` (with the comment "SQL Server returns the stored UTC times without a kind; marking them makes the JSON end in 'Z'"), `AdminController`, and `DerivedActivityFeed`. Unmarked: `ReviewDto.CreatedAt` and `UpdatedAt`, `ReviewCommentDto`, `DiaryEntryDto.WatchedAt`, `StatusDto.WatchedAt`, `MovieListDto.CreatedAt` and `UpdatedAt`, `WatchlistEntryDto.AddedAt`. The SPA uses `new Date(value)` on them (for example `frontend/src/pages/MoviePage.tsx`, `ReviewComments.tsx`, `ListPage.tsx`).
 - **Impact:** Displayed dates and times are offset by the viewer's UTC offset. Diary days are mostly safe because picked days are stored at 12:00 UTC, but "now" logs and review or comment dates near midnight can show the wrong day. This follows from framework defaults and the code; it was not reproduced at runtime.
-- **Next step:** Add a convention in `ReelrContext.ConfigureConventions` that reads every `DateTime` as UTC (a value converter), then remove the scattered `SpecifyKind` calls. Add an integration test that a review's `createdAt` ends in `Z`.
+- **Status:** Fixed. `ReelrContext.ConfigureConventions` adds a value converter that marks every `DateTime` and `DateTime?` read from the database as UTC (writes are unchanged, no migration). The `SpecifyKind` calls and `InvitesController.AsUtc` are gone. `DiaryControllerTests.Timestamps_AreSentAsUtc` checks that a diary entry's `watchedAt`, a review's `createdAt` and a feed item's `occurredAt` end in `Z`.
 
 ### TD-3. Data Protection keys are not encrypted at rest
 

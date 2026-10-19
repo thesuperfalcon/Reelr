@@ -125,7 +125,7 @@ namespace backend.Features.Activity
                 return new FollowingFilmDto
                 {
                     Movie = new ActivityMovieDto { TmdbId = newest.TmdbId, Title = newest.Title, PosterUrl = newest.PosterUrl },
-                    LastLoggedAt = DateTime.SpecifyKind(film.LastLoggedAt, DateTimeKind.Utc),
+                    LastLoggedAt = film.LastLoggedAt,
                     WatcherCount = watchers.Count,
                     Watchers = watchers.Take(MaxFilmWatchers).Select(w => new FollowingFilmWatcherDto
                     {
@@ -365,7 +365,7 @@ namespace backend.Features.Activity
                 _ => $"watchlist:{row.Key / KeyShift}:{row.Key % KeyShift}"
             },
             Type = row.Type,
-            OccurredAt = DateTime.SpecifyKind(row.OccurredAt, DateTimeKind.Utc),
+            OccurredAt = row.OccurredAt,
             Actor = new ActivityActorDto { Id = row.ActorId, UserName = row.ActorName ?? string.Empty, ProfileImageUrl = row.ActorAvatar },
             Movie = row.TmdbId == null ? null : new ActivityMovieDto { TmdbId = row.TmdbId.Value, Title = row.Title ?? string.Empty, PosterUrl = row.PosterUrl },
             List = row.ListId == null ? null : new ActivityListDto { Id = row.ListId.Value, Name = row.ListName ?? string.Empty, MovieCount = row.ListCount },
@@ -373,7 +373,7 @@ namespace backend.Features.Activity
             Rating = row.Rating,
             Liked = row.Liked,
             Rewatched = row.Rewatched,
-            WatchedAt = row.WatchedAt == null ? null : DateTime.SpecifyKind(row.WatchedAt.Value, DateTimeKind.Utc)
+            WatchedAt = row.WatchedAt
         };
 
         // A review marked as containing spoilers has no excerpt; the feed links to the full review instead.

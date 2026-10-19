@@ -43,7 +43,7 @@ namespace backend.Features.Moderation
                     ReportCount = g.Count(),
                     Reasons = g.Select(r => r.Reason).Distinct().ToList(),
                     Notes = g.Where(r => r.Note != null).Select(r => r.Note!).ToList(),
-                    FirstReportedAt = DateTime.SpecifyKind(g.Min(r => r.CreatedAt), DateTimeKind.Utc)
+                    FirstReportedAt = g.Min(r => r.CreatedAt)
                 })
                 .OrderByDescending(i => i.ReportCount)
                 .ThenBy(i => i.FirstReportedAt)
