@@ -29,7 +29,7 @@ The composition root. Read it first. It:
 
 - checks required configuration at start-up (`Jwt:Key` of at least 32 bytes, `TMDB_READ_ACCESS_TOKEN`, `Email:Host`, `Email:FromAddress`, `App:BaseUrl`) and refuses to start without them,
 - registers every service (see the DI table in [ARCHITECTURE.md](ARCHITECTURE.md#dependency-injection)),
-- configures Identity (lockout, username characters), Data Protection (keys in the database), JWT validation with the security stamp check, rate limits, forwarded headers, the TMDB HttpClient with resilience, health checks,
+- configures Identity (lockout, username characters), Data Protection (keys in the database, wrapped with a Key Vault key when `DataProtection:KeyVaultKeyUri` is set), JWT validation with the security stamp check, rate limits, forwarded headers, the TMDB HttpClient with resilience, health checks,
 - builds the middleware pipeline in a deliberate order.
 
 ### `Data/`

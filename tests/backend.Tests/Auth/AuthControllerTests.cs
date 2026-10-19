@@ -177,6 +177,21 @@ public class AuthControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
+    public async Task ForgotPassword_WithoutKeyVault_StoresTheKeyRingUnencrypted()
+    {
+        // The tests set no DataProtection:KeyVaultKeyUri, as in local development and Docker.
+        var user = await _factory.CreateAuthenticatedAsync();
+        var email = $"{user.Username}@test.local";
+
+        await _client.PostAsJsonAsync("/auth/forgot-password", new { Email = email });
+        await _factory.Emails.WaitForAsync(email, "Reset your Reelr password");
+
+        var keys = await _factory.WithContextAsync(context => context.DataProtectionKeys.Select(k => k.Xml).ToListAsync());
+        Assert.NotEmpty(keys);
+        Assert.All(keys, xml => Assert.DoesNotContain("encryptedSecret", xml));
+    }
+
+    [Fact]
     public async Task ForgotPassword_UnknownAddress_AnswersTheSame_AndSendsNothing()
     {
         var email = $"{UniqueName()}@test.local";
