@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using backend.Features.Diary.DTOs;
 using backend.Features.Ratings.DTOs;
 using backend.Features.Reviews;
@@ -32,6 +33,25 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
         var response = await client.PostAsJsonAsync(DiaryUrl(1), new LogDiaryEntryDto());
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Timestamps_AreSentAsUtc()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(6050, "Logged near midnight");
+        await user.Client.PostAsJsonAsync(DiaryUrl(tmdbId), new LogDiaryEntryDto { Score = 4, Review = "Stored as UTC." });
+
+        // The browser reads a time without "Z" as local time.
+        static async Task<string> FirstAsync(HttpClient client, string url, string field)
+        {
+            using var json = JsonDocument.Parse(await client.GetStringAsync(url));
+            return json.RootElement.GetProperty("items")[0].GetProperty(field).GetString()!;
+        }
+
+        Assert.EndsWith("Z", await FirstAsync(user.Client, "/api/watched", "watchedAt"));
+        Assert.EndsWith("Z", await FirstAsync(user.Client, $"/api/movies/{tmdbId}/reviews", "createdAt"));
+        Assert.EndsWith("Z", await FirstAsync(_factory.CreateClient(), "/api/feed/community", "occurredAt"));
     }
 
     [Fact]
