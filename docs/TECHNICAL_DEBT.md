@@ -10,7 +10,7 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 |---|---|---|---|
 | [TD-1](#td-1-error-responses-are-not-always-problemdetails) | Error responses are not always ProblemDetails | Error handling | Medium |
 | [TD-2](#td-2-most-timestamps-are-serialised-without-a-utc-marker) | Most timestamps are serialised without a UTC marker | Correctness | Medium |
-| [TD-3](#td-3-data-protection-keys-are-not-encrypted-at-rest) | Data Protection keys are not encrypted at rest | Security | Medium |
+| [TD-3](#td-3-data-protection-keys-are-not-encrypted-at-rest) | Data Protection keys are not encrypted at rest (fixed) | Security | Medium |
 | [TD-4](#td-4-private-diary-data-appears-on-reviews) | Private diary data appears on reviews | Privacy | Medium |
 | [TD-5](#td-5-single-instance-state) | Single-instance state blocks scaling out | Architecture | Medium |
 | [TD-6](#td-6-testing-gaps) | Testing gaps | Testing | Medium |
@@ -49,7 +49,7 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 - **Description:** The key ring that signs email confirmation and password reset tokens is persisted to the `DataProtectionKeys` table without key encryption.
 - **Evidence:** `backend/Program.cs`: `AddDataProtection().SetApplicationName("Reelr").PersistKeysToDbContext<ReelrContext>()`, no `ProtectKeysWith...`.
 - **Impact:** Read access to the database (a leaked backup, an over-privileged identity) is enough to forge a password reset token for any account. See [SECURITY.md](SECURITY.md) S3.
-- **Next step:** In Azure, protect keys with Key Vault (`ProtectKeysWithAzureKeyVault`, using the backend's managed identity, which already reads the vault). Keep local development unencrypted. Existing keys stay readable during the change.
+- **Status:** Fixed. When `DataProtection:KeyVaultKeyUri` is set (in Azure), `Program.cs` calls `ProtectKeysWithAzureKeyVault` with a `ManagedIdentityCredential` for the backend's user-assigned identity (`AZURE_CLIENT_ID`). Local development, Docker and tests keep unencrypted keys. Existing keys stay readable; new keys are wrapped.
 
 ### TD-4. Private diary data appears on reviews
 

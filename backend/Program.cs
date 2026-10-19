@@ -1,3 +1,4 @@
+using Azure.Identity;
 using backend.Data;
 using backend.Features.Activity;
 using backend.Features.Auth;
@@ -113,9 +114,31 @@ builder.Services
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options => options.TokenLifespan = TimeSpan.FromHours(3));
 
 // The keys behind those links live in the database, so a restart or a new container does not break sent links.
-builder.Services.AddDataProtection()
+var dataProtection = builder.Services.AddDataProtection()
     .SetApplicationName("Reelr")
     .PersistKeysToDbContext<ReelrContext>();
+
+// In Azure the key ring is wrapped with a Key Vault key, so reading the database or a backup
+// is not enough to forge reset or confirmation links. Without the setting (local, Docker, tests)
+// keys stay unencrypted. Keys written before this stay readable; new ones are always wrapped,
+// and if Key Vault cannot be reached creating or reading a wrapped key throws instead of
+// falling back to plain keys.
+var dataProtectionKeyUri = builder.Configuration["DataProtection:KeyVaultKeyUri"];
+
+if (!string.IsNullOrEmpty(dataProtectionKeyUri))
+{
+    // The backend runs as a user-assigned identity, so the credential needs its client id.
+    var clientId = builder.Configuration["AZURE_CLIENT_ID"];
+
+    if (string.IsNullOrEmpty(clientId))
+    {
+        throw new InvalidOperationException("AZURE_CLIENT_ID must be set when DataProtection:KeyVaultKeyUri is set.");
+    }
+
+    dataProtection.ProtectKeysWithAzureKeyVault(
+        new Uri(dataProtectionKeyUri),
+        new ManagedIdentityCredential(ManagedIdentityId.FromUserAssignedClientId(clientId)));
+}
 
 // Account emails are queued and sent in the background (see EmailQueue).
 builder.Services.Configure<EmailOptions>(builder.Configuration.GetSection("Email"));
