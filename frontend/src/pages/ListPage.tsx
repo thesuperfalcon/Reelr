@@ -9,13 +9,13 @@ import { Poster } from "../components/Poster";
 import { EmptyState, ErrorMessage, Loading, PosterGridSkeleton } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
+import { formatDateLong } from "../lib/dates";
 import { pageItems, useDeleteMovieList, useMovieList, useMovieListMovies, useToggleListMovie, useWatchedFilms } from "../lib/queries";
 import type { MovieList, MovieListItem, SearchMovie } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
 import { usePageTitle } from "../lib/title";
 import { useReturnFocus } from "../lib/focus";
 
-const dateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric" });
 
 function asSearchMovie(item: MovieListItem): SearchMovie {
   return {
@@ -241,11 +241,11 @@ export function ListPage() {
         {list.description && <p className="mt-6 max-w-prose whitespace-pre-line text-screen/90">{list.description}</p>}
         <p className="mt-4 text-sm text-haze">
           {list.movieCount} {list.movieCount === 1 ? "film" : "films"} · Created{" "}
-          <time dateTime={list.createdAt}>{dateFormat.format(new Date(list.createdAt))}</time>
+          <time dateTime={list.createdAt}>{formatDateLong(list.createdAt)}</time>
           {list.updatedAt && (
             <>
               {" "}
-              · Updated <time dateTime={list.updatedAt}>{dateFormat.format(new Date(list.updatedAt))}</time>
+              · Updated <time dateTime={list.updatedAt}>{formatDateLong(list.updatedAt)}</time>
             </>
           )}
         </p>

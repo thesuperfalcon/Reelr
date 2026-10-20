@@ -10,12 +10,11 @@ import { Stars } from "../components/Stars";
 import { ErrorMessage, Loading } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
+import { formatDateLong, formatDayLong } from "../lib/dates";
 import { useReview } from "../lib/queries";
 import { tmdbImage } from "../lib/tmdb";
 import { NotFoundPage } from "./NotFoundPage";
 import { usePageTitle } from "../lib/title";
-
-const dateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric" });
 
 // One review on its own page, the target of review links in lists and the activity feed.
 export function ReviewPage() {
@@ -83,11 +82,11 @@ export function ReviewPage() {
             {data.score !== null && <Stars score={data.score} className="h-4" />}
             {data.watchedAt && (
               <span>
-                Watched <time dateTime={data.watchedAt}>{dateFormat.format(new Date(data.watchedAt))}</time>
+                Watched <time dateTime={data.watchedAt}>{formatDayLong(data.watchedAt)}</time>
               </span>
             )}
             <span>
-              Written <time dateTime={data.createdAt}>{dateFormat.format(new Date(data.createdAt))}</time>
+              Written <time dateTime={data.createdAt}>{formatDateLong(data.createdAt)}</time>
               {data.updatedAt && " (edited)"}
             </span>
             {data.containsSpoilers && <SpoilerTag />}

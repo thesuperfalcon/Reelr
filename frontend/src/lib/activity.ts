@@ -1,3 +1,4 @@
+import { formatDate } from "./dates";
 import type { ActivityItem } from "./types";
 
 const KNOWN_TYPES = new Set(["watched", "reviewed", "listCreated", "listAdded", "watchlistAdded"]);
@@ -8,8 +9,6 @@ export function isKnownActivity(item: ActivityItem): boolean {
 }
 
 const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-export const dayFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" });
-export const fullFormat = new Intl.DateTimeFormat("en", { dateStyle: "long", timeStyle: "short" });
 
 export function timeAgo(date: Date): string {
   const seconds = (date.getTime() - Date.now()) / 1000;
@@ -31,7 +30,7 @@ export function timeAgo(date: Date): string {
   }
 
   if (unit === "week" && Math.abs(value) >= 5) {
-    return dayFormat.format(date);
+    return formatDate(date);
   }
 
   return Math.abs(value) < 1 && unit === "second" ? "just now" : relative.format(Math.round(value), unit);

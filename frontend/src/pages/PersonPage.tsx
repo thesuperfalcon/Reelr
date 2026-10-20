@@ -5,14 +5,13 @@ import { Poster } from "../components/Poster";
 import { EmptyState, ErrorMessage, Loading } from "../components/Status";
 import { Tabs } from "../components/Tabs";
 import { ApiError } from "../lib/api";
+import { formatDayLong } from "../lib/dates";
 import { usePersonDetails, useWatchedFilms } from "../lib/queries";
 import { releaseYear, tmdbImage } from "../lib/tmdb";
 import type { PersonCredit, PersonDetails, SearchMovie } from "../lib/types";
 import { NotFoundPage } from "./NotFoundPage";
 import { usePageTitle } from "../lib/title";
 
-// TMDB dates are plain calendar days, so format them in UTC to avoid shifting a day.
-const dateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 
 function parseDay(date: string): Date {
   return new Date(`${date}T00:00:00Z`);
@@ -46,7 +45,7 @@ function LifeFacts({ person }: { person: PersonDetails }) {
     facts.push({
       term: "Born",
       value:
-        dateFormat.format(parseDay(person.birthday)) +
+        formatDayLong(parseDay(person.birthday)) +
         (age !== null ? ` (age ${age})` : "") +
         (person.placeOfBirth ? ` in ${person.placeOfBirth}` : ""),
     });
@@ -58,7 +57,7 @@ function LifeFacts({ person }: { person: PersonDetails }) {
     const age = person.birthday ? ageBetween(person.birthday, parseDay(person.deathday)) : null;
     facts.push({
       term: "Died",
-      value: dateFormat.format(parseDay(person.deathday)) + (age !== null ? ` (aged ${age})` : ""),
+      value: formatDayLong(parseDay(person.deathday)) + (age !== null ? ` (aged ${age})` : ""),
     });
   }
 

@@ -1,17 +1,13 @@
 import { useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Link } from "react-router";
+import { formatDayFull, formatMonth, formatMonthShort, formatWeekday } from "../lib/dates";
 import { buildWeeks, DAY_MS, toDay, toTime, useStatsDay, useUserStats, type UserStats } from "../lib/stats";
 import { tmdbImage } from "../lib/tmdb";
 import { Stars } from "./Stars";
 import { ErrorMessage, Loading } from "./Status";
 
-// Days are formatted in UTC, as lib/stats.ts handles them.
-const longDate = new Intl.DateTimeFormat(undefined, { dateStyle: "full", timeZone: "UTC" });
-const shortMonth = new Intl.DateTimeFormat(undefined, { month: "short", timeZone: "UTC" });
-const longMonth = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
-const weekdayName = new Intl.DateTimeFormat(undefined, { weekday: "long", timeZone: "UTC" });
 // 2023-01-01 was a Sunday, so day n of that week is weekday n (0 = Sunday).
-const weekdayLabel = (weekday: number) => weekdayName.format(Date.UTC(2023, 0, 1 + weekday));
+const weekdayLabel = (weekday: number) => formatWeekday(Date.UTC(2023, 0, 1 + weekday));
 
 const films = (count: number) => `${count} ${count === 1 ? "film" : "films"}`;
 
@@ -60,7 +56,7 @@ function Graph({
   // A month's name goes above the week its first day falls in.
   const monthLabels = weeks.map((week) => {
     const firstOfMonth = week.find((cell) => cell?.day.endsWith("-01"));
-    return firstOfMonth ? shortMonth.format(toTime(firstOfMonth.day)) : "";
+    return firstOfMonth ? formatMonthShort(toTime(firstOfMonth.day)) : "";
   });
 
   return (
@@ -94,8 +90,8 @@ function Graph({
                     data-day={cell.day}
                     tabIndex={cell.day === current ? 0 : -1}
                     aria-pressed={cell.day === selected}
-                    aria-label={`${films(cell.count)} on ${longDate.format(toTime(cell.day))}`}
-                    title={`${films(cell.count)}, ${longDate.format(toTime(cell.day))}`}
+                    aria-label={`${films(cell.count)} on ${formatDayFull(toTime(cell.day))}`}
+                    title={`${films(cell.count)}, ${formatDayFull(toTime(cell.day))}`}
                     onClick={() => {
                       setFocusDay(cell.day);
                       onSelect(cell.day);
@@ -145,7 +141,7 @@ function Summary({ stats, period }: { stats: UserStats; period: string }) {
 
 function DayFilms({ userId, day }: { userId: number; day: string }) {
   const entries = useStatsDay(userId, day);
-  const date = longDate.format(toTime(day));
+  const date = formatDayFull(toTime(day));
 
   return (
     <section aria-live="polite" className="mt-4 rounded-sm bg-row p-4">
@@ -197,7 +193,7 @@ function Months({ stats }: { stats: UserStats }) {
             <li
               key={`${month.year}-${month.month}`}
               className="flex h-full min-w-6 flex-1 flex-col items-center justify-end gap-1"
-              aria-label={`${longMonth.format(time)}: ${films(month.count)}, ${rating}`}
+              aria-label={`${formatMonth(time)}: ${films(month.count)}, ${rating}`}
             >
               <span className="text-[10px] text-haze" aria-hidden="true">
                 {month.averageRating == null ? "" : `★${month.averageRating.toFixed(1)}`}
@@ -205,11 +201,11 @@ function Months({ stats }: { stats: UserStats }) {
               <span
                 className="w-full rounded-t-[2px] bg-projector/70"
                 style={{ height: `${(month.count / most) * 100}%`, minHeight: month.count > 0 ? 3 : 0 }}
-                title={`${longMonth.format(time)}: ${films(month.count)}, ${rating}`}
+                title={`${formatMonth(time)}: ${films(month.count)}, ${rating}`}
                 aria-hidden="true"
               />
               <span className="text-[10px] text-haze" aria-hidden="true">
-                {shortMonth.format(time)}
+                {formatMonthShort(time)}
               </span>
             </li>
           );

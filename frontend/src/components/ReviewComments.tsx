@@ -2,7 +2,8 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { useAuth } from "../auth/auth-context";
 import { ReportButton } from "./ReportButton";
-import { fullFormat, timeAgo } from "../lib/activity";
+import { timeAgo } from "../lib/activity";
+import { formatDateTime } from "../lib/dates";
 import {
   COMMENT_MAX_LENGTH,
   pageItems,
@@ -110,7 +111,7 @@ function CommentItem({ comment, reviewAuthorId }: { comment: ReviewComment; revi
           user={{ id: comment.userId, userName: comment.username, profileImageUrl: comment.profileImageUrl }}
           avatarClassName="size-7 text-sm"
         />
-        <time dateTime={comment.createdAt} title={fullFormat.format(created)} className="text-xs text-haze">
+        <time dateTime={comment.createdAt} title={formatDateTime(created)} className="text-xs text-haze">
           {timeAgo(created)}
         </time>
         {comment.updatedAt && <span className="text-xs text-haze">(edited)</span>}
