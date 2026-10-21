@@ -17,7 +17,7 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 | [TD-7](#td-7-block-rules-are-applied-in-some-places-only) | Block rules are applied in some places only | Consistency | Low |
 | [TD-8](#td-8-password-length-differs-between-sign-up-and-password-change) | Password length differs between sign-up and password change (fixed) | Security | Low |
 | [TD-9](#td-9-settings-update-is-not-atomic) | Settings update is not atomic | Correctness | Low |
-| [TD-10](#td-10-data-export-is-incomplete) | Data export is incomplete | Compliance | Low |
+| [TD-10](#td-10-data-export-is-incomplete) | Data export is incomplete (fixed) | Compliance | Low |
 | [TD-11](#td-11-repeated-query-code-in-controllers) | Repeated query code in controllers | Duplication | Low |
 | [TD-12](#td-12-moviecatalog-swallows-every-save-error) | `MovieCatalog` swallows every save error | Error handling | Low |
 | [TD-13](#td-13-stale-documentation-and-api-collection) | Stale documentation and API collection | Documentation | Low |
@@ -98,7 +98,7 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 - **Description:** The export describes itself as "everything Reelr stores about one user" (GDPR articles 15 and 20) but leaves out reports the member filed (including their notes) and the members they blocked.
 - **Evidence:** `backend/Features/Settings/DataExport.cs`; `Report` and `Block` entities.
 - **Impact:** Compliance gap for a closed beta; easy to fix.
-- **Next step:** Add `Reports` (type, id, reason, note, dates, outcome) and `Blocked` (usernames) to the export, and update `SettingsControllerTests`.
+- **Status:** Fixed. The export now has `reports` (what the member filed: target type and id, reason, note, created and resolved dates, outcome) and `blocked` (usernames). `SettingsControllerTests.Export_ContainsTheUsersReportsAndBlocks_ButNotOtherPeoplesReports` covers it.
 
 ### TD-11. Repeated query code in controllers
 

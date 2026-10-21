@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using backend.Features.Moderation;
+using backend.Features.Moderation.DTOs;
+using backend.Features.Reviews.DTOs;
 using backend.Features.Settings.DTOs;
 using backend.Features.Users;
 using backend.Features.Users.DTOs;
@@ -227,6 +230,37 @@ public class SettingsControllerTests : IClassFixture<ReelrApiFactory>
         Assert.Equal(4.5m, json.GetProperty("ratings")[0].GetProperty("score").GetDecimal());
         Assert.Equal("My exported review", json.GetProperty("reviews")[0].GetProperty("text").GetString());
         Assert.Equal(other.Username, json.GetProperty("following")[0].GetString());
+    }
+
+    [Fact]
+    public async Task Export_ContainsTheUsersReportsAndBlocks_ButNotOtherPeoplesReports()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var author = await _factory.CreateAuthenticatedAsync();
+        var bystander = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(9402, "Reported film");
+        (await author.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/diary", new { Score = 2m, Review = "Reported review" }))
+            .EnsureSuccessStatusCode();
+        var reviews = (await user.Client.GetFromJsonAsync<MovieReviewPageDto>($"/api/movies/{tmdbId}/reviews"))!;
+        var reviewId = Assert.Single(reviews.Items).Id;
+        (await user.Client.PostAsJsonAsync("/api/reports", new CreateReportDto
+        {
+            TargetType = ReportTargetType.Review, TargetId = reviewId, Reason = ReportReason.Spam, Note = "My note"
+        })).EnsureSuccessStatusCode();
+        (await bystander.Client.PostAsJsonAsync("/api/reports", new CreateReportDto
+        {
+            TargetType = ReportTargetType.Review, TargetId = reviewId, Reason = ReportReason.Other, Note = "Someone else's note"
+        })).EnsureSuccessStatusCode();
+        (await user.Client.PutAsync($"/api/users/{bystander.Id}/block", null)).EnsureSuccessStatusCode();
+
+        var json = System.Text.Json.JsonDocument.Parse(await user.Client.GetStringAsync("/api/settings/export")).RootElement;
+
+        var report = Assert.Single(json.GetProperty("reports").EnumerateArray());
+        Assert.Equal("Review", report.GetProperty("targetType").GetString());
+        Assert.Equal(reviewId, report.GetProperty("targetId").GetInt32());
+        Assert.Equal("Spam", report.GetProperty("reason").GetString());
+        Assert.Equal("My note", report.GetProperty("note").GetString());
+        Assert.Equal(bystander.Username, Assert.Single(json.GetProperty("blocked").EnumerateArray()).GetString());
     }
 
     [Fact]
