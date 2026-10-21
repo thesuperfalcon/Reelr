@@ -38,6 +38,7 @@ namespace backend.Features.Activity
         {
             var since = DateTime.UtcNow.AddDays(-_options.FollowingDays);
             var followed = Followed(viewerId);
+            var diaryVisible = _context.DiaryOwnersVisibleTo(viewerId);
 
             // Everything the people you follow do, as long as it is public or shared with followers.
             // Your own activity is all yours to see, private lists, diary and watchlist included.
@@ -48,7 +49,7 @@ namespace backend.Features.Activity
                     (followed.Contains(d.UserId) && d.User.DiaryVisibility != DiaryVisibility.Private)
                     || (includeOwn && d.UserId == viewerId)))),
                 (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r =>
-                    followed.Contains(r.UserId) || (includeOwn && r.UserId == viewerId)))),
+                    followed.Contains(r.UserId) || (includeOwn && r.UserId == viewerId)), diaryVisible)),
                 (ActivityTypes.ListCreated, ListCreatedRank, ListsCreated(_context.MovieLists.Where(l =>
                     (l.IsPublic && followed.Contains(l.UserId)) || (includeOwn && l.UserId == viewerId)))),
                 (ActivityTypes.ListAdded, ListAddedRank, ListItemsAdded(_context.MovieListItems.Where(i =>
@@ -65,6 +66,7 @@ namespace backend.Features.Activity
         {
             var since = DateTime.UtcNow.AddDays(-_options.CommunityDays);
             var blocked = _context.BlockedBy(viewerId);
+            var diaryVisible = _context.DiaryOwnersVisibleTo(viewerId);
 
             // Only what is meant for everyone: fresh logs, reviews and public lists that hold films.
             // Back-dated logs stay out so back-filling an old diary does not flood the feed.
@@ -75,7 +77,7 @@ namespace backend.Features.Activity
                     && !blocked.Contains(d.UserId)
                     && d.User.DiaryVisibility == DiaryVisibility.Public
                     && !d.IsBackdated))),
-                (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r => r.UserId != viewerId && !blocked.Contains(r.UserId)))),
+                (ActivityTypes.Reviewed, ReviewedRank, Reviewed(_context.Reviews.Where(r => r.UserId != viewerId && !blocked.Contains(r.UserId)), diaryVisible)),
                 (ActivityTypes.ListCreated, ListCreatedRank, ListsCreated(_context.MovieLists.Where(l =>
                     l.IsPublic && l.UserId != viewerId && !blocked.Contains(l.UserId) && l.Items.Any())))
             };
@@ -173,7 +175,9 @@ namespace backend.Features.Activity
                 });
 
         // A review dates from the log that wrote it, so a rewritten review comes back to the top.
-        private static IQueryable<RawActivity> Reviewed(IQueryable<Reviews.Review> reviews) =>
+        // Its rating, like, rewatch and watch date come from the diary, so they are left out unless the
+        // viewer may see the author's diary (diaryVisible).
+        private static IQueryable<RawActivity> Reviewed(IQueryable<Reviews.Review> reviews, IQueryable<int> diaryVisible) =>
             reviews.Select(r => new RawActivity
             {
                 Type = ActivityTypes.Reviewed,
@@ -193,10 +197,10 @@ namespace backend.Features.Activity
                 ReviewContainsSpoilers = r.ContainsSpoilers,
                 ReviewLikeCount = r.Likes.Count,
                 ReviewCommentCount = r.Comments.Count,
-                Rating = r.DiaryEntry != null ? r.DiaryEntry.Rating : null,
-                Liked = r.DiaryEntry != null ? r.DiaryEntry.Liked : null,
-                Rewatched = r.DiaryEntry != null ? r.DiaryEntry.Rewatched : null,
-                WatchedAt = r.DiaryEntry != null ? r.DiaryEntry.WatchedAt : null
+                Rating = r.DiaryEntry != null && diaryVisible.Contains(r.UserId) ? r.DiaryEntry.Rating : null,
+                Liked = r.DiaryEntry != null && diaryVisible.Contains(r.UserId) ? r.DiaryEntry.Liked : null,
+                Rewatched = r.DiaryEntry != null && diaryVisible.Contains(r.UserId) ? r.DiaryEntry.Rewatched : null,
+                WatchedAt = r.DiaryEntry != null && diaryVisible.Contains(r.UserId) ? r.DiaryEntry.WatchedAt : null
             });
 
         private static IQueryable<RawActivity> ListsCreated(IQueryable<MovieLists.MovieList> lists) =>
