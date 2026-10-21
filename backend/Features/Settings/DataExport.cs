@@ -5,7 +5,8 @@ using Microsoft.EntityFrameworkCore;
 namespace backend.Features.Settings
 {
     // Everything Reelr stores about one user, in a form they can read and take elsewhere (GDPR article 15 and 20).
-    // Other people's content is left out, except the usernames of who the user follows and who follows them.
+    // Other people's content is left out, except the usernames of who the user follows, who follows them and who
+    // they blocked. Reports keep only what the user filed, not what the admins noted or who resolved them.
     public static class DataExport
     {
         public static async Task<object> BuildAsync(ReelrContext context, User user)
@@ -87,6 +88,15 @@ namespace backend.Features.Settings
                 Followers = await context.Follows
                     .Where(f => f.FollowedId == id)
                     .Select(f => f.Follower.UserName)
+                    .ToListAsync(),
+                Blocked = await context.Blocks
+                    .Where(b => b.BlockerId == id)
+                    .Select(b => b.Blocked.UserName)
+                    .ToListAsync(),
+                Reports = await context.Reports
+                    .Where(r => r.ReporterId == id)
+                    .OrderBy(r => r.CreatedAt)
+                    .Select(r => new { r.TargetType, r.TargetId, r.Reason, r.Note, r.CreatedAt, r.ResolvedAt, r.Outcome })
                     .ToListAsync()
             };
         }
