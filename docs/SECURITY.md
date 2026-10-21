@@ -129,7 +129,7 @@ Global read and write limits per user or IP, stricter per-IP limits on login, re
 | S10 | **Access token readable by injected script while the page is open.** The design limits theft to the token's 15-minute life, and the CSP blocks inline and third-party scripts, so exploitation needs an XSS bug first. | Confirmed, by design | Informational | `frontend/src/lib/api.ts` |
 | S11 | **Local Docker stack runs in Development** (developer exception page, Swagger). Ports are bound to 127.0.0.1 and the file says "Local development only". | Confirmed | Informational | `docker-compose.yml` |
 | S12 | **Legal text not reviewed.** The README states the privacy policy and terms have not been reviewed by a lawyer. An accessibility statement (`/accessibility`) was added on 13 October 2026. | Confirmed | Informational (compliance) | Root README, `LegalPages.tsx` |
-| S13 | **Data export omits some personal data**: reports the member filed (with their notes) and the members they blocked are stored but not exported, although the export says it contains "everything Reelr stores about one user". | Confirmed | Low (compliance) | `Settings/DataExport.cs` |
+| S13 | **Data export omitted some personal data**: reports the member filed (with their notes) and the members they blocked were stored but not exported. Now the export includes `reports` (only what the member filed) and `blocked` (usernames). | Fixed | Low (compliance) | `Settings/DataExport.cs` |
 
 Not found: SQL injection paths, raw HTML rendering, committed secrets, unauthenticated write endpoints (other than the `/auth` forms), or endpoints that return email addresses of other members.
 
