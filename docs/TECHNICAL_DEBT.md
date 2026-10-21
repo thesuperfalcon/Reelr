@@ -11,7 +11,7 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 | [TD-1](#td-1-error-responses-are-not-always-problemdetails) | Error responses are not always ProblemDetails | Error handling | Medium |
 | [TD-2](#td-2-most-timestamps-are-serialised-without-a-utc-marker) | Most timestamps are serialised without a UTC marker (fixed) | Correctness | Medium |
 | [TD-3](#td-3-data-protection-keys-are-not-encrypted-at-rest) | Data Protection keys are not encrypted at rest (fixed) | Security | Medium |
-| [TD-4](#td-4-private-diary-data-appears-on-reviews) | Private diary data appears on reviews | Privacy | Medium |
+| [TD-4](#td-4-private-diary-data-appears-on-reviews) | Private diary data appears on reviews (fixed) | Privacy | Medium |
 | [TD-5](#td-5-single-instance-state) | Single-instance state blocks scaling out | Architecture | Medium |
 | [TD-6](#td-6-testing-gaps) | Testing gaps | Testing | Medium |
 | [TD-7](#td-7-block-rules-are-applied-in-some-places-only) | Block rules are applied in some places only | Consistency | Low |
@@ -56,7 +56,7 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 - **Description:** Diary visibility hides "what they watched, when, and how they rated it", but review responses and `reviewed` feed items include the author's current rating and the linked diary entry's watch date for everyone.
 - **Evidence:** `backend/Features/Users/DiaryVisibility.cs` (comment); `ReviewController.ToDtos` (`Score`, `WatchedAt`); `DerivedActivityFeed.Reviewed` (`Rating`, `WatchedAt` from `r.DiaryEntry`).
 - **Impact:** A member with a private diary still discloses rating and watch date for each film they review. The review text itself is public by design.
-- **Next step:** Confirm the intended behaviour. If the diary setting should win, null out `Score` and `WatchedAt` when `UserVisibility.CanSeeDiary` is false for the viewer (one extra join), and add cases to `DiaryVisibilityTests`.
+- **Status:** Fixed. The diary setting wins: `UserVisibility.DiaryOwnersVisibleTo` applies `CanSeeDiary`'s rule inside the query, and `ReviewController.ToDtos` and `DerivedActivityFeed.Reviewed` leave out the rating, watch date, like and rewatch for viewers who may not see the author's diary. The review text stays public. Cases in `DiaryVisibilityTests`.
 
 ### TD-5. Single-instance state
 

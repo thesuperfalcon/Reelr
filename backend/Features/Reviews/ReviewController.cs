@@ -187,12 +187,15 @@ namespace backend.Features.Reviews
         private IQueryable<ReviewDto> ToDtos(IQueryable<Review> reviews)
         {
             var viewerId = User.FindUserId();
+            var diaryVisible = _context.DiaryOwnersVisibleTo(viewerId);
 
             return
                 from r in reviews
                 join rating in _context.Ratings
                     on new { r.UserId, r.MovieId } equals new { rating.UserId, rating.MovieId } into ratings
                 from rating in ratings.DefaultIfEmpty()
+                // The rating and watch date are diary data, so they follow the author's diary visibility.
+                let canSeeDiary = diaryVisible.Contains(r.UserId)
                 select new ReviewDto
                 {
                     Id = r.Id,
@@ -207,8 +210,8 @@ namespace backend.Features.Reviews
                     LikeCount = r.Likes.Count,
                     CommentCount = r.Comments.Count,
                     LikedByMe = viewerId != null && r.Likes.Any(l => l.UserId == viewerId),
-                    Score = rating == null ? (decimal?)null : rating.Score,
-                    WatchedAt = r.DiaryEntry == null ? (DateTime?)null : r.DiaryEntry.WatchedAt,
+                    Score = rating == null || !canSeeDiary ? (decimal?)null : rating.Score,
+                    WatchedAt = r.DiaryEntry == null || !canSeeDiary ? (DateTime?)null : r.DiaryEntry.WatchedAt,
                     CreatedAt = r.CreatedAt,
                     UpdatedAt = r.UpdatedAt
                 };

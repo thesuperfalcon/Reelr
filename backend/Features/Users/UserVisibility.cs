@@ -12,6 +12,19 @@ namespace backend.Features.Users
         public static bool CanSeeDiary(int? viewerId, int ownerId, DiaryVisibility visibility, bool viewerFollowsOwner) =>
             CanSee(viewerId, ownerId, visibility == DiaryVisibility.Public, visibility == DiaryVisibility.Followers, viewerFollowsOwner);
 
+        // The users whose diary the viewer may see, for filtering inside a query; CanSeeDiary's rule in SQL.
+        public static IQueryable<int> DiaryOwnersVisibleTo(this ReelrContext context, int? viewerId)
+        {
+            var follows = context.Set<Follow>();
+
+            return context.Users
+                .Where(u => u.Id == viewerId
+                    || u.DiaryVisibility == DiaryVisibility.Public
+                    || (u.DiaryVisibility == DiaryVisibility.Followers
+                        && follows.Any(f => f.FollowerId == viewerId && f.FollowedId == u.Id)))
+                .Select(u => u.Id);
+        }
+
         // Null when the owner does not exist.
         public static async Task<bool?> CanSeeWatchlistAsync(this ReelrContext context, int? viewerId, int ownerId)
         {

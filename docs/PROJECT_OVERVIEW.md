@@ -94,7 +94,7 @@ A member has at most one rating, one watched status, one review and one watchlis
 ### Visibility (`backend/Features/Users/UserVisibility.cs`)
 
 - Watchlist visibility: `Public`, `Followers` (default) or `Private`.
-- Diary visibility: `Public` (default), `Followers` or `Private`. It covers what the member watched, when and how they rated it, and their logs in the feeds.
+- Diary visibility: `Public` (default), `Followers` or `Private`. It covers what the member watched, when and how they rated it, and their logs in the feeds. Reviews stay public, but their rating and watch date follow the same setting.
 - Reviews are always public; the code comment calls a review "something the user chose to publish". See [SECURITY.md](SECURITY.md) for a consequence of this.
 - A hidden diary or watchlist answers 404, as if the member did not exist.
 - Private lists are visible only to their owner.
