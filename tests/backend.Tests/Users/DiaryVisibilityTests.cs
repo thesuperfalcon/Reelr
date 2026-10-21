@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using backend.Features.Activity;
 using backend.Features.Activity.DTOs;
 using backend.Features.Diary.DTOs;
+using backend.Features.Reviews.DTOs;
 using backend.Features.Settings.DTOs;
 using backend.Features.Users;
 using backend.Features.Users.DTOs;
@@ -11,7 +12,8 @@ using backend.Tests.Infrastructure;
 namespace backend.Tests.Users;
 
 /// <summary>
-/// Who sees a user's diary: on their profile, in the Following and Community feeds, and on the "New from friends" shelf.
+/// Who sees a user's diary: on their profile, in the Following and Community feeds, on the "New from friends" shelf,
+/// and as the rating and watch date on their reviews.
 /// </summary>
 public class DiaryVisibilityTests : IClassFixture<ReelrApiFactory>
 {
@@ -112,6 +114,72 @@ public class DiaryVisibilityTests : IClassFixture<ReelrApiFactory>
         Assert.Single(await WatchedByAsync(alice.Client, "following", bob));
         Assert.Empty(await WatchedByAsync(alice.Client, "community", bob));
         Assert.Empty(await WatchedByAsync(_factory.CreateClient(), "community", bob));
+    }
+
+    [Theory]
+    [InlineData(DiaryVisibility.Public, true, true, true)]
+    [InlineData(DiaryVisibility.Followers, true, false, false)]
+    [InlineData(DiaryVisibility.Private, false, false, false)]
+    public async Task Review_ShowsRatingAndWatchDate_OnlyToWhoMaySeeTheDiary(
+        DiaryVisibility visibility, bool followerSees, bool strangerSees, bool anonymousSees)
+    {
+        var owner = await _factory.CreateAuthenticatedAsync();
+        var follower = await _factory.CreateAuthenticatedAsync();
+        var stranger = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(9321 + (int)visibility, "Reviewed");
+        (await owner.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/diary", new LogDiaryEntryDto { Score = 4, Review = "Loved it" }))
+            .EnsureSuccessStatusCode();
+        await FollowAsync(follower, owner);
+        await SetDiaryVisibilityAsync(owner, visibility);
+        var page = (await _factory.CreateClient().GetFromJsonAsync<MovieReviewPageDto>($"/api/movies/{tmdbId}/reviews"))!;
+        var reviewId = Assert.Single(page.Items).Id;
+
+        // The review itself stays public; only the diary data on it follows the setting.
+        async Task<bool> Sees(HttpClient client)
+        {
+            var review = (await client.GetFromJsonAsync<ReviewDto>($"/api/reviews/{reviewId}"))!;
+            Assert.Equal("Loved it", review.Text);
+            Assert.Equal(review.Score != null, review.WatchedAt != null);
+            return review.Score != null;
+        }
+
+        Assert.True(await Sees(owner.Client));
+        Assert.Equal(followerSees, await Sees(follower.Client));
+        Assert.Equal(strangerSees, await Sees(stranger.Client));
+        Assert.Equal(anonymousSees, await Sees(_factory.CreateClient()));
+
+        var byUser = await (await stranger.Client.GetAsync($"/api/users/{owner.Id}/reviews")).Content.ReadItemsAsync<ReviewDto>();
+        Assert.Equal(strangerSees, Assert.Single(byUser).Score != null);
+    }
+
+    [Theory]
+    [InlineData(DiaryVisibility.Followers, true)]
+    [InlineData(DiaryVisibility.Private, false)]
+    public async Task ReviewInFollowingFeed_ShowsDiaryData_OnlyWhenTheDiaryIsVisible(DiaryVisibility visibility, bool followerSees)
+    {
+        var alice = await _factory.CreateAuthenticatedAsync();
+        var bob = await _factory.CreateAuthenticatedAsync();
+        await FollowAsync(alice, bob);
+        var tmdbId = _factory.Tmdb.AddMovie(9331 + (int)visibility, "Reviewed in the feed");
+        (await bob.Client.PostAsJsonAsync($"/api/movies/{tmdbId}/diary", new LogDiaryEntryDto { Score = 4, Liked = true, Review = "Great" }))
+            .EnsureSuccessStatusCode();
+        await SetDiaryVisibilityAsync(bob, visibility);
+
+        async Task<ActivityItemDto> ReviewedBy(HttpClient client)
+        {
+            var feed = (await client.GetFromJsonAsync<ActivityPageDto>("/api/feed/following"))!;
+            return Assert.Single(feed.Items, i => i.Actor.Id == bob.Id && i.Type == ActivityTypes.Reviewed);
+        }
+
+        var seenByAlice = await ReviewedBy(alice.Client);
+        Assert.NotNull(seenByAlice.Review);
+        Assert.Equal(followerSees, seenByAlice.Rating != null);
+        Assert.Equal(followerSees, seenByAlice.Liked != null);
+        Assert.Equal(followerSees, seenByAlice.WatchedAt != null);
+
+        var seenByBob = await ReviewedBy(bob.Client);
+        Assert.Equal(4m, seenByBob.Rating);
+        Assert.NotNull(seenByBob.WatchedAt);
     }
 
     [Fact]
