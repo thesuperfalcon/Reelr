@@ -1,7 +1,8 @@
 name: Deploy
 
 # Runs after CI has passed on main, or by hand. Builds the three images, pushes them to GitHub Container Registry,
-# brings the database schema up to date and then rolls out the new images with the Bicep template.
+# brings the database schema up to date, rolls out the new images with the Bicep template and ends with a smoke test
+# of the live site.
 #
 # One-time setup: infra/setup-github.ps1 creates the Azure identity this workflow signs in as (OIDC, no stored
 # keys) and prints the repository variables to add under Settings > Secrets and variables > Actions > Variables.

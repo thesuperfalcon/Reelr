@@ -205,7 +205,7 @@ The Docker commands follow from the Dockerfiles and compose files; they were not
 
 ## Deploying
 
-Deployment to Azure is described in the root [README.md](../README.md#deploying-to-azure) and [INTEGRATIONS.md](INTEGRATIONS.md#azure-hosting). In short: `infra/deploy.ps1` for the first setup, `infra/setup-github.ps1` for the workflow identity, then every successful CI run on `main` deploys through `.github/workflows/deploy.yml`.
+Deployment to Azure is described in the root [README.md](../README.md#deploying-to-azure) and [INTEGRATIONS.md](INTEGRATIONS.md#azure-hosting). In short: `infra/deploy.ps1` for the first setup, `infra/setup-github.ps1` for the workflow identity, then every successful CI run on `main` deploys through `.github/workflows/deploy.yml`. The deploy ends with a smoke test: the site root and `/api/feed/community` must answer 200, or the run fails.
 
 To roll back, open Actions > Deploy > Run workflow on `main` and enter the full commit SHA to go back to in `sha`. The run builds and rolls out that commit's images and template. Its migration step applies nothing, since the database already has every migration of that commit, and it does not undo newer ones. That is why migrations must be backward-compatible (see [Backward-compatible migrations](#backward-compatible-migrations)). An empty `sha` deploys the commit the run starts on.
 
