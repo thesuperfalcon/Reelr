@@ -204,7 +204,7 @@ First-time setup, with the Azure CLI signed in and the .NET 10 SDK installed:
 
 `deploy.ps1` creates the resources, asks for the TMDB token and the SMTP key (hidden input) and creates the database users. `setup-github.ps1` lets the Deploy workflow sign in to Azure with OIDC and prints the repository variables it needs.
 
-After that, `.github/workflows/deploy.yml` deploys every commit on `main` that passes CI: it pushes the images to GitHub Container Registry, runs the migrations as a Container Apps job and rolls out the new images. The images must be public on GitHub so Azure can pull them.
+After that, `.github/workflows/deploy.yml` deploys every commit on `main` that passes CI: it pushes the images to GitHub Container Registry, runs the migrations as a Container Apps job, rolls out the new images and ends with a smoke test of the site and an anonymous API read. The images must be public on GitHub so Azure can pull them.
 
 **Invites and demo accounts.** Registration is invite only: an admin makes a one-time code on the Admin page and sends its sign-up link (`/register?invite=…`). Demo accounts, listed under `Demo:UserIds`, can do everything a member does except change their name, password or picture, sign out other devices or delete the account, so a shared login for interviews stays as it was. To create the first accounts on an empty database:
 

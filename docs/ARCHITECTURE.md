@@ -63,6 +63,8 @@ Because nginx proxies the API under the same origin, the API has no CORS configu
 - an optional custom domain on the frontend with an Azure managed certificate,
 - Azure SQL (serverless, free offer, auto-pause, Entra-only authentication), Key Vault for the JWT key, TMDB token and SMTP password, plus an RSA key `data-protection` for wrapping the Data Protection key ring (the backend identity has Key Vault Crypto User on that key only, see [SECURITY.md](SECURITY.md) S3), Log Analytics (30-day retention) and optional metric alerts.
 
+Each deploy (`.github/workflows/deploy.yml`) builds the images, runs the migration job, rolls out the Bicep template and ends with a smoke test: it fetches the site root and the anonymous community feed (`/api/feed/community`) from the template's `siteUrl` output and fails unless both answer 200, retrying six times 20 seconds apart so a paused database can wake up.
+
 See [INTEGRATIONS.md](INTEGRATIONS.md) for the Azure and GitHub details.
 
 ## Component view of the API
