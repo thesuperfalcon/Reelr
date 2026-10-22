@@ -4,6 +4,7 @@ using backend.Features.Activity;
 using backend.Features.Auth;
 using backend.Features.Diary;
 using backend.Features.Invites;
+using backend.Features.Maintenance;
 using backend.Features.Email;
 using backend.Features.Moderation;
 using backend.Features.Movies;
@@ -146,9 +147,9 @@ builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
 builder.Services.AddSingleton<EmailQueue>();
 builder.Services.AddHostedService<EmailDispatcher>();
 
-// Copies stored films from TMDB again now and then ("MovieRefresh" section).
+// Refreshes stored films from TMDB and deletes expired refresh tokens now and then ("MovieRefresh" section).
 builder.Services.Configure<MovieRefreshOptions>(builder.Configuration.GetSection("MovieRefresh"));
-builder.Services.AddHostedService<MovieRefresher>();
+builder.Services.AddHostedService<MaintenanceLoop>();
 builder.Services.AddScoped<AccountEmails>();
 builder.Services.AddSingleton<SecurityStamps>();
 builder.Services.AddSingleton<SecurityLog>();

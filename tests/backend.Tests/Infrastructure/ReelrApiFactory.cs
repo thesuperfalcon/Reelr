@@ -82,7 +82,7 @@ public class ReelrApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("App:BaseUrl", "http://reelr.test");
         builder.UseSetting("Activity:CommunityCacheSeconds", CommunityCacheSeconds.ToString());
         builder.UseSetting("Database:CloseIdleConnectionsAfterSeconds", CloseIdleConnectionsAfterSeconds.ToString());
-        // MovieRefresherTests calls the refresh itself; the background run would change films under other tests.
+        // MovieRefreshTests and MaintenanceLoopTests run the work themselves; the background run would change data under other tests.
         builder.UseSetting("MovieRefresh:Enabled", "false");
         builder.UseSetting("Registration:InviteOnly", InviteOnly.ToString());
         // Every test registers and logs in from the same address, so the auth limits are lifted.

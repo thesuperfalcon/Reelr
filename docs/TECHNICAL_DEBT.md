@@ -22,7 +22,7 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 | [TD-12](#td-12-moviecatalog-swallows-every-save-error) | `MovieCatalog` swallows every save error | Error handling | Low |
 | [TD-13](#td-13-stale-documentation-and-api-collection) | Stale documentation and API collection | Documentation | Low |
 | [TD-14](#td-14-unbounded-or-unpaged-reads) | Unbounded or unpaged reads | Performance | Low |
-| [TD-15](#td-15-refresh-tokens-of-inactive-users-are-never-cleaned-up) | Refresh tokens of inactive users are never cleaned up | Data hygiene | Low |
+| [TD-15](#td-15-refresh-tokens-of-inactive-users-are-never-cleaned-up) | Refresh tokens of inactive users are never cleaned up (fixed) | Data hygiene | Low |
 | [TD-16](#td-16-background-work-and-scale-to-zero) | Background work and scale-to-zero | Operations | Low |
 | [TD-17](#td-17-floating-image-tags) | Floating image tags | Reproducibility | Low |
 | [TD-18](#td-18-small-api-inconsistencies) | Small API inconsistencies | Consistency | Low |
@@ -137,12 +137,12 @@ Severity: **High** (likely to cause user-visible bugs or security problems soon)
 - **Description:** Expired refresh tokens are deleted only when the same user gets a new token.
 - **Evidence:** `RefreshTokens.AddAsync` (`ExecuteDeleteAsync` scoped to `user.Id`).
 - **Impact:** Rows for members who stop visiting stay forever. The privacy page says login records are kept "for at most 30 days".
-- **Next step:** Delete expired tokens for everyone in a periodic job (for example inside `MovieRefresher`'s loop or a small new hosted service).
+- **Status:** Fixed. `MovieRefresher` became `MaintenanceLoop` (`backend/Features/Maintenance`), which in each run also deletes every user's expired tokens with one `ExecuteDeleteAsync` (`RefreshTokens.DeleteExpiredAsync`). A failing task is logged and does not stop the other. `MaintenanceLoopTests.Run_DeletesExpiredTokensOfEveryUser_AndKeepsValidOnes` covers it.
 
 ### TD-16. Background work and scale-to-zero
 
 - **Description:** In Azure the backend keeps one replica warm by default, but `backendMinReplicas = 0` lets it scale to zero. Background services only run while a replica is up.
-- **Evidence:** `backendMinReplicas` in `infra/main.bicep`; `MovieRefresher` runs at the first database use after start-up (plus a 2-minute delay) and then at the first use at least 6 hours later; `EmailQueue` is in memory with retries up to about 42 seconds.
+- **Evidence:** `backendMinReplicas` in `infra/main.bicep`; `MaintenanceLoop` runs at the first database use after start-up (plus a 2-minute delay) and then at the first use at least 6 hours later; `EmailQueue` is in memory with retries up to about 42 seconds.
 - **Impact:** An email still retrying when the replica scales in is lost. Rate-limit and throttle counters reset at each cold start (see [SECURITY.md](SECURITY.md) S4).
 - **Next step:** Acceptable for the beta. If it matters, move refresh and email to a scheduled Container Apps job.
 
