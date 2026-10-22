@@ -164,7 +164,7 @@ DTOs live in each feature's `DTOs/` folder. The SPA mirrors them in `frontend/sr
 
 - 23 migrations in `backend/Migrations/`, from `20260907141742_InitialCreate` to `20261014130423_AddPageViews`.
 - Create: `dotnet ef migrations add <Name> --project backend/backend.csproj`. Apply locally: `dotnet ef database update --project backend/backend.csproj`.
-- The app never migrates at start-up. In Docker Compose the `migrate` service runs an EF migrations bundle (`backend/Dockerfile`, target `migrations`) before the backend starts. In Azure the `reelr-migrate` Container Apps job runs the same bundle, under an identity with `db_owner`, before each rollout (`.github/workflows/deploy.yml`).
+- The app never migrates at start-up. In Docker Compose the `migrate` service runs an EF migrations bundle (`backend/Dockerfile`, target `migrations`) before the backend starts. In Azure the `reelr-migrate` Container Apps job runs the same bundle, under an identity with `db_owner`, before each rollout (`.github/workflows/deploy.yml`). Migrations must stay backward-compatible with the previous backend; see [DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md#backward-compatible-migrations).
 - CI runs `dotnet ef migrations has-pending-model-changes` and applies every migration to an empty database (`.github/workflows/ci.yml`).
 - Integration tests create their databases with `EnsureCreated`, not migrations.
 
