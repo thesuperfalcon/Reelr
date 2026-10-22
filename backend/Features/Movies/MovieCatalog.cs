@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace backend.Features.Movies
 {
     // The local copy of TMDB films. A film is stored the first time someone logs, rates, reviews or lists it,
-    // and MovieRefresher copies it again now and then, since titles, posters and runtimes change on TMDB.
+    // and MaintenanceLoop copies it again now and then, since titles, posters and runtimes change on TMDB.
     public class MovieCatalog
     {
         private readonly ReelrContext _context;

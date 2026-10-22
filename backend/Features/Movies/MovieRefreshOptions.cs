@@ -1,6 +1,6 @@
 namespace backend.Features.Movies
 {
-    // Bound from the "MovieRefresh" configuration section.
+    // Bound from the "MovieRefresh" configuration section. Enabled and IntervalHours apply to the whole MaintenanceLoop.
     public class MovieRefreshOptions
     {
         public bool Enabled { get; set; } = true;
