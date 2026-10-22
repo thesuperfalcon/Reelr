@@ -65,7 +65,7 @@ Test methods per area (from `[Fact]`/`[Theory]` counts):
 | Lists | `MovieListControllerTests` | 26 | Private list visibility, ownership, paging |
 | Users and settings | `UserControllerTests`, `BlockTests`, `DiaryVisibilityTests`, `DemoAccountTests`, `SettingsControllerTests` | 62 | Visibility rules, block effects, account deletion, demo restrictions, avatar upload, export |
 | Feed | `ActivityControllerTests` | 19 | Following and community rules, grouping, paging |
-| Films and TMDB | `MovieControllerTests`, `PersonControllerTests`, `CompanyControllerTests`, `MovieRefreshTests`, `TmdbResilienceTests` (includes `TmdbCacheTests`), `TmdbBaseUrlTests` | 47 | TMDB failure mapping to 502 and 503, timeouts, caching, refresh behaviour |
+| Films and TMDB | `MovieControllerTests`, `PersonControllerTests`, `CompanyControllerTests`, `MovieRefreshTests`, `MaintenanceLoopTests`, `TmdbResilienceTests` (includes `TmdbCacheTests`), `TmdbBaseUrlTests` | 48 | TMDB failure mapping to 502 and 503, timeouts, caching, refresh behaviour, expired refresh-token cleanup |
 | Moderation and invites | `ModerationTests`, `InviteTests` | 14 | Admin-only access, report rules, resolution, invite claim and revoke |
 | Platform | `ConcurrencyTests`, `HealthCheckTests`, `LoggingTests`, `PlatformTests`, `RateLimitTests.cs` (read, write and search classes), `PagingTests` | 40 | Parallel duplicate requests produce one row and no 500, health endpoints, request logging without query strings, correlation ids in errors, start-up secret checks, global and search rate limits with `Retry-After`, cursor validation |
 

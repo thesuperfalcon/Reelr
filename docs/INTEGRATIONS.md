@@ -25,7 +25,7 @@ TMDB (The Movie Database) is the source of truth for films, people and studios: 
 | `backend/Features/Movies/TmdbCache.cs` | In-memory cache with its own size limit, counted in characters of TMDB JSON. |
 | `backend/Features/Movies/TmdbUnavailableException.cs`, `TmdbExceptionHandler.cs` | One exception type for every failure, mapped to 502 or 503 ProblemDetails. |
 | `backend/Features/Movies/MovieCatalog.cs` | Fetches and stores a film on first use; refreshes stale films. |
-| `backend/Features/Movies/MovieRefresher.cs` | Background service that calls `MovieCatalog.RefreshStaleAsync`. |
+| `backend/Features/Maintenance/MaintenanceLoop.cs` | Background service that calls `MovieCatalog.RefreshStaleAsync` (and deletes expired refresh tokens). |
 | `backend/Features/Observability/HealthChecks.cs` | `TmdbHealthCheck` pings TMDB's `configuration` endpoint for `/health/ready`. |
 | `backend/Features/Movies/DTOs/Tmdb*.cs`, `backend/Features/People/DTOs/TmdbPersonDetailsDto.cs` | Deserialisation targets (case-insensitive JSON). |
 
@@ -70,7 +70,7 @@ Any section under `Tmdb:Resilience` overrides these (the tests use it). Failures
 
 - When TMDB is down, browsing films and searching fail with 502 or 503. Pages that read stored data (diary, reviews, lists, feeds, profiles) keep working, and `/health/ready` reports `Degraded` but stays 200.
 - Logging, rating or listing a film that is not stored yet also fails, because `MovieCatalog` must fetch it first.
-- `MovieRefresher` stops a run after three failures in a row and tries again next interval. A film TMDB no longer knows keeps its stored data.
+- `MaintenanceLoop` stops a film refresh after three failures in a row and tries again next interval. A film TMDB no longer knows keeps its stored data.
 - TMDB's own rate limits are not handled explicitly beyond retries and caching. The `search` rate-limit policy (30 per minute per client) exists because each search calls TMDB.
 - The cache is per process.
 - Attribution: the root README carries the required TMDB notice.
@@ -83,7 +83,7 @@ Any section under `Tmdb:Resilience` overrides these (the tests use it). Failures
 | `Tmdb:BaseUrl` | `https://api.themoviedb.org/3/` | Overridden to the fake TMDB in end-to-end runs |
 | `Tmdb:CacheSizeMegabytes` | 50 | Cache size; 0 turns it off |
 | `Tmdb:Resilience:*` | see above | Resilience overrides |
-| `MovieRefresh:Enabled`, `IntervalHours`, `MaxAgeDays`, `BatchSize` | true, 6, 30, 100 | Refresh job |
+| `MovieRefresh:Enabled`, `IntervalHours`, `MaxAgeDays`, `BatchSize` | true, 6, 30, 100 | Maintenance loop (`Enabled` and `IntervalHours` also cover the refresh-token cleanup) |
 
 ### Test doubles
 
@@ -156,7 +156,7 @@ Every wake-up of the serverless database uses part of its monthly free amount (a
 
 - `DatabaseActivityInterceptor` reports every connection opened or closed to `DatabaseActivity`.
 - `IdleConnectionCloser` clears the SqlClient pools 60 seconds after the last use (`Database:CloseIdleConnectionsAfterSeconds`). Pooled connections are sessions, and the database only starts counting down to its pause once none are left; the pool alone would keep them open for 4 to 8 minutes. Just before closing, it runs the `IBeforeDatabaseIdle` work.
-- `MovieRefresher` waits for the next database use, not for any request, so scanners asking for paths such as `/api/.env` do not wake the database.
+- `MaintenanceLoop` waits for the next database use, not for any request, so scanners asking for paths such as `/api/.env` do not wake the database.
 - Logged-out visitors get the community feed from `AnonymousCommunityPages`, which stays valid until the database is used again and is read again before it goes idle (`AnonymousCommunityRefresh`).
 
 ### Limitations

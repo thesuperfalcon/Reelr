@@ -128,7 +128,7 @@ ASP.NET Core configuration: `appsettings.json`, then `appsettings.{Environment}.
 | `ForwardedHeaders:KnownNetworks`, `ForwardedHeaders:ForwardLimit` | | empty, 1 | Trusted proxies |
 | `RateLimiting:<Policy>:PermitLimit`, `WindowSeconds` | | see [API_REFERENCE.md](API_REFERENCE.md#rate-limits) | Rate limits; `LoginPerAccount` for the login throttle |
 | `Tmdb:BaseUrl`, `Tmdb:CacheSizeMegabytes`, `Tmdb:Resilience:*` | | TMDB v3, 50, see [INTEGRATIONS.md](INTEGRATIONS.md#tmdb) | TMDB client |
-| `MovieRefresh:*` | | enabled, 6 h, 30 days, 100 | Film refresh job |
+| `MovieRefresh:*` | | enabled, 6 h, 30 days, 100 | Maintenance loop: film refresh and refresh-token cleanup |
 | `Activity:Implementation`, `CommunityDays`, `FollowingDays`, `GroupWindowMinutes`, `CommunityCacheSeconds` | | `Derived`, 30, 365, 60, 60 | Feed tuning |
 | `Serilog:*` | | Information, framework noise at Warning | Log levels, for example `Serilog__MinimumLevel__Default=Debug` |
 

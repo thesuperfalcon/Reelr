@@ -96,7 +96,7 @@ flowchart TB
 
     subgraph background [Hosted services]
         disp[EmailDispatcher]
-        refr[MovieRefresher]
+        refr[MaintenanceLoop]
     end
 
     ctx[(ReelrContext<br/>EF Core)]
@@ -142,7 +142,7 @@ There is no compile-time enforcement of these boundaries: everything is in one p
 | Holder | Why it exists | Used by |
 |---|---|---|
 | `Diary/JournalService` | Watched status, rating, diary entries, review linkage and watchlist depend on each other. Keeping the rules in one class means every endpoint applies them the same way. | `DiaryController`, `RatingController`, `StatusController` |
-| `Movies/MovieCatalog` | Films are stored locally only when someone interacts with them. It fetches from TMDB on first use and handles two requests creating the same film at once (the unique `TmdbId` index plus a retry read). | Diary, rating, status, watchlist, review and list endpoints; `MovieRefresher` |
+| `Movies/MovieCatalog` | Films are stored locally only when someone interacts with them. It fetches from TMDB on first use and handles two requests creating the same film at once (the unique `TmdbId` index plus a retry read). | Diary, rating, status, watchlist, review and list endpoints; `MaintenanceLoop` |
 | `Users/UserVisibility` | One place decides who may see a diary or watchlist. | `DiaryController`, `WatchlistController`, `UserController` |
 | `Users/BlockRules` | Block checks as `IQueryable` extensions so they compose into queries. | Reviews, comments, likes, follows, feed |
 | `Activity/IActivityFeed` | Lets the feed implementation change without touching the controller. | `ActivityController` |
@@ -156,7 +156,7 @@ Registration is explicit in `backend/Program.cs`; there is no assembly scanning.
 | Scoped | `ReelrContext`, `TokenService`, `RefreshTokens`, `MovieCatalog`, `JournalService`, `InviteCodes`, `AccountEmails`, `IActivityFeed` | Depend on the per-request DbContext. |
 | Singleton | `EmailQueue`, `IEmailSender` (`SmtpEmailSender`), `SecurityStamps`, `SecurityLog`, `AdminAccess`, `DemoAccounts`, `LoginThrottle`, `TmdbCache` | Hold process-wide state (queues, caches, counters) or immutable configuration. `SecurityStamps` creates its own scope to read the database. |
 | Typed HttpClient | `TmdbService` | Created by `AddHttpClient<TmdbService>` with `AddStandardResilienceHandler` (timeouts, retries, circuit breaker). |
-| Hosted services | `EmailDispatcher`, `MovieRefresher` | Background loops. `MovieRefresher` creates a scope per run. |
+| Hosted services | `EmailDispatcher`, `MaintenanceLoop` | Background loops. `MaintenanceLoop` refreshes stale films and deletes expired refresh tokens; each task gets its own scope and a failure in one does not stop the other. |
 | Exception handlers | `TmdbExceptionHandler`, `UniqueConflictExceptionHandler` | Map specific exceptions to 502/503 and 409 problem responses. |
 | Factory | `IActivityFeed` | Chosen by `Activity:Implementation`; only `Derived` is accepted, anything else throws at resolution time. |
 
@@ -228,7 +228,7 @@ sequenceDiagram
 
 ## Data flow
 
-- **Film data**: TMDB is the source of truth. The API proxies most TMDB data straight through without storing it (`MovieController`, `PersonController`, `CompanyController`). It stores a slim `Movie` row (title, overview, dates, runtime, image paths) only when a member's action needs a foreign key. `MovieRefresher` re-copies stored films older than 30 days in batches every 6 hours.
+- **Film data**: TMDB is the source of truth. The API proxies most TMDB data straight through without storing it (`MovieController`, `PersonController`, `CompanyController`). It stores a slim `Movie` row (title, overview, dates, runtime, image paths) only when a member's action needs a foreign key. `MaintenanceLoop` re-copies stored films older than 30 days in batches every 6 hours.
 - **Member data**: written through controllers and shared services into SQL Server. The feed is not stored; `DerivedActivityFeed` computes it from diary entries, reviews, lists and watchlists at read time.
 - **Client state**: TanStack Query caches responses in the browser for 5 minutes by default (`frontend/src/main.tsx`) and is invalidated by mutation hooks in `frontend/src/lib/queries.ts`.
 
@@ -263,7 +263,7 @@ Details are in [INTEGRATIONS.md](INTEGRATIONS.md).
 
 Each decision below is stated in a code comment or README; the file is the evidence.
 
-1. **Store films lazily, refresh periodically.** Avoids mirroring TMDB and keeps the database small (`MovieCatalog.cs`, `MovieRefresher.cs`).
+1. **Store films lazily, refresh periodically.** Avoids mirroring TMDB and keeps the database small (`MovieCatalog.cs`, `MaintenanceLoop.cs`).
 2. **Schema changes are a separate deploy step with a separate database identity.** The backend's managed identity has only `db_datareader` and `db_datawriter`; the migration job has `db_owner` (`infra/sql-users.cs`, `backend/Dockerfile`).
 3. **Access token in memory, refresh token in an HttpOnly cookie scoped to `/auth`.** Limits what an injected script can steal (`RefreshTokens.cs`, `frontend/src/lib/api.ts`).
 4. **Revocation through the Identity security stamp** checked on every request (`SecurityStamps.cs`, `Program.cs`).
@@ -282,4 +282,4 @@ Summarised here; [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) has evidence, impact and
 - **One project, no enforced boundaries.** Nothing stops a feature from using another feature's entities directly, and several do (for example `DataExport` reads every feature's tables).
 - **Feed cost grows with data.** `DerivedActivityFeed` runs up to five queries per page and merges in memory. It is bounded (`Take`), indexed and windowed (30 and 365 days), but a stored activity table is the documented escape route.
 - **Inconsistent error bodies.** Some 400 and 409 responses are plain strings, not ProblemDetails. This is covered in [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md).
-- **Scale-to-zero side effects.** With `backendMinReplicas = 0`, background work (`MovieRefresher`, `EmailDispatcher`) runs only while the container is up. `MovieRefresher` always waits until the app uses the database (`DatabaseActivity`), so it never wakes a paused database.
+- **Scale-to-zero side effects.** With `backendMinReplicas = 0`, background work (`MaintenanceLoop`, `EmailDispatcher`) runs only while the container is up. `MaintenanceLoop` always waits until the app uses the database (`DatabaseActivity`), so it never wakes a paused database.

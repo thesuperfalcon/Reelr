@@ -53,9 +53,10 @@ Every folder follows the same shape where it applies: `XController.cs`, entity c
 | `Diary` | Diary entries and the journal rules | `JournalService.cs`, `DiaryController.cs`, `DiaryEntry.cs` |
 | `Email` | Background email sending | `EmailQueue.cs`, `EmailDispatcher.cs`, `IEmailSender.cs`, `SmtpEmailSender.cs`, `EmailOptions.cs` |
 | `Invites` | Invite-only registration | `InviteCodes.cs`, `InvitesController.cs`, `Invite.cs` |
+| `Maintenance` | Background housekeeping: film refresh and expired refresh-token cleanup | `MaintenanceLoop.cs` |
 | `Moderation` | Reports and admin moderation | `AdminAccess.cs` (admin policy), `AdminController.cs`, `ReportController.cs`, `Report.cs` |
 | `MovieLists` | Member lists of films | `MovieListController.cs`, `MovieList.cs`, `MovieListItem.cs` |
-| `Movies` | TMDB client, film storage, refresh job, TMDB error mapping, TMDB DTOs | `TmdbService.cs`, `TmdbCache.cs`, `MovieCatalog.cs`, `MovieRefresher.cs`, `TmdbExceptionHandler.cs`, `MovieController.cs`, `Movie.cs` |
+| `Movies` | TMDB client, film storage, TMDB error mapping, TMDB DTOs | `TmdbService.cs`, `TmdbCache.cs`, `MovieCatalog.cs`, `TmdbExceptionHandler.cs`, `MovieController.cs`, `Movie.cs` |
 | `Observability` | Logging, correlation ids, health checks | `Logging.cs`, `CorrelationId.cs`, `HealthChecks.cs` |
 | `Paging` | Cursor paging contract | `PageQuery.cs`, `PageCursor.cs`, `PageDto.cs` |
 | `People` | Person details and search (TMDB proxy) | `PersonController.cs`, `PersonCredits.cs` |

@@ -173,8 +173,8 @@ DTOs live in each feature's `DTOs/` folder. The SPA mirrors them in `frontend/sr
 | Data | Lifetime | Evidence |
 |---|---|---|
 | Member content | Until the member deletes it or the account | Cascades and `UserController.DeleteUser` |
-| Refresh tokens | Expired rows are deleted when the same user next gets a token; used rows are kept until expiry to detect reuse | `RefreshTokens.AddAsync` |
+| Refresh tokens | Expired rows are deleted when the same user next gets a token and, for every user, by the maintenance loop every 6 hours; used rows are kept until expiry to detect reuse | `RefreshTokens.AddAsync`, `RefreshTokens.DeleteExpiredAsync`, `MaintenanceLoop` |
 | Reports | Kept after resolution; deleted with the reporter's account | `Report` configuration |
 | Page views | Kept indefinitely; counts per route and day only | `PageView` |
-| Films | Kept indefinitely, refreshed when older than 30 days | `MovieRefresher`, `MovieRefreshOptions` |
+| Films | Kept indefinitely, refreshed when older than 30 days | `MaintenanceLoop`, `MovieRefreshOptions` |
 | Azure SQL backups | 7 days point-in-time | Root README |
