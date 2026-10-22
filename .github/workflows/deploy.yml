@@ -11,6 +11,11 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+    inputs:
+      sha:
+        description: Full commit SHA to deploy, for example an earlier one to roll back to. Empty deploys the commit the run starts on.
+        required: false
+        type: string
 
 # One deploy at a time; a newer one waits instead of cancelling a rollout halfway.
 concurrency:
@@ -21,8 +26,10 @@ permissions:
   contents: read
 
 env:
-  # The commit CI tested, or the one the manual run was started on.
-  SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+  # The commit CI tested, the one a manual run names in its sha input, or the one the manual run was started on.
+  # Rolling back with sha deploys the older images and template only: migrations are never rolled back, so the
+  # older backend runs against the newer schema (see "Backward-compatible migrations" in docs/DEVELOPMENT_GUIDE.md).
+  SHA: ${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
   IMAGE_REPOSITORY: ghcr.io/${{ github.repository_owner }}
 
 jobs:

@@ -154,6 +154,14 @@ Frontend configuration is limited to the proxy target in `frontend/vite.config.t
 
 The API never migrates at start-up. Review generated migrations before committing; CI also applies every migration to an empty database. See [DATA_MODEL.md](DATA_MODEL.md#migrations).
 
+### Backward-compatible migrations
+
+Every migration must work with the previous version of the backend. The deploy runs migrations before the new backend starts, and a rollback (below) runs the older backend against the newer schema, because migrations are never rolled back.
+
+- Add columns as nullable or with a default, so the older backend can still insert rows without them.
+- Remove or rename a column or table in two releases: first stop using it in the code, then drop or rename it in a later release.
+- Do not change a column's type or tighten a constraint in a way the older backend's writes would break.
+
 ## Running tests
 
 Summary; [TESTING.md](TESTING.md) has details.
@@ -198,6 +206,8 @@ The Docker commands follow from the Dockerfiles and compose files; they were not
 ## Deploying
 
 Deployment to Azure is described in the root [README.md](../README.md#deploying-to-azure) and [INTEGRATIONS.md](INTEGRATIONS.md#azure-hosting). In short: `infra/deploy.ps1` for the first setup, `infra/setup-github.ps1` for the workflow identity, then every successful CI run on `main` deploys through `.github/workflows/deploy.yml`.
+
+To roll back, open Actions > Deploy > Run workflow on `main` and enter the full commit SHA to go back to in `sha`. The run builds and rolls out that commit's images and template. Its migration step applies nothing, since the database already has every migration of that commit, and it does not undo newer ones. That is why migrations must be backward-compatible (see [Backward-compatible migrations](#backward-compatible-migrations)). An empty `sha` deploys the commit the run starts on.
 
 ## Common problems
 
