@@ -101,6 +101,16 @@ public class RefreshTokens
         return token.UserId;
     }
 
+    /// <summary>
+    /// Deletes every user's expired tokens, so members who stop signing in do not keep rows forever.
+    /// Called by MaintenanceLoop.
+    /// </summary>
+    public Task<int> DeleteExpiredAsync(CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        return _context.RefreshTokens.Where(t => t.ExpiresAt < now).ExecuteDeleteAsync(cancellationToken);
+    }
+
     private async Task AddAsync(HttpResponse response, User user, Guid familyId)
     {
         var now = DateTime.UtcNow;

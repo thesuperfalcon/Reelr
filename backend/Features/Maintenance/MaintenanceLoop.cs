@@ -1,11 +1,13 @@
 using backend.Data;
+using backend.Features.Auth;
 using backend.Features.Movies;
 using Microsoft.Extensions.Options;
 
 namespace backend.Features.Maintenance
 {
-    // Housekeeping every few hours: copies a batch of the oldest films from TMDB again (MovieCatalog.RefreshStaleAsync).
-    // A run waits until the app uses the database anyway (DatabaseActivity), so the app can stay up all the time
+    // Housekeeping every few hours: copies a batch of the oldest films from TMDB again (MovieCatalog.RefreshStaleAsync)
+    // and deletes every expired refresh token (RefreshTokens.DeleteExpiredAsync), also for members who no longer sign
+    // in. A run waits until the app uses the database anyway (DatabaseActivity), so the app can stay up all the time
     // without waking a paused database. It does not wait for any request: scanners asking for /api/.env would count,
     // and the run would wake the database for them. With several app instances each would do this; that is harmless,
     // only wasteful, and can move to a single scheduled job when there is more than one instance.
@@ -55,6 +57,16 @@ namespace backend.Features.Maintenance
                 if (refreshed > 0)
                 {
                     _logger.LogInformation("Refreshed {Count} films from TMDB", refreshed);
+                }
+            });
+
+            await TryAsync("Deleting expired refresh tokens failed", async services =>
+            {
+                var deleted = await services.GetRequiredService<RefreshTokens>().DeleteExpiredAsync(cancellationToken);
+
+                if (deleted > 0)
+                {
+                    _logger.LogInformation("Deleted {Count} expired refresh tokens", deleted);
                 }
             });
         }
