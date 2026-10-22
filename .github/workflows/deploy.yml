@@ -133,6 +133,7 @@ jobs:
 
       # The template sets everything else as well, so the apps always match infra/.
       - name: Roll out the new images
+        id: rollout
         env:
           REELR_ADMIN_OBJECT_ID: ${{ vars.REELR_ADMIN_OBJECT_ID }}
           REELR_ADMIN_LOGIN: ${{ vars.REELR_ADMIN_LOGIN }}
@@ -152,3 +153,22 @@ jobs:
             --template-file infra/main.bicep --parameters infra/main.bicepparam \
             --query properties.outputs.siteUrl.value -o tsv)
           echo "Deployed to $site" >> "$GITHUB_STEP_SUMMARY"
+          echo "site=$site" >> "$GITHUB_OUTPUT"
+
+      # Fails the deploy if the site or an anonymous API read does not answer 200. The retries give a paused
+      # database time to wake up (most of a minute) and the new revision time to take traffic.
+      - name: Smoke test
+        env:
+          SITE: ${{ steps.rollout.outputs.site }}
+        run: |
+          for url in "$SITE/" "$SITE/api/feed/community?limit=1"; do
+            # --fail retries and fails on 4xx and 5xx; the status check also refuses a redirect.
+            status=$(curl --fail --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 90 \
+              --retry 6 --retry-delay 20 --retry-all-errors "$url")
+            echo "GET $url: $status"
+            if [ "$status" != 200 ]; then
+              echo "::error::$url answered $status"
+              exit 1
+            fi
+          done
+          echo "Smoke test passed" >> "$GITHUB_STEP_SUMMARY"
