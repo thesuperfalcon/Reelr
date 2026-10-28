@@ -358,7 +358,7 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
-    public async Task UpdateStatus_LogsNewEntryWithCurrentRating()
+    public async Task UpdateStatus_ChangesLikeWithoutLogging()
     {
         var user = await _factory.CreateAuthenticatedAsync();
         var tmdbId = _factory.Tmdb.AddMovie(6005, "Status change");
@@ -366,10 +366,10 @@ public class DiaryControllerTests : IClassFixture<ReelrApiFactory>
 
         (await user.Client.PutAsJsonAsync($"/api/movies/{tmdbId}/status", new UpdateStatusDto { Liked = true })).EnsureSuccessStatusCode();
 
-        var diary = await GetDiaryAsync(user.Client);
-        Assert.Equal(2, diary.Count);
-        Assert.True(diary[0].Liked);
-        Assert.Equal(3m, diary[0].Rating);
+        var entry = Assert.Single(await GetDiaryAsync(user.Client));
+        Assert.Null(entry.Liked);
+        var status = await user.Client.GetFromJsonAsync<StatusDto>($"/api/movies/{tmdbId}/status");
+        Assert.True(status!.Liked);
     }
 
     [Fact]

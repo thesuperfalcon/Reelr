@@ -40,7 +40,7 @@ for (const look of looks) {
   });
 }
 
-test("signed-in pages and the rating dialog pass axe in every look", async ({ page }) => {
+test("signed-in pages, the film actions and the log dialog pass axe in every look", async ({ page }) => {
   await signUp(page, uniqueName("axe"));
   await expect(page.getByRole("link", { name: /^Profile of / })).toBeVisible();
 
@@ -53,7 +53,8 @@ test("signed-in pages and the rating dialog pass axe in every look", async ({ pa
     }
 
     await page.goto("/movie/900001");
-    await page.getByRole("button", { name: /^Rate The Test Pattern/ }).click();
+    await expectNoAxeViolations(page);
+    await page.getByRole("button", { name: "Review or log a date" }).click();
     await expect(page.getByRole("dialog")).toBeVisible();
     await expectNoAxeViolations(page);
   }

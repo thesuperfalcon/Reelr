@@ -194,7 +194,7 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
     }
 
     [Fact]
-    public async Task UpdateRating_LogsNewDiaryEntryAndKeepsOldOne()
+    public async Task UpdateRating_WatchedFilm_ChangesRatingWithoutLogging()
     {
         var user = await _factory.CreateAuthenticatedAsync();
         var tmdbId = _factory.Tmdb.AddMovie(5014, "Re-rated");
@@ -203,12 +203,15 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
         var response = await user.Client.PutAsJsonAsync(RatingUrl(tmdbId), new UpdateRatingDto { Score = 4.5m });
         response.EnsureSuccessStatusCode();
 
+        // The entry keeps the score it logged; the film's rating is the new one.
         var diary = await user.Client.GetItemsAsync<DiaryEntryResponse>("/api/watched");
-        Assert.Equal([4.5m, 2m], diary!.Select(d => d.Rating));
+        Assert.Equal(2m, Assert.Single(diary!).Rating);
+        var stored = await user.Client.GetFromJsonAsync<RatingDto>(RatingUrl(tmdbId));
+        Assert.Equal(4.5m, stored!.Score);
     }
 
     [Fact]
-    public async Task CreateRating_AlreadyWatched_LogsNewDiaryEntry()
+    public async Task CreateRating_AlreadyWatched_DoesNotLogAgain()
     {
         var user = await _factory.CreateAuthenticatedAsync();
         var tmdbId = _factory.Tmdb.AddMovie(5015, "Seen first");
@@ -218,7 +221,21 @@ public class RatingControllerTests : IClassFixture<ReelrApiFactory>
         await RateAsync(user.Client, tmdbId, 5);
 
         var diary = await user.Client.GetItemsAsync<DiaryEntryResponse>("/api/watched");
-        Assert.Equal([5m, null], diary!.Select(d => d.Rating));
+        Assert.Null(Assert.Single(diary!).Rating);
+    }
+
+    [Fact]
+    public async Task UpdateRating_AfterUnwatch_MarksWatchedAndLogs()
+    {
+        var user = await _factory.CreateAuthenticatedAsync();
+        var tmdbId = _factory.Tmdb.AddMovie(5017, "Watched again");
+        await RateAsync(user.Client, tmdbId, 2);
+        (await user.Client.DeleteAsync($"/api/movies/{tmdbId}/status")).EnsureSuccessStatusCode();
+
+        (await user.Client.PutAsJsonAsync(RatingUrl(tmdbId), new UpdateRatingDto { Score = 4 })).EnsureSuccessStatusCode();
+
+        var diary = await user.Client.GetItemsAsync<DiaryEntryResponse>("/api/watched");
+        Assert.Equal(4m, Assert.Single(diary!).Rating);
     }
 
     [Fact]

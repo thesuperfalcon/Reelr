@@ -329,6 +329,65 @@ export function useDeleteRating(tmdbId: number) {
   });
 }
 
+// One-click changes from the film page. Marking a film watched, or rating or liking one that is not watched yet,
+// logs it once; on a watched film the rating and like change without a new diary entry (JournalService).
+// They share a key, so the log dialog can wait for them before it reads what is saved.
+export const quickActionKey = (tmdbId: number) => ["quick-action", tmdbId];
+
+export function useMarkWatched(tmdbId: number) {
+  const invalidate = useInvalidateJournal();
+  return useMutation({
+    mutationKey: quickActionKey(tmdbId),
+    mutationFn: (liked: boolean | null) =>
+      api<Status>(`/api/movies/${tmdbId}/status`, { method: "POST", body: JSON.stringify({ liked, rewatched: false }) }),
+    onSettled: invalidate,
+  });
+}
+
+// Changes liked on a watched film. The heart changes at once and rolls back if the request fails.
+export function useSetLiked(tmdbId: number) {
+  const queryClient = useQueryClient();
+  const invalidate = useInvalidateJournal();
+  const key = ["me", "status", tmdbId];
+  return useMutation({
+    mutationKey: quickActionKey(tmdbId),
+    scope: { id: `status:${tmdbId}` },
+    mutationFn: ({ liked, rewatched }: { liked: boolean | null; rewatched: boolean }) =>
+      api<Status>(`/api/movies/${tmdbId}/status`, { method: "PUT", body: JSON.stringify({ liked, rewatched }) }),
+    onMutate: async ({ liked }) => {
+      await queryClient.cancelQueries({ queryKey: key, exact: true });
+      const previous = queryClient.getQueryData<Status | null>(key);
+      if (previous) {
+        queryClient.setQueryData<Status>(key, { ...previous, liked });
+      }
+      return { previous };
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(key, context.previous);
+      }
+    },
+    onSettled: invalidate,
+  });
+}
+
+// Sets the rating: POST for the first one, PUT after that. Changes run one at a time, so a quick second pick
+// sees the first one's result and the last pick is the one that stays.
+export function useRate(tmdbId: number) {
+  const queryClient = useQueryClient();
+  const invalidate = useInvalidateJournal();
+  return useMutation({
+    mutationKey: quickActionKey(tmdbId),
+    scope: { id: `rating:${tmdbId}` },
+    mutationFn: (score: number) => {
+      const rated = queryClient.getQueryData<Rating | null>(["me", "rating", tmdbId]) != null;
+      return api<Rating>(`/api/movies/${tmdbId}/rating`, { method: rated ? "PUT" : "POST", body: JSON.stringify({ score }) });
+    },
+    onSuccess: (rating) => queryClient.setQueryData<Rating>(["me", "rating", tmdbId], rating),
+    onSettled: invalidate,
+  });
+}
+
 export function useMovieReviews(tmdbId: number) {
   return usePagedQuery<MovieReviewPage>(
     ["reviews", "movie", tmdbId],
