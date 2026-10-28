@@ -9,6 +9,7 @@ namespace backend.Features.Diary
     // The rules that tie a user's diary, watched status, rating, review and watchlist together.
     // Every change that logs or removes a viewing goes through here, whichever endpoint it comes from:
     // - each log adds a diary entry that snapshots the status and rating at that moment,
+    // - changing the rating or like of a film that is already watched changes only that value and logs nothing,
     // - a logged film counts as watched and leaves the watchlist,
     // - the watched status follows the newest diary entry and goes away with the last one,
     // - a review written while logging belongs to that entry and is deleted with it,
@@ -128,9 +129,10 @@ namespace backend.Features.Diary
             return (entry, reviewWritten);
         }
 
-        // Marks the film watched now, or updates the existing status, and logs it with the current rating.
-        // An existing status keeps its watch date. With onlyIfNew, an existing status is left alone and null is
-        // returned, so two "mark as watched" requests at once cannot both succeed and log the film twice.
+        // Marks the film watched now and logs it with the current rating, or updates the existing status without
+        // logging, so changing a like is not a new viewing. An existing status keeps its watch date. With onlyIfNew,
+        // an existing status is left alone and null is returned, so two "mark as watched" requests at once cannot
+        // both succeed and log the film twice.
         public async Task<WatchedMovie?> MarkWatchedAsync(int userId, int movieId, bool? liked, bool rewatched, bool onlyIfNew = false)
         {
             var status = await _context.WatchedMovies
@@ -140,6 +142,8 @@ namespace backend.Features.Diary
             {
                 return null;
             }
+
+            var isNew = status == null;
 
             if (status == null)
             {
@@ -156,19 +160,24 @@ namespace backend.Features.Diary
             status.Liked = liked;
             status.Rewatched = rewatched;
 
-            var rating = await _context.Ratings
-                .Where(r => r.UserId == userId && r.MovieId == movieId)
-                .Select(r => (decimal?)r.Score)
-                .FirstOrDefaultAsync();
+            if (isNew)
+            {
+                var rating = await _context.Ratings
+                    .Where(r => r.UserId == userId && r.MovieId == movieId)
+                    .Select(r => (decimal?)r.Score)
+                    .FirstOrDefaultAsync();
 
-            AddEntry(status, rating);
+                AddEntry(status, rating);
+            }
+
             await RemoveFromWatchlistAsync(userId, movieId);
             await _context.SaveChangesAsync();
 
             return status;
         }
 
-        // Sets the rating, creating it when needed. A rated film counts as watched, so each rating logs a new diary entry.
+        // Sets the rating, creating it when needed. A rated film counts as watched, so rating an unwatched film marks it
+        // watched and logs it. On a watched film only the rating changes, so re-rating is not a new viewing.
         // With onlyIfNew, an existing rating is left alone and null is returned, as in MarkWatchedAsync.
         public async Task<Rating?> RateAsync(int userId, int movieId, decimal score, bool onlyIfNew = false)
         {
@@ -203,9 +212,9 @@ namespace backend.Features.Diary
                 };
 
                 _context.WatchedMovies.Add(status);
+                AddEntry(status, score);
             }
 
-            AddEntry(status, score);
             await _context.SaveChangesAsync();
 
             return rating;

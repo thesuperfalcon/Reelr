@@ -66,9 +66,9 @@ These rules are enforced in code. The file named is where each one lives.
 
 ### Journal rules (`backend/Features/Diary/JournalService.cs`)
 
-- Every log, rating or "mark watched" adds a diary entry that snapshots the current rating, liked and rewatched values.
+- Every log, and every rating or "mark watched" on a film that is not watched yet, adds a diary entry that snapshots the current rating, liked and rewatched values.
 - A logged or rated film counts as watched and is removed from the watchlist. The member may add it again afterwards.
-- Updating a rating (`PUT .../rating`) also adds a diary entry, because a rated film counts as watched.
+- Changing the rating or the liked and rewatched flags of a film that is already watched (`POST`/`PUT .../rating`, `PUT .../status`) changes only that value and logs nothing, so the diary holds viewings rather than clicks. Existing entries keep their snapshot. A new viewing is logged through `POST .../diary`.
 - The watched status follows the newest diary entry. Editing or deleting entries recomputes it; deleting the last entry removes the watched status. The rating stays.
 - A review written while logging belongs to that diary entry. Deleting the entry deletes the review. Removing the watched status deletes every diary entry for the film and their reviews.
 - A back-dated log never moves the watched date backwards.

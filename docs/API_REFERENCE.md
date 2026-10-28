@@ -127,7 +127,7 @@ All write endpoints here store the film locally first (`MovieCatalog`); an unkno
 |---|---|---|---|---|
 | `GET` | Member | | 200 `StatusDto { tmdbId, liked, rewatched, watchedAt }` | 404 if not watched |
 | `POST` | Member | `{ liked?, rewatched }` | 200 `StatusDto`; logs a diary entry, removes from watchlist | 409 (string) already watched; 404 |
-| `PUT` | Member | `{ liked?, rewatched }` | 200 `StatusDto`; logs a diary entry | 404 |
+| `PUT` | Member | `{ liked?, rewatched }` | 200 `StatusDto`; logs nothing, entries keep their snapshot | 404 |
 | `DELETE` | Member | | 204; deletes every diary entry for the film and their reviews (rating stays) | 404 |
 
 ### Rating (`RatingController`, route `api/movies/{tmdbId}/rating`)
@@ -135,8 +135,8 @@ All write endpoints here store the film locally first (`MovieCatalog`); an unkno
 | Method | Auth | Request | Success | Errors |
 |---|---|---|---|---|
 | `GET` | Member | | 200 `RatingDto { tmdbId, score }` | 404 |
-| `POST` | Member | `{ score }` | 200 `RatingDto`; marks watched, logs a diary entry, removes from watchlist | 400 validation; 409 (string) already rated; 404 |
-| `PUT` | Member | `{ score }` | 200 `RatingDto`; also logs a diary entry | 400; 404 if not rated yet |
+| `POST` | Member | `{ score }` | 200 `RatingDto`; removes from watchlist; on an unwatched film also marks watched and logs a diary entry | 400 validation; 409 (string) already rated; 404 |
+| `PUT` | Member | `{ score }` | 200 `RatingDto`; as `POST`, logs only on an unwatched film | 400; 404 if not rated yet |
 | `DELETE` | Member | | 204 (diary entries keep their snapshot rating) | 404 |
 
 ### Watchlist (`WatchlistController`, route `api/watchlist`)
