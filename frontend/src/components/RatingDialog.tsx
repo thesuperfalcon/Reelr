@@ -1,3 +1,4 @@
+import { useIsMutating } from "@tanstack/react-query";
 import { useId, useState } from "react";
 import { useAuth } from "../auth/auth-context";
 import { today } from "../lib/dates";
@@ -6,6 +7,10 @@ import {
   REVIEW_MAX_LENGTH,
   useDeleteRating,
   useDeleteReview,
+  useMyRating,
+  useMyReview,
+  useMyStatus,
+  quickActionKey,
   useRemoveWatched,
   useSaveDiaryEntry,
   useSetReviewSpoilers,
@@ -17,11 +22,15 @@ import { DeleteReviewButton } from "./DeleteReviewButton";
 import { Dialog, FilmDialogHeader } from "./Dialog";
 import { MarkdownEditor } from "./MarkdownEditor";
 import { StarInput } from "./Stars";
+import { ErrorMessage } from "./Status";
 import { WatchedOnField } from "./WatchedOnField";
 import { useReturnFocus } from "../lib/focus";
 
+// What the log dialog needs to know about a film, so a search result can open it as well as a film page.
+export type LoggableFilm = Pick<MovieDetails, "id" | "title" | "releaseDate" | "posterPath">;
+
 interface RatingDialogProps {
-  movie: MovieDetails;
+  movie: LoggableFilm;
   current: number | null;
   currentStatus: Status | null;
   currentReview: Review | null;
@@ -48,6 +57,54 @@ export function StatusToggle({
     >
       {children}
     </button>
+  );
+}
+
+// Opens the log dialog for any film. It waits for a quick action still saving and loads the member's rating,
+// status and review, so the dialog starts from what is saved; until then nothing shows and focus stays on the
+// control that opened it.
+export function LogFilmDialog({ movie, onClose }: { movie: LoggableFilm; onClose: () => void }) {
+  const rating = useMyRating(movie.id);
+  const status = useMyStatus(movie.id);
+  const review = useMyReview(movie.id);
+  const saving = useIsMutating({ mutationKey: quickActionKey(movie.id) }) > 0;
+  const queries = [rating, status, review];
+  const settled = !saving && queries.every((q) => q.isSuccess && !q.isFetching);
+  // Once open, the dialog stays: its own saves refetch these queries too.
+  const [ready, setReady] = useState(false);
+  if (settled && !ready) {
+    setReady(true);
+  }
+
+  const titleId = useId();
+  const error = rating.error ?? status.error ?? review.error;
+
+  if (error && !ready) {
+    return (
+      <Dialog labelledBy={titleId} onClose={onClose}>
+        <div className="p-6">
+          <FilmDialogHeader titleId={titleId} label="Log" title={movie.title} posterPath={movie.posterPath} />
+          <ErrorMessage error={error} />
+          <button type="button" onClick={onClose} className="btn btn-secondary">
+            Close
+          </button>
+        </div>
+      </Dialog>
+    );
+  }
+
+  if (!ready || !rating.isSuccess || !status.isSuccess || !review.isSuccess) {
+    return null;
+  }
+
+  return (
+    <RatingDialog
+      movie={movie}
+      current={rating.data?.score ?? null}
+      currentStatus={status.data}
+      currentReview={review.data}
+      onClose={onClose}
+    />
   );
 }
 
