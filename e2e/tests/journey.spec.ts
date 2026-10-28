@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { logIn, password, signUp, uniqueName } from "./accounts";
 
-// One member's whole life on Reelr: sign up, log a film with a review, follow someone, delete the account.
+// One member's whole life on Reelr: sign up, rate a film and review it, follow someone, delete the account.
 // The films come from the fake TMDB in e2e/fake-tmdb.
-test("sign up, log a film with a review, follow someone and delete the account", async ({ page, browser }) => {
+test("sign up, rate and review a film, follow someone and delete the account", async ({ page, browser }) => {
   // Someone to follow, signed up in a separate browser session.
   const friend = uniqueName("friend");
   const friendContext = await browser.newContext();
@@ -14,23 +14,30 @@ test("sign up, log a film with a review, follow someone and delete the account",
   await signUp(page, member);
   await expect(page.getByRole("link", { name: `Profile of ${member}` })).toBeVisible();
 
-  // Log a film with a rating and a review.
+  // Rate a film in one click on its page, then add a review in the log dialog.
   await page.goto("/movie/900001");
   await expect(page.getByRole("heading", { level: 1, name: "The Test Pattern" })).toBeVisible();
-  await page.getByRole("button", { name: /^Rate The Test Pattern/ }).click();
-  const dialog = page.getByRole("dialog");
-  const stars = dialog.getByRole("slider");
-  await stars.focus();
+  const actions = page.getByRole("complementary", { name: "Your activity for this film" });
+  const quickStars = actions.getByRole("slider", { name: "Your rating" });
+  await quickStars.focus();
   await page.keyboard.press("End");
   await page.keyboard.press("ArrowLeft");
-  await expect(stars).toHaveAttribute("aria-valuetext", "4.5 out of 5 stars");
+  await expect(quickStars).toHaveAttribute("aria-valuetext", "4.5 out of 5 stars");
+  // A rated film counts as watched.
+  await expect(actions.getByRole("button", { name: "Watched", pressed: true })).toBeVisible();
+
+  await actions.getByRole("button", { name: "Review or log a date" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("slider")).toHaveAttribute("aria-valuetext", "4.5 out of 5 stars");
   const review = `Sharp and strange, in a good way. (${member})`;
   await dialog.getByLabel("Review (optional)").fill(review);
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(dialog).toBeHidden();
 
   await expect(page.getByText(review)).toBeVisible();
-  await expect(page.getByRole("button", { name: /Your rating: 4.5 out of 5 stars/ })).toBeVisible();
+  // Still rated after a reload, so the server stored it.
+  await page.reload();
+  await expect(quickStars).toHaveAttribute("aria-valuetext", "4.5 out of 5 stars");
 
   // The log is in the diary.
   await page.goto("/profile");
