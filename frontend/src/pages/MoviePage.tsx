@@ -1,16 +1,14 @@
-import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { useAuth } from "../auth/auth-context";
-import { AddToListDialog } from "../components/AddToListDialog";
 import { DeleteReviewButton } from "../components/DeleteReviewButton";
+import { FilmActions } from "../components/FilmActions";
 import { LoadMore } from "../components/LoadMore";
 import { PersonLink } from "../components/PersonLink";
 import { Poster } from "../components/Poster";
-import { RatingDialog } from "../components/RatingDialog";
 import { ReviewReactions } from "../components/ReviewReactions";
 import { ReviewText } from "../components/ReviewText";
 import { SpoilerGate, SpoilerTag } from "../components/SpoilerGate";
-import { STAR_PATH, Stars } from "../components/Stars";
+import { Stars } from "../components/Stars";
 import { EmptyState, ErrorMessage, Loading } from "../components/Status";
 import { UserLink } from "../components/UserAvatar";
 import { ApiError } from "../lib/api";
@@ -19,12 +17,8 @@ import {
   pageItems,
   useMovieDetails,
   useMovieReviews,
-  useMyRating,
   useMyReview,
-  useMyStatus,
   useSimilarMovies,
-  useToggleWatchlist,
-  useWatchlistState,
 } from "../lib/queries";
 import { formatRuntime, releaseYear, tmdbImage } from "../lib/tmdb";
 import type { CastMember, CrewMember, MovieDetails, Review } from "../lib/types";
@@ -42,110 +36,6 @@ function Backdrop({ path }: { path: string | null }) {
       <img src={src} alt="" className="h-full w-full object-cover object-top opacity-60" />
       <div className="absolute inset-0 bg-gradient-to-t from-salon via-salon/40 to-salon/10" />
     </div>
-  );
-}
-
-function WatchlistButton({ tmdbId, title }: { tmdbId: number; title: string | null }) {
-  const watchlist = useWatchlistState(tmdbId);
-  const toggle = useToggleWatchlist(tmdbId);
-  const onWatchlist = watchlist.data?.onWatchlist ?? false;
-  const label = `${onWatchlist ? "Remove" : "Add"} ${title ?? "film"} ${onWatchlist ? "from" : "to"} watchlist`;
-
-  return (
-    <button
-      type="button"
-      onClick={() => toggle.mutate(onWatchlist)}
-      disabled={watchlist.isPending || toggle.isPending}
-      aria-label={label}
-      aria-pressed={onWatchlist}
-      title={label}
-      className={`btn btn-icon btn-secondary ${onWatchlist ? "text-projector" : ""}`}
-    >
-      <svg viewBox="0 0 24 24" fill={onWatchlist ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="size-5" aria-hidden="true">
-        <path d="M6 3h12v18l-6-4-6 4z" />
-      </svg>
-    </button>
-  );
-}
-
-function AddToListButton({ movie }: { movie: MovieDetails }) {
-  const [open, setOpen] = useState(false);
-  const label = `Add ${movie.title ?? "film"} to a list`;
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={label}
-        title={label}
-        aria-haspopup="dialog"
-        className="btn btn-icon btn-secondary"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="size-5" aria-hidden="true">
-          <path d="M4 6h11M4 12h11M4 18h7M18 15v6M15 18h6" />
-        </svg>
-      </button>
-      {open && <AddToListDialog movie={movie} onClose={() => setOpen(false)} />}
-    </>
-  );
-}
-
-function RateButton({ movie }: { movie: MovieDetails }) {
-  const rating = useMyRating(movie.id);
-  const status = useMyStatus(movie.id);
-  const myReview = useMyReview(movie.id);
-  const review = myReview.data ?? null;
-  const [open, setOpen] = useState(false);
-  const score = rating.data?.score ?? null;
-  const liked = status.data?.liked === true;
-  const rewatched = status.data?.rewatched === true;
-  const statusText = [liked && "Liked", rewatched && "Rewatch"].filter(Boolean).join(", ");
-  const label =
-    (score === null ? `Rate ${movie.title ?? "film"}` : `Your rating: ${score} out of 5 stars. Change rating`) +
-    (statusText ? `. ${statusText}` : "");
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        disabled={rating.isPending || status.isPending || myReview.isPending}
-        aria-label={label}
-        title={label}
-        aria-haspopup="dialog"
-        className={`btn ${score === null ? "btn-primary" : "btn-secondary"}`}
-      >
-        {score === null ? (
-          <>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" className="size-4" aria-hidden="true">
-              <path d={STAR_PATH} />
-            </svg>
-            Rate
-          </>
-        ) : (
-          <>
-            <span className="font-medium text-haze">Rated</span>
-            <Stars score={score} className="h-4" />
-          </>
-        )}
-        {rewatched && <span className="text-haze">Rewatch</span>}
-        {liked && (
-          <span className="text-alarm" aria-hidden="true">
-            ♥
-          </span>
-        )}
-      </button>
-      {open && (
-        <RatingDialog
-          movie={movie}
-          current={score}
-          currentStatus={status.data ?? null}
-          currentReview={review}
-          onClose={() => setOpen(false)}
-        />
-      )}
-    </>
   );
 }
 
@@ -234,7 +124,7 @@ function ReviewItem({ review, own }: { review: Review; own: boolean }) {
   );
 }
 
-// Reviews are written and edited in the rating dialog.
+// Reviews are written and edited in the log dialog, opened from the film's actions.
 function Reviews({ tmdbId }: { tmdbId: number }) {
   const { user } = useAuth();
   const reviews = useMovieReviews(tmdbId);
@@ -254,7 +144,7 @@ function Reviews({ tmdbId }: { tmdbId: number }) {
         </h2>
         {user ? (
           reviews.isSuccess && !myReview.isPending && (
-            <p className="text-sm text-haze">{own ? "To edit your review, open your rating above." : "Write a review with Rate above."}</p>
+            <p className="text-sm text-haze">{own ? "Edit your review with Edit review or log a date." : "Write a review with Review or log a date."}</p>
           )
         ) : (
           <Link to="/login" state={{ from: `/movie/${tmdbId}` }} className="link text-sm">
@@ -269,7 +159,7 @@ function Reviews({ tmdbId }: { tmdbId: number }) {
         <ErrorMessage error={reviews.error} retry={() => reviews.refetch()} />
       ) : ordered.length === 0 ? (
         <EmptyState className="mt-6">
-          <p>No reviews yet. {user ? "Be the first: rate the film and add a few words." : "Log in to write the first one."}</p>
+          <p>No reviews yet. {user ? "Be the first: log the film and add a few words." : "Log in to write the first one."}</p>
         </EmptyState>
       ) : (
         <>
@@ -345,63 +235,64 @@ export function MoviePage() {
     <article>
       <Backdrop path={movie.backdropPath} />
 
-      <div className="page relative -mt-32 pb-10 sm:-mt-48">
-        <div className="grid gap-8 md:grid-cols-[16rem_1fr] md:gap-12">
-          <div className="w-36 sm:w-48 md:w-full">
-            {poster ? (
-              <img src={poster} alt={`Poster for ${movie.title}`} className="aspect-[2/3] w-full rounded-sm object-cover ring-1 ring-rule/10" />
-            ) : (
-              <div className="aspect-[2/3] w-full rounded-sm bg-row" aria-hidden="true" />
-            )}
-          </div>
-
-          <div className="max-w-3xl md:pt-24">
-            <h1 className="heading-display">{movie.title}</h1>
-
-            <p className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-haze">
-              {year && <span>{year}</span>}
-              {runtime && <span>{runtime}</span>}
-              {movie.originalTitle && movie.originalTitle !== movie.title && <span lang={movie.originalLanguage ?? undefined}>{movie.originalTitle}</span>}
-            </p>
-
-            {movie.tagline && <p className="mt-6 text-lg text-projector italic">{movie.tagline}</p>}
-            {movie.overview && <p className="mt-4 max-w-prose text-screen/90">{movie.overview}</p>}
-
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              {user ? (
-                <>
-                  <RateButton movie={movie} />
-                  <WatchlistButton tmdbId={tmdbId} title={movie.title} />
-                  <AddToListButton movie={movie} />
-                </>
-              ) : (
-                <Link to="/login" state={{ from: `/movie/${tmdbId}` }} className="btn btn-primary">
-                  Log in to rate or log
-                </Link>
-              )}
-              {trailer && (
-                <a
-                  href={`https://www.youtube.com/watch?v=${trailer.key}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-secondary"
-                >
-                  <svg viewBox="0 0 24 24" fill="currentColor" className="size-3.5" aria-hidden="true">
-                    <path d="M7 4.5v15l12-7.5z" />
-                  </svg>
-                  Trailer
-                  <span className="sr-only">on YouTube (opens in a new tab)</span>
-                </a>
-              )}
-            </div>
-
-            <Facts movie={movie} />
-          </div>
+      {/* One grid for the whole page, so the actions card can stay in view beside the text, cast and reviews on
+          wide screens. On narrow screens the actions sit right under the title. */}
+      <div className="page relative -mt-32 grid gap-x-12 pb-10 sm:-mt-48 md:grid-cols-[16rem_minmax(0,1fr)] md:[grid-template-areas:'poster_header'_'poster_actions'_'poster_body'_'more_more'] lg:grid-cols-[16rem_minmax(0,1fr)_18rem] lg:[grid-template-areas:'poster_header_actions'_'poster_body_actions'_'more_more_actions']">
+        <div className="w-36 sm:w-48 md:w-full md:[grid-area:poster]">
+          {poster ? (
+            <img src={poster} alt={`Poster for ${movie.title}`} className="aspect-[2/3] w-full rounded-sm object-cover ring-1 ring-rule/10" />
+          ) : (
+            <div className="aspect-[2/3] w-full rounded-sm bg-row" aria-hidden="true" />
+          )}
         </div>
 
-        <CastList cast={movie.cast} />
-        <Reviews tmdbId={tmdbId} />
-        <SimilarMovies tmdbId={tmdbId} />
+        <div className="mt-8 max-w-3xl md:mt-0 md:pt-24 md:[grid-area:header]">
+          <h1 className="heading-display">{movie.title}</h1>
+
+          <p className="mt-4 flex flex-wrap gap-x-4 gap-y-1 text-haze">
+            {year && <span>{year}</span>}
+            {runtime && <span>{runtime}</span>}
+            {movie.originalTitle && movie.originalTitle !== movie.title && <span lang={movie.originalLanguage ?? undefined}>{movie.originalTitle}</span>}
+          </p>
+        </div>
+
+        <div className="mt-6 md:[grid-area:actions] lg:mt-24">
+          {user ? (
+            <FilmActions movie={movie} className="max-w-md lg:sticky lg:rounded-sm lg:bg-row lg:ring-1 lg:ring-rule/5 lg:top-6 lg:max-w-none lg:p-5" />
+          ) : (
+            <Link to="/login" state={{ from: `/movie/${tmdbId}` }} className="btn btn-primary">
+              Log in to rate or log
+            </Link>
+          )}
+        </div>
+
+        <div className="max-w-3xl md:[grid-area:body]">
+          {movie.tagline && <p className="mt-6 text-lg text-projector italic">{movie.tagline}</p>}
+          {movie.overview && <p className="mt-4 max-w-prose text-screen/90">{movie.overview}</p>}
+
+          {trailer && (
+            <a
+              href={`https://www.youtube.com/watch?v=${trailer.key}`}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-secondary mt-6"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" className="size-3.5" aria-hidden="true">
+                <path d="M7 4.5v15l12-7.5z" />
+              </svg>
+              Trailer
+              <span className="sr-only">on YouTube (opens in a new tab)</span>
+            </a>
+          )}
+
+          <Facts movie={movie} />
+        </div>
+
+        <div className="min-w-0 md:[grid-area:more]">
+          <CastList cast={movie.cast} />
+          <Reviews tmdbId={tmdbId} />
+          <SimilarMovies tmdbId={tmdbId} />
+        </div>
       </div>
     </article>
   );
