@@ -14,13 +14,13 @@ RUN dotnet ef migrations bundle --configuration Release --output /efbundle
 
 # Run before the app on each deploy (the "migrate" service in Docker Compose). Its connection string,
 # ConnectionStrings__ReelrContext, is the one account allowed to change the schema.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS migrations
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS migrations
 WORKDIR /migrations
 COPY --from=bundle /efbundle ./efbundle
 USER app
 ENTRYPOINT ["./efbundle"]
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS runtime
 WORKDIR /app
 COPY --from=build /app ./
 
